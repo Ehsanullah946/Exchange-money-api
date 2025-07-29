@@ -15,7 +15,12 @@
   "version": "1.0.0",
   "description": "money exchange project",
   "main": "app.js",
-  "devDependencies": {},
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "eslint": "^9.32.0",
+    "eslint-plugin-react": "^7.37.5",
+    "globals": "^16.3.0"
+  },
   "scripts": {
     "start": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
