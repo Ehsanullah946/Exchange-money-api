@@ -1,16 +1,66 @@
-const jwt= require("jsonwebtoken");
-const catchAsynch = require("../middlewares/catchAsynch")
 require("dotenv").config();
+const jwt= require("jsonwebtoken");
+const catchAsynch = require("../middlewares/catchAsynch");
+const UserAccount = require("../models/userAccount");
+const AppError = require("../utils/appError");
+const Organization = require("../models/organization");
+const bcrypt = require("bcryptjs");
 
-const signToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN
+const generateToken = (id, organizationId) => {
+     // eslint-disable-next-line no-undef
+    return jwt.sign({ id, organizationId }, process.env.JWT_SECRET, {
+        // eslint-disable-next-line no-undef
+        expiresIn: process.env.JWT_EXPIRES_IN
+    })
+};
+
+
+
+exports.register = catchAsynch(async (req, res, next) => {
+    
+    const { username, password, email, userTypeId, organizationName, whatsApp } = req.body;
+
+    if (!username || !password || !email || !organizationName) {
+        return next(new AppError("please provide the required field", 400));
+    }
+    
+
+    const existingUser = await UserAccount.findOne({ where: email });
+
+    if (existingUser) {
+        return next(new AppError("the email has already exists", 400));
+    }
+
+    const organization = await Organization.create({
+        name: organizationName
+    });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // creating new user
+
+    const newUser = await UserAccount.create({
+        username,
+        password: hashedPassword,
+        email,
+        userTypeId,
+        whatsApp,
+        organizationId: organization.id
+    })
+
+    const token = generateToken(newUser.id, organization.id);
+
+    res.status(200).json({
+        status: "success",
+        data: {
+            token
+        }
+    });
 });
 
 
 
-exports.signup =catchAsynch(async(req, res) => { 
 
-})
-exports.login = catchAsynch(async (req, res) => {
+// exports.login = catchAsynch(async (req, res) => {
 
-});
+// });
