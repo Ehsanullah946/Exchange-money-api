@@ -1,7 +1,7 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 const organization = require("./organization");
-const person = require("./preson");
+const person = require("./person");
 
 const Stakeholder = sequelize.define("Stakeholder", {
     photo: DataTypes.BLOB,
