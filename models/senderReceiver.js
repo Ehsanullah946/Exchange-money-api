@@ -11,6 +11,7 @@ const SenderReceiver = sequelize.define('SenderReceiver', {}, {
 SenderReceiver.belongsTo(Stakeholder, { foreignKey: 'stakeholderId' });
 Stakeholder.hasOne(SenderReceiver, { foreignKey: 'stakeholderId' });
 
+
 SenderReceiver.belongsTo(Organization, { foreignKey: 'organizationId' });
 Organization.hasMany(SenderReceiver, { foreignKey: 'organizationId' });
 

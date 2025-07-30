@@ -7,8 +7,7 @@ const organization = require("./organization");
 const Person = sequelize.define("Person", {
     firstName: {
         type: DataTypes.STRING(32),
-        allowNull: false,
-        
+        allowNull: false,     
     },
     lastName: DataTypes.STRING(32),
     fatherName: DataTypes.STRING(32),
