@@ -68,15 +68,12 @@ exports.deleteEmployee = async (req, res) => {
 };
 
 exports.getEmployeeById =async (req, res)=>{
-    
     try {
         const employee = await req.model.findOne({
             ...req.orgQuery,
             where:req.orgQuery.where,id: req.params.id
         })
-        
-          if (!employee) return res.status(404).json({ message: 'exchanger not found' });
-
+          if (!employee) return res.status(404).json({ message: 'employee not found' });
         res.status(200).json({
             status: "success",
             data: {
