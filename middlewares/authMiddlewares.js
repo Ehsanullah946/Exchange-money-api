@@ -3,8 +3,6 @@ const AppError = require("../utils/appError");
 const catchAsynch = require("./catchAsynch");
 const UserAccount = require("../models/userAccount");
 
-
-
 exports.protect = catchAsynch(async (req, res,next) => {
    
     try {

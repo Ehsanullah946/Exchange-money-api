@@ -1,6 +1,6 @@
-const { Person, Stakeholder, Customer } = require('../models');
+const { Person, Stakeholder, Employee } = require('../models');
 
-exports.getCustomers = async (req, res) => {
+exports.getEmployees = async (req, res) => {
   try {
     const data = await req.model.findAll(req.orgQuery);
     res.json(data);
@@ -9,11 +9,11 @@ exports.getCustomers = async (req, res) => {
   }
 };
 
-exports.createCustomer = async (req, res) => {
+exports.createEmployee = async (req, res) => {
   const t = await req.model.sequelize.transaction();
   try {
     const { firstName, lastName, fatherName, nationalCode, phoneNo, currentAddress,
-            gender, maritalStatus, job, whatsApp, emailAddress, typeID, language, loanLimit } = req.body;
+            gender, maritalStatus, job } = req.body;
 
     const person = await Person.create({
       firstName, lastName, fatherName, nationalCode, phoneNo, currentAddress, organizationId: req.orgId
@@ -23,70 +23,64 @@ exports.createCustomer = async (req, res) => {
       gender, maritalStatus, job, personID: person.id, organizationId: req.orgId
     }, { transaction: t });
 
-    const customer = await Customer.create({
-      stakeholderID: stakeholder.id,
-      whatsApp,
-      EmailEddress: emailAddress,
-      typeID,
-      language,
-      loanLimit,
-      organizationId: req.orgId
+    const employee = await Employee.create({
+      stakeholderId: stakeholder.id, organizationId: req.orgId
     }, { transaction: t });
 
     await t.commit();
-    res.status(201).json(customer);
+    res.status(201).json(employee);
   } catch (err) {
     await t.rollback();
     res.status(500).json({ message: err.message });
   }
 };
 
-exports.updateCustomer = async (req, res) => {
+exports.updateEmployee = async (req, res) => {
   try {
-    const customer = await req.model.findOne({
+    const employee = await req.model.findOne({
       ...req.orgQuery,
       where: { ...req.orgQuery.where, id: req.params.id }
     });
 
-    if (!customer) return res.status(404).json({ message: 'Customer not found' });
+    if (!employee) return res.status(404).json({ message: 'Employee not found' });
 
-    await customer.update(req.body);
-    res.json({ message: 'Customer updated successfully', customer });
+    await employee.update(req.body);
+    res.json({ message: 'Employee updated successfully', employee });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-exports.deleteCustomer = async (req, res) => {
+exports.deleteEmployee = async (req, res) => {
   try {
-    const customer = await req.model.findOne({
+    const employee = await req.model.findOne({
       ...req.orgQuery,
       where: { ...req.orgQuery.where, id: req.params.id }
     });
 
-    if (!customer) return res.status(404).json({ message: 'Customer not found' });
+    if (!employee) return res.status(404).json({ message: 'Employee not found' });
 
-    await customer.destroy();
-    res.json({ message: 'Customer deleted successfully' });
+    await employee.destroy();
+    res.json({ message: 'Employee deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-exports.getCustomerByid =async (req, res)=>{
+exports.getEmployeeById =async (req, res)=>{
     
     try {
-        const customer = await req.model.findOne({
+        const employee = await req.model.findOne({
             ...req.orgQuery,
             where:req.orgQuery.where,id: req.params.id
         })
         
-          if (!customer) return res.status(404).json({ message: 'senderRceiver not found' });
+          if (!employee) return res.status(404).json({ message: 'exchanger not found' });
 
         res.status(200).json({
             status: "success",
             data: {
-                data:customer
+                data:employee
             }
         })
         
@@ -94,3 +88,4 @@ exports.getCustomerByid =async (req, res)=>{
         res.status(500).json({ message: error.message });
     }
 }
+
