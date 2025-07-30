@@ -1,92 +1,138 @@
-require("dotenv").config();
-const jwt= require("jsonwebtoken");
-const catchAsynch = require("../middlewares/catchAsynch");
-const UserAccount = require("../models/userAccount");
-const AppError = require("../utils/appError");
-const Organization = require("../models/organization");
-const bcrypt = require("bcryptjs");
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { UserAccount, Organization } = require('../models');
 
-
-const generateToken = (id, organizationId) => {
-     // eslint-disable-next-line no-undef
-    return jwt.sign({ id, organizationId }, process.env.JWT_SECRET, {
-        // eslint-disable-next-line no-undef
-        expiresIn: process.env.JWT_EXPIRES_IN
-    })
+const generateToken = (id, organizationId, role) => {
+  return jwt.sign(
+    { id, organizationId, role },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
 };
 
+/**
+ * Create new organization + its first admin user
+ * Only Super Admin (role 1) can call this
+ */
+exports.createOrganization = async (req, res) => {
+  try {
+    const { organizationName, username, password, email, whatsApp } = req.body;
 
-
-exports.register = catchAsynch(async (req, res, next) => {
-    
-    const { username, password, email, usertypeId, organizationName, whatsApp } = req.body;
-
-    if (!username || !password || !email || !organizationName) {
-        return next(new AppError("please provide the required field", 400));
-    }
-    
-
-    const existingUser = await UserAccount.findOne({ where: {email} });
-
-    if (existingUser) {
-        return next(new AppError("the email has already exists", 400));
+    if (!organizationName || !username || !password || !email) {
+      return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    const organization = await Organization.create({
-        name: organizationName
+    // Check if org name exists
+    const orgExists = await Organization.findOne({ where: { name: organizationName } });
+    if (orgExists) {
+      return res.status(400).json({ message: 'Organization name already taken' });
+    }
+
+    // Create organization
+    const organization = await Organization.create({ name: organizationName });
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create first admin user
+    const user = await UserAccount.create({
+      username,
+      password: hashedPassword,
+      email,
+      whatsApp,
+      usertypeId: 2, // Admin role
+      organizationId: organization.id
     });
+
+    res.status(201).json({
+      message: 'Organization and first admin created successfully',
+      token: generateToken(user.id, organization.id, 2)
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * Add user to existing organization
+ * Only Organization Admin (role 2) can call this
+ */
+exports.addUserToOrganization = async (req, res) => {
+  try {
+    const { username, password, email, whatsApp, usertypeId } = req.body;
+
+    if (!username || !password || !email) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    let roleId;
+
+    if (req.user.role === 1) {
+      // Super admin can assign any role
+      roleId = usertypeId || 3;
+    } 
+    else if (req.user.role === 2) {
+      // Org admin can only assign Employee (3) or Viewer (4)
+      if ([3, 4].includes(usertypeId)) {
+        roleId = usertypeId;
+      } else {
+        return res.status(403).json({ message: 'You can only create employees or viewers' });
+      }
+    } 
+    else {
+      // Other roles cannot create users
+      return res.status(403).json({ message: 'You do not have permission to create users' });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // creating new user
+    const user = await UserAccount.create({
+      username,
+      password: hashedPassword,
+      email,
+      whatsApp,
+      usertypeId: roleId,
+      organizationId: req.user.organizationId
+    });
+
+    res.status(201).json({
+      message: 'User added successfully',
+      token: generateToken(user.id, req.user.organizationId, roleId)
+    });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+/**
+ * Login
+ */
+exports.login = async (req, res) => {
   try {
-    
-      const newUser = await UserAccount.create({
-          username,
-          password: hashedPassword,
-          email,
-          usertypeId,
-          whatsApp,
-          organizationId: organization.id
-        })
-        
-        const token = generateToken(newUser.id, organization.id);
-        
-        res.status(200).json({
-            status: "success",
-            data: {
-                token
-            }
-        });
-    } catch (error) {
-      console.log(error);
-    }
-});
-
-
-
-
-exports.login = catchAsynch(async (req, res,next) => {
-
     const { email, password } = req.body;
-    
+
     if (!email || !password) {
-        return next(new AppError("please provide email and password", 400));
+      return res.status(400).json({ message: 'Please enter email and password' });
     }
 
-    const user = await UserAccount.findOne({ email });
-
-    if (!user) return next(new AppError("invalid emial or password",401));
+    const user = await UserAccount.findOne({ where: { email } });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-        return next(new AppError("email or password is not correct please try again",401))
+      return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    res.status(200).json({
-        status: "success",
-        token: generateToken(user.id, user.organizationId)
-    })
+    res.json({
+      message: 'Login successful',
+      token: generateToken(user.id, user.organizationId, user.usertypeId)
+    });
 
-
-});
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
