@@ -1,9 +1,16 @@
-const express = require("express");
-const authController = require("../controllers/authController");
+const express = require('express');
 const router = express.Router();
+const { protect } = require('../middlewares/authMiddlewares');
+const { allowRoles } = require('../middlewares/roleMiddleware');
+const { createOrganization, addUserToOrganization, login } = require('../controllers/authController');
 
+// Super Admin creates organization + first admin
+router.post('/create-organization', protect, allowRoles(1), createOrganization);
 
-router.post("/register", authController.register);
-router.post("/login", authController.login);
+// Organization Admin adds a user to their org
+router.post('/add-user', protect, allowRoles(2), addUserToOrganization);
+
+// Login
+router.post('/login', login);
 
 module.exports = router;

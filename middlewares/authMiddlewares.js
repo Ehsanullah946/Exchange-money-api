@@ -4,11 +4,12 @@ const catchAsynch = require("./catchAsynch");
 const UserAccount = require("../models/userAccount");
 
 
+
 exports.protect = catchAsynch(async (req, res,next) => {
    
-
-    let token;
-
+    try {
+        let token;
+        
     if (req.headers.authorization && 
          req.headers.authorization.startsWith("Bearer")
     ) {
@@ -19,15 +20,22 @@ exports.protect = catchAsynch(async (req, res,next) => {
         return next(new AppError("you are not access to this page or data", 401));
     }
 
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const user = await UserAccount.findByPk(decoded.id);
     if (!user) {
         return next(new AppError("user not found", 401));
     }
-
     
-
-
+    req.user={
+        id: user.id,
+        organizationId: decoded.organizationId,
+        role:user.usertypeId
+    }
+    
+    next();
+} catch (error) {
+        res.status(401).json("not authorized token feild"+ error);
+}
+    
 });
