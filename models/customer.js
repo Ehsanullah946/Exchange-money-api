@@ -18,8 +18,6 @@ const Customer = sequelize.define("Customer", {
     whatsAppEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
     telegramEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
     emailEnabled: { type: DataTypes.BOOLEAN, defaultValue: false }
-  
-
 }, {
     tableName: "customers",
     timestamps: false

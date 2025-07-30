@@ -4,7 +4,6 @@ const organization = require("./organization");
 const person = require("./person");
 
 const Stakeholder = sequelize.define("Stakeholder", {
-    photo: DataTypes.BLOB,
     gender: DataTypes.ENUM("M", "F", "O"),
     maritalStatus: DataTypes.STRING(32),
     job: DataTypes.STRING(64),

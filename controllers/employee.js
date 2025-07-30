@@ -10,25 +10,34 @@ exports.getEmployees = async (req, res) => {
 };
 
 exports.createEmployee = async (req, res) => {
-  const t = await req.model.sequelize.transaction();
+  const t = await Employee.sequelize.transaction();
   try {
-    const { firstName, lastName, fatherName, nationalCode, phoneNo, currentAddress,
-            gender, maritalStatus, job } = req.body;
+    const {
+      firstName, lastName, fatherName,photo, nationalCode, phoneNo, currentAddress,
+      gender, maritalStatus, job
+    } = req.body;
 
+    // 1. Create Person
     const person = await Person.create({
-      firstName, lastName, fatherName, nationalCode, phoneNo, currentAddress, organizationId: req.orgId
+      firstName, lastName, fatherName,photo, nationalCode, phoneNo, currentAddress,
+      organizationId: req.orgId
     }, { transaction: t });
 
+    // 2. Create Stakeholder
     const stakeholder = await Stakeholder.create({
-      gender, maritalStatus, job, personID: person.id, organizationId: req.orgId
+      gender, maritalStatus, job, personId: person.id,
+      organizationId: req.orgId
     }, { transaction: t });
 
+    // 3. Create Employee
     const employee = await Employee.create({
-      stakeholderId: stakeholder.id, organizationId: req.orgId
+      stakeholderId: stakeholder.id,
+      organizationId: req.orgId
     }, { transaction: t });
 
     await t.commit();
     res.status(201).json(employee);
+
   } catch (err) {
     await t.rollback();
     res.status(500).json({ message: err.message });

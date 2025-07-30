@@ -39,6 +39,11 @@ exports.createOrganization = async (req, res) => {
     // Step 2 — Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    await sequelize.query('SET @creatorRole = ?', {
+        replacements: [req.user.role],
+        transaction
+      });
+
     // Step 3 — Create first admin user
     const user = await UserAccount.create(
       {
@@ -63,6 +68,7 @@ exports.createOrganization = async (req, res) => {
   } catch (err) {
     // Rollback both if any error
     await transaction.rollback();
+    console.error(err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -148,6 +154,9 @@ exports.login = async (req, res) => {
 
     res.json({
       message: 'Login successful',
+      data: {
+        data:user
+      },
       token: generateToken(user.id, user.organizationId, user.usertypeId)
     });
   } catch (err) {

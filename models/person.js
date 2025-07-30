@@ -11,11 +11,12 @@ const Person = sequelize.define("Person", {
     },
     lastName: DataTypes.STRING(32),
     fatherName: DataTypes.STRING(32),
+    photo:DataTypes.STRING(300),
     nationalCode: {
         type: DataTypes.STRING(64),
         unique: true
     },
-    phoenNo: DataTypes.STRING(15),
+    phoneNo: DataTypes.STRING(15),
     currentAddress: DataTypes.TEXT
 
 }, {
