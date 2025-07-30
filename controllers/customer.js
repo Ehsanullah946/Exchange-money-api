@@ -9,25 +9,34 @@ exports.getCustomers = async (req, res) => {
   }
 };
 
+
 exports.createCustomer = async (req, res) => {
-  const t = await req.model.sequelize.transaction();
+  const t = await Customer.sequelize.transaction();
   try {
-    const { firstName, lastName, fatherName, nationalCode, phoneNo, currentAddress,
-            gender, maritalStatus, job, whatsApp, emailAddress, typeID, language, loanLimit } = req.body;
+    const {
+      firstName, lastName, fatherName,photo, nationalCode, phoneNo, currentAddress,
+      gender, maritalStatus, job,
+      whatsApp, emailAddress, typeId, language, loanLimit
+    } = req.body;
 
+    // 1. Create Person
     const person = await Person.create({
-      firstName, lastName, fatherName, nationalCode, phoneNo, currentAddress, organizationId: req.orgId
+      firstName, lastName, fatherName,photo, nationalCode, phoneNo, currentAddress,
+      organizationId: req.orgId
     }, { transaction: t });
 
+    // 2. Create Stakeholder
     const stakeholder = await Stakeholder.create({
-      gender, maritalStatus, job, personID: person.id, organizationId: req.orgId
+      gender, maritalStatus, job, personId: person.id,
+      organizationId: req.orgId
     }, { transaction: t });
 
+    // 3. Create Customer
     const customer = await Customer.create({
-      stakeholderID: stakeholder.id,
+      stakeholderId: stakeholder.id,
       whatsApp,
-      EmailEddress: emailAddress,
-      typeID,
+      email: emailAddress,
+      typeId,
       language,
       loanLimit,
       organizationId: req.orgId
@@ -35,6 +44,7 @@ exports.createCustomer = async (req, res) => {
 
     await t.commit();
     res.status(201).json(customer);
+
   } catch (err) {
     await t.rollback();
     res.status(500).json({ message: err.message });
@@ -80,7 +90,7 @@ exports.getCustomerByid =async (req, res)=>{
             ...req.orgQuery,
             where:req.orgQuery.where,id: req.params.id
         })
-        
+
           if (!customer) return res.status(404).json({ message: 'senderRceiver not found' });
 
         res.status(200).json({
