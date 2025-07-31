@@ -2,6 +2,7 @@ const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 const Organization = require("./organization");
 const Stakeholder = require("./stakeholder");
+const Branch = require("./branch");
 
 
 const Customer = sequelize.define("Customer", {
@@ -24,9 +25,13 @@ const Customer = sequelize.define("Customer", {
 });
 
 Customer.belongsTo(Organization, { foreignKey: "organizationId" });
-Organization.hasMany(Customer, { foreignKey: "organization" });
+Organization.hasMany(Customer, { foreignKey: "organizationId" });
 
-Customer.belongsTo(Stakeholder, { foreignKey: "stackholderId" });
+Customer.belongsTo(Stakeholder, { foreignKey: "stakeholderId" });
 Stakeholder.hasOne(Customer, { foreignKey: "stakeholderId" });
+
+Customer.belongsTo(Branch, { foreignKey: { name: "branchId", allowNull: true } });
+Branch.hasMany(Customer, { foreignKey: { name: "branchId", allowNull: true } });
+
 
 module.exports = Customer;

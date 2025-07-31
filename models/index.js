@@ -8,6 +8,8 @@ const Employee = require('./employee');
 const Exchanger = require('./exchanger');
 const SenderReceiver = require('./senderReceiver');
 const UserAccount = require('./userAccount');
+const Branch = require("./branch");
+const MoneyType = require("./moneyType");
 
 module.exports = {
   sequelize,
@@ -18,5 +20,7 @@ module.exports = {
   Employee,
   Exchanger,
   SenderReceiver,
-  UserAccount
+  UserAccount,
+  Branch,
+  MoneyType
 };
