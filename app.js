@@ -6,6 +6,8 @@ const customerRouter = require("./routes/customerRoute");
 const employeeRouter = require("./routes/employeeRoute");
 const exchangerRouter = require("./routes/exhangerRoute");
 const senderRceiverRouter = require("./routes/customerRoute");
+const branchRouter = require("./routes/branchRoute");
+const moneyType = require("./routes/moneyTypeRoute");
 
 app.use(express.json());
 
@@ -15,6 +17,8 @@ app.use("/api/v1/customer", customerRouter);
 app.use("/api/v1/employee", employeeRouter);
 app.use("/api/v1/exchanger", exchangerRouter);
 app.use("/api/v1/senderReceiver", senderRceiverRouter);
+app.use("/api/v1/branch", branchRouter);
+app.use("/api/v1/monyType", moneyType);
 
 
 
