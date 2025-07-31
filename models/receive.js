@@ -1,7 +1,7 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 const Organization = require("./organization");
-const Place = require("./places");
+const Branch = require("./branch");
 const MoneyType = require("./moneyType");
 const SenderReceiver = require("./senderReceiver");
 const Employee = require("./employee");
@@ -27,7 +27,7 @@ const Receive = sequelize.define("Receive", {
 });
 
 // Relations
-Receive.belongsTo(Place, { foreignKey: "fromWhere" });
+Receive.belongsTo(Branch, { foreignKey: "fromWhere" });
 Receive.belongsTo(MoneyType, { foreignKey: "moneyTypeId" });
 Receive.belongsTo(SenderReceiver, { as: "Sender", foreignKey: "senderId" });
 Receive.belongsTo(SenderReceiver, { as: "Receiver", foreignKey: "receiverId" });
