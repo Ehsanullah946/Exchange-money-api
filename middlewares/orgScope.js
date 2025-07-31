@@ -5,16 +5,16 @@ module.exports = (Model) => {
       return res.status(403).json({ message: 'No organization found for user' });
     }
 
-    // Store scoped query
+    // Scope for reading queries
     req.orgQuery = {
       where: { organizationId: req.user.organizationId },
       include: []
     };
 
-    // Org ID for inserts
+    // ID for inserting new records
     req.orgId = req.user.organizationId;
 
-    // Store model reference
+    // Reference to model
     req.model = Model;
 
     next();
