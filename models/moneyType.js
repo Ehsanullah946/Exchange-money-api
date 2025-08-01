@@ -4,7 +4,7 @@ const sequelize = require("../config/database");
 const Organization = require("./organization");
 
 const MoneyType = sequelize.define("MoneyType", {
-    type: {
+    typeName: {
         type: DataTypes.STRING,
         allowNull: false
     }
