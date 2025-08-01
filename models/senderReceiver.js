@@ -1,18 +1,23 @@
+const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const Stakeholder = require('./stakeholder');
-const Organization = require('./organization');
 
-const SenderReceiver = sequelize.define('SenderReceiver', {}, {
+
+const SenderReceiver = sequelize.define('SenderReceiver', {
+  stakeholderId: {
+    type: DataTypes.INTEGER,
+    allowNull:false
+  },
+  organizationId: {
+    type: DataTypes.INTEGER,
+    allowNull:false
+  }
+}, {
   tableName: 'senderReceivers',
   timestamps: false
 });
 
 // Relationships
-SenderReceiver.belongsTo(Stakeholder, { foreignKey: 'stakeholderId' });
-Stakeholder.hasOne(SenderReceiver, { foreignKey: 'stakeholderId' });
 
 
-SenderReceiver.belongsTo(Organization, { foreignKey: 'organizationId' });
-Organization.hasMany(SenderReceiver, { foreignKey: 'organizationId' });
 
 module.exports = SenderReceiver;

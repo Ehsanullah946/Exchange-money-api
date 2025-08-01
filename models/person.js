@@ -1,7 +1,6 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
-const organization = require("./organization");
 
 
 const Person = sequelize.define("Person", {
@@ -17,14 +16,16 @@ const Person = sequelize.define("Person", {
         unique: true
     },
     phoneNo: DataTypes.STRING(15),
-    currentAddress: DataTypes.TEXT
+    currentAddress: DataTypes.TEXT,
+    organizationId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  }
 
 }, {
     tableName: "persons",
     timestamps: false
 });
 
-Person.belongsTo(organization, { foreignKey: "organizationId" });
-organization.hasMany(Person, { foreignKey: "organizationId" })
 
 module.exports = Person;
