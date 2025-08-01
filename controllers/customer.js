@@ -1,9 +1,17 @@
 // controllers/customer.js
-const { Person, Stakeholder, Customer } = require('../models');
+const { Person, Stakeholder, Customer, Branch } = require('../models');
 
 exports.getCustomers = async (req, res) => {
   try {
-    const data = await req.model.findAll(req.orgQuery);
+    const data = await req.model.findAll({
+      ...req.orgQuery,
+      include: [
+        {
+          model: Branch,
+          attributes: ["id", "name", "contractType", "faxNo"]
+        }
+      ]
+    });
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -29,7 +37,7 @@ exports.createCustomer = async (req, res) => {
       typeId,
       language,
       loanLimit,
-      branchId // NEW field
+      branchId
     } = req.body;
 
     // 1. Create Person
@@ -61,7 +69,7 @@ exports.createCustomer = async (req, res) => {
       typeId,
       language,
       loanLimit,
-      branchId: branchId || null, // Allow null if not given
+      branchId: branchId || null,
       organizationId: req.orgId
     }, { transaction: t });
 
@@ -110,14 +118,20 @@ exports.getCustomerById = async (req, res) => {
   try {
     const customer = await req.model.findOne({
       ...req.orgQuery,
-      where: { ...req.orgQuery.where, id: req.params.id }
+      where: { ...req.orgQuery.where, id: req.params.id },
+      include: [
+        {
+          model: Branch,
+          attributes: ["id", "name", "contractType", "faxNo"]
+        }
+      ]
     });
 
     if (!customer) return res.status(404).json({ message: 'Customer not found' });
 
     res.status(200).json({
       status: "success",
-      data: { data: customer }
+      data: customer
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

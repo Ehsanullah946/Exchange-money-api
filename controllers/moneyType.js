@@ -12,7 +12,7 @@ exports.getMoneyTypes = async (req, res) => {
 exports.createMoneyType = async (req, res) => {
   try {
     const record = await MoneyType.create({
-      type: req.body.type,
+      typeName: req.body.typeName,
       organizationId: req.orgId
     });
     res.status(201).json(record);

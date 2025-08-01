@@ -18,7 +18,7 @@ app.use("/api/v1/employee", employeeRouter);
 app.use("/api/v1/exchanger", exchangerRouter);
 app.use("/api/v1/senderReceiver", senderRceiverRouter);
 app.use("/api/v1/branch", branchRouter);
-app.use("/api/v1/monyType", moneyType);
+app.use("/api/v1/moneyType", moneyType);
 
 
 
