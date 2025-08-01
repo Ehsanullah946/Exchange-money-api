@@ -1,37 +1,62 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
-const Organization = require("./organization");
-const Stakeholder = require("./stakeholder");
-const Branch = require("./branch");
-
+// const Organization = require("./organization");
+// const Stakeholder = require("./stakeholder");
+// const Branch = require("./branch");
 
 const Customer = sequelize.define("Customer", {
-    typeId: DataTypes.INTEGER,
-    language: DataTypes.INTEGER,
-    loanLimit: DataTypes.DECIMAL(10, 2),
+    typeId: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    language: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    loanLimit: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true
+    },
     active: {
         type: DataTypes.BOOLEAN,
         defaultValue: true
     },
-    whatsApp: DataTypes.STRING(32),
-    email: DataTypes.STRING(64),
-    telegram: DataTypes.STRING(32),
+    whatsApp: {
+        type: DataTypes.STRING(32),
+        allowNull: true
+    },
+    email: {
+        type: DataTypes.STRING(64),
+        allowNull: true
+    },
+    telegram: {
+        type: DataTypes.STRING(32),
+        allowNull: true
+    },
     whatsAppEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
     telegramEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
-    emailEnabled: { type: DataTypes.BOOLEAN, defaultValue: false }
+    emailEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
+    stakeholderId: {
+        type: DataTypes.INTEGER,
+        allowNull:false
+    },
+    organizationId: {
+        type: DataTypes.INTEGER,
+        allowNull:false
+    }
 }, {
     tableName: "customers",
     timestamps: false
 });
 
-Customer.belongsTo(Organization, { foreignKey: "organizationId" });
-Organization.hasMany(Customer, { foreignKey: "organizationId" });
+// Relations
+// Customer.belongsTo(Organization, { foreignKey: "organizationId" });
+// Organization.hasMany(Customer, { foreignKey: "organizationId" });
 
-Customer.belongsTo(Stakeholder, { foreignKey: "stakeholderId" });
-Stakeholder.hasOne(Customer, { foreignKey: "stakeholderId" });
+// Customer.belongsTo(Stakeholder, { foreignKey: "stakeholderId" });
+// Stakeholder.hasOne(Customer, { foreignKey: "stakeholderId" });
 
-Customer.belongsTo(Branch, { foreignKey: { name: "branchId", allowNull: true } });
-Branch.hasMany(Customer, { foreignKey: { name: "branchId", allowNull: true } });
-
+// Customer.belongsTo(Branch, { foreignKey: "branchId" });
+// Branch.hasMany(Customer, { foreignKey: "branchId" });
 
 module.exports = Customer;

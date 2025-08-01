@@ -1,23 +1,26 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
-const organization = require("./organization");
-const person = require("./person");
+
 
 const Stakeholder = sequelize.define("Stakeholder", {
     gender: DataTypes.ENUM("M", "F", "O"),
     maritalStatus: DataTypes.STRING(32),
     job: DataTypes.STRING(64),
-    permanentAddress: DataTypes.TEXT
+    permanentAddress: DataTypes.TEXT,
+    organizationId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    },
+    personId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    }
+    
 }, {
     tableName: "stakeholders",
     timestamps: false
 });
 
-Stakeholder.belongsTo(organization, { foreignKey: "organizationId" });
-organization.hasMany(Stakeholder, { foreignKey: "organizationId" });
-
-Stakeholder.belongsTo(person, { foreignKey: "personId" });
-person.hasMany(Stakeholder, { foreignKey: "personId" });
 
 
 module.exports = Stakeholder;

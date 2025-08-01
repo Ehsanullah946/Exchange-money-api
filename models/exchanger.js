@@ -1,18 +1,20 @@
 
+const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const Person = require('./person');
-const Organization = require('./organization');
 
-const Exchanger = sequelize.define('Exchanger', {}, {
+const Exchanger = sequelize.define('Exchanger', {
+  personId: {
+    type: DataTypes.INTEGER,
+    allowNull:false
+  },
+  organizationId: {
+    type: DataTypes.INTEGER,
+    allowNull:false
+  }
+}, {
   tableName: 'exchangers',
   timestamps: false
 });
 
-// Relationships
-Exchanger.belongsTo(Person, { foreignKey: 'personId' });
-Person.hasOne(Exchanger, { foreignKey: 'personId' });
-
-Exchanger.belongsTo(Organization, { foreignKey: 'organizationId' });
-Organization.hasMany(Exchanger, { foreignKey: 'organizationId' });
 
 module.exports = Exchanger;

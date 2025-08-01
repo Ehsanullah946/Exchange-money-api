@@ -1,7 +1,6 @@
 
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
-const Organization = require("./organization");
 
 const MoneyType = sequelize.define("MoneyType", {
     typeName: {
@@ -13,7 +12,5 @@ const MoneyType = sequelize.define("MoneyType", {
     timestamps: false
 });
 
-MoneyType.belongsTo(Organization, { foreignKey: "organizationId" });
-Organization.hasMany(MoneyType, { foreignKey: "organizationId" });
 
 module.exports = MoneyType;

@@ -1,12 +1,6 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
-const Organization = require("./organization");
-const Branch = require("./branch");
-const MoneyType = require("./moneyType");
-const SenderReceiver = require("./senderReceiver");
-const Employee = require("./employee");
-const Customer = require("./customer");
-const Exchange = require("./exchange");
+
 
 const Transfer = sequelize.define("Transfer", {
     transferNo: { type: DataTypes.STRING, allowNull: false },
@@ -25,14 +19,14 @@ const Transfer = sequelize.define("Transfer", {
     timestamps: false
 });
 
-// Relations
-Transfer.belongsTo(Branch, { foreignKey: "toWhere" });
-Transfer.belongsTo(MoneyType, { foreignKey: "moneyTypeId" });
-Transfer.belongsTo(SenderReceiver, { as: "Sender", foreignKey: "senderId" });
-Transfer.belongsTo(SenderReceiver, { as: "Receiver", foreignKey: "receiverId" });
-Transfer.belongsTo(Employee, { foreignKey: "employeeId" });
-Transfer.belongsTo(Customer, { foreignKey: "customerId" });
-Transfer.belongsTo(Exchange, { foreignKey: "exchangeId" });
-Transfer.belongsTo(Organization, { foreignKey: "organizationId" });
+// // Relations
+// Transfer.belongsTo(Branch, { foreignKey: "toWhere" });
+// Transfer.belongsTo(MoneyType, { foreignKey: "moneyTypeId" });
+// Transfer.belongsTo(SenderReceiver, { as: "Sender", foreignKey: "senderId" });
+// Transfer.belongsTo(SenderReceiver, { as: "Receiver", foreignKey: "receiverId" });
+// Transfer.belongsTo(Employee, { foreignKey: "employeeId" });
+// Transfer.belongsTo(Customer, { foreignKey: "customerId" });
+// Transfer.belongsTo(Exchange, { foreignKey: "exchangeId" });
+// Transfer.belongsTo(Organization, { foreignKey: "organizationId" });
 
 module.exports = Transfer;
