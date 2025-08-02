@@ -1,15 +1,17 @@
 const app = require("./app");
 require("dotenv").config();
 
-const sequelize = require("./config/database");
+
 
 (async () => {
     try {
-        await sequelize.sync();
+        console.log("Database connected successfully");
+
         app.listen(process.env.PORT, () => {
-            console.log("server is running...")
+            console.log("Server is running...");
         });
     } catch (error) {
-        console.error('Failed to connect to DB:', error);
+        console.error("Failed to connect to DB:", error);
     }
 })();
+

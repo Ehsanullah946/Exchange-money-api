@@ -1,6 +1,7 @@
 const express = require("express");
 
 const app = express();
+const sequelize=require("./config/database")
 const authRouter = require("./routes/authRoutes");
 const customerRouter = require("./routes/customerRoute");
 const employeeRouter = require("./routes/employeeRoute");
@@ -19,8 +20,6 @@ app.use("/api/v1/exchanger", exchangerRouter);
 app.use("/api/v1/senderReceiver", senderRceiverRouter);
 app.use("/api/v1/branch", branchRouter);
 app.use("/api/v1/moneyType", moneyType);
-
-
 
 
 module.exports = app;
