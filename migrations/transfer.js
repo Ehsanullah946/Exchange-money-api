@@ -7,7 +7,8 @@ module.exports = {
     id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
     transferNo: { type: Sequelize.STRING, allowNull: false },
     transferAmount: { type: Sequelize.DECIMAL(10, 2), allowNull: false },
-    chargesAmount: { type: Sequelize.DECIMAL(10, 2), allowNull: false },
+    chargesAmount: { type: Sequelize.DECIMAL(10, 2), allowNull: false, defaultValue: 0.00 },
+    chargesType: { type: Sequelize.INTEGER, allowNull: false,defaultValue: 1 },
     tDate: { type: Sequelize.DATE, allowNull: false },
     description: { type: Sequelize.TEXT },
     fingerprint: { type: Sequelize.BLOB },
@@ -15,7 +16,8 @@ module.exports = {
     guarantorRelation: { type: Sequelize.STRING },
     deleted: { type: Sequelize.BOOLEAN, defaultValue: false },
     rejected: { type: Sequelize.BOOLEAN, defaultValue: false },
-    placeCharges: { type: Sequelize.DECIMAL(10, 2) },
+    branchCharges: { type: Sequelize.DECIMAL(10, 2) },
+    branchChargesType: { type: Sequelize.INTEGER},
     toWhere: {
         type: Sequelize.INTEGER,
         allowNull:false
@@ -45,6 +47,7 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull:false
     }
+
     });
   },
   async down(queryInterface, Sequelize) {
