@@ -4,7 +4,7 @@
 module.exports = {
    async up(queryInterface, Sequelize) {
     await queryInterface.createTable('accounts', {
-        id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
+        No: { type: Sequelize.INTEGER, autoIncrement: true, unique:true,allowNull:false },
         credit: {
         type: Sequelize.DECIMAL(10, 2),
         allowNull: false
@@ -21,6 +21,14 @@ module.exports = {
         deleted: { type: Sequelize.BOOLEAN, defaultValue: false },
         organizationId: {
         type: Sequelize.INTEGER,
+        allowNull:false
+    },
+        typeId: {
+        type: Sequelize.INTEGER,primaryKey:true,
+        allowNull:false
+    },
+        customerId: {
+        type: Sequelize.INTEGER, primaryKey:true,
         allowNull:false
     }
     });

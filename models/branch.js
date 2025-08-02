@@ -30,9 +30,10 @@ module.exports = (sequelize, DataTypes) => {
   Branch.associate = (models) => {
       Branch.belongsTo(models.Organization, { foreignKey: "organizationId" });
       Branch.belongsTo(models.Customer, { foreignKey: "branchId" });
-      Branch.hasMany(models.ExtraTransferNo, { foreignKey: "branchId" });
+      Branch.hasMany(models.ExtraTransferNo, { foreignKey: "branchId"});
       Branch.hasMany(models.Receive, { foreignKey: "fromWhere" });
       Branch.hasMany(models.Tranfer, { foreignKey: "toWhere" });
+      Branch.hasMany(models.Receive, { foreignKey: "passTo" });
   };
 
   return Branch;

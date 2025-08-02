@@ -19,6 +19,9 @@ module.exports = {
     rejected: { type: Sequelize.BOOLEAN, defaultValue: false },
     branchCharges: { type: Sequelize.DECIMAL(10, 2) },
     branchChargesType: { type: Sequelize.INTEGER },
+    passTo: { type: Sequelize.INTEGER },
+    passNo: { type: Sequelize.INTEGER },
+    returnNo: { type: Sequelize.INTEGER },
     fromWhere: {
         type: Sequelize.INTEGER,
         allowNull:false
