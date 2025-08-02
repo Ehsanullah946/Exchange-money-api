@@ -18,11 +18,13 @@ module.exports = (sequelize, DataTypes) => {
       MoneyType.hasMany(models.Transfer, { foreignKey: "moneyTypeId" });
       MoneyType.hasMany(models.Transfer, { foreignKey: "chargesType" });
       MoneyType.hasMany(models.Transfer, { foreignKey: "branchChargesType" });
+      MoneyType.hasMany(models.Transfer, { foreignKey: "branchChargesType" });
 
       MoneyType.hasMany(models.Receive, { foreignKey: "moneyTypeId" });
       MoneyType.hasMany(models.Exchange, { as: "SaleType", foreignKey: "saleMoneyType" });
       MoneyType.hasMany(models.Exchange, { as: "PurchaseType", foreignKey: "purchaseMoneyType" });
       MoneyType.belongsTo(models.Account, { foreignKey: "typeId" });
+      
   };
 
   return MoneyType;
