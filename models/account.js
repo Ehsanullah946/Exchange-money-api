@@ -27,6 +27,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER, primaryKey:true,
         allowNull:false
     }
+  }
+  , {
+    tableName: "accounts",
+    timestamps: false
   });
 
   Account.associate = (models) => {

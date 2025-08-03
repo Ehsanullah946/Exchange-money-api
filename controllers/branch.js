@@ -8,7 +8,7 @@ exports.createBranch = async (req, res) => {
     const {
       firstName, lastName, fatherName, nationalCode, currentAddress, phoneNo,
       gender, maritalStatus, job,
-      language, loanLimit, whatsApp, emailAddress, telegram,
+      language, loanLimit, whatsApp, email, telegram,
       contractType, faxNo, direct
     } = req.body;
 
@@ -38,7 +38,7 @@ exports.createBranch = async (req, res) => {
       language,
       loanLimit,
       whatsApp,
-      email: emailAddress,
+      email: email,
       telegram,
       organizationId: req.orgId
     }, { transaction: t });
@@ -65,25 +65,54 @@ exports.createBranch = async (req, res) => {
 // GET all branches (org-scoped)
 exports.getBranches = async (req, res) => {
   try {
-    const branches = await req.model.findAll(req.orgQuery);
-    res.json(branches);
+    const branches = await Branch.findAll({
+      where: { organizationId: req.orgId },
+      include: [
+        {
+          model: Customer,
+          include: [
+            {
+              model: Stakeholder,
+              include: [Person]
+            }
+          ]
+        }
+      ]
+    });
+
+    res.status(200).json(branches);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-
-// GET single branch by ID
 exports.getBranchById = async (req, res) => {
   try {
-    const branch = await req.model.findOne({
-      ...req.orgQuery,
-      where: { ...req.orgQuery.where, id: req.params.id }
+    const branch = await Branch.findOne({
+      where: { organizationId: req.orgId, id: req.params.id },
+       include: [
+    {
+      model: Customer,
+      include: [
+        {
+          model: Stakeholder,
+          include: [
+            {
+              model: Person, // photo is in Person
+              attributes: ["firstName", "lastName", "fatherName", "phoneNo", "photo"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
     });
 
-    if (!branch) return res.status(404).json({ message: 'Branch not found' });
+    if (!branch) {
+      return res.status(404).json({ message: "Branch not found" });
+    }
 
-    res.json(branch);
+    res.status(200).json(branch);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -6,6 +6,10 @@ module.exports = (sequelize, DataTypes) => {
         type:DataTypes.INTEGER,
         allowNull:false
     }
+    },
+     {
+    tableName: "extra_receive_numbers",
+    timestamps: false
   });
 
   ExtraReceiveNo.associate = (models) => {

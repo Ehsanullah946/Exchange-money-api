@@ -1,10 +1,13 @@
 module.exports = (sequelize, DataTypes) => {
   const Stakeholder = sequelize.define("Stakeholder", {
-    photo: { type: DataTypes.BLOB },
     gender: { type: DataTypes.STRING(2) },
     maritalStatus: { type: DataTypes.STRING(32) },
     job: { type: DataTypes.STRING(64) },
-    permenentAdress: { type: DataTypes.TEXT }
+    permanentAddress: { type: DataTypes.TEXT }
+  },
+   {
+    tableName: "stakeholders",
+    timestamps: false
   });
 
   Stakeholder.associate = (models) => {

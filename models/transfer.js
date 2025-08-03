@@ -44,6 +44,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull:false
     }
+  },
+   {
+    tableName: "transfers",
+    timestamps: false
   });
 
   Transfer.associate = (models) => {

@@ -25,14 +25,18 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull:false
     }
-  });
+  }, {
+    tableName: "branches",
+    timestamps: false
+  }
+  );
 
   Branch.associate = (models) => {
       Branch.belongsTo(models.Organization, { foreignKey: "organizationId" });
-      Branch.belongsTo(models.Customer, { foreignKey: "branchId" });
+      Branch.belongsTo(models.Customer, { foreignKey: "customerId" });
       Branch.hasMany(models.ExtraTransferNo, { foreignKey: "branchId"});
       Branch.hasMany(models.Receive, { foreignKey: "fromWhere" });
-      Branch.hasMany(models.Tranfer, { foreignKey: "toWhere" });
+      Branch.hasMany(models.Transfer, { foreignKey: "toWhere" });
       Branch.hasMany(models.Receive, { foreignKey: "passTo" });
   };
 

@@ -6,7 +6,11 @@ module.exports = (sequelize, DataTypes) => {
     nationalCode: { type: DataTypes.STRING(64), unique: true },
     phoneNo: { type: DataTypes.STRING(15) },
     currentAddress: { type: DataTypes.TEXT }
-  });
+  },  {
+    tableName: "persons",
+    timestamps: false
+  }
+  );
 
   Person.associate = (models) => {
     Person.belongsTo(models.Organization, { foreignKey: "organizationId" });

@@ -10,6 +10,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull:false
     }
+    },
+     {
+    tableName: "employees",
+    timestamps: false
   });
 
   Employee.associate = (models) => {

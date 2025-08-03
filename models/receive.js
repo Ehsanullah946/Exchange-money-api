@@ -48,6 +48,9 @@ module.exports = (sequelize, DataTypes) => {
     exchangeId: {
         type: DataTypes.INTEGER,
     }
+  }, {
+    tableName: "receives",
+    timestamps: false
   });
 
   Receive.associate = (models) => {

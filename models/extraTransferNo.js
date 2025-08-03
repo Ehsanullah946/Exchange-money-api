@@ -9,6 +9,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull:false
     }
+    },
+     {
+    tableName: "extra_transfer_numbers",
+    timestamps: false
   });
 
   ExtraTransferNo.associate = (models) => {
