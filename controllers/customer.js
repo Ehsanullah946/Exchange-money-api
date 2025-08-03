@@ -28,10 +28,12 @@ exports.createCustomer = async (req, res) => {
       nationalCode,
       phoneNo,
       currentAddress,
+      permanentAddress,
       gender,
       maritalStatus,
       job,
       whatsApp,
+      telegram,
       email,
       typeId,
       language,
@@ -60,6 +62,7 @@ exports.createCustomer = async (req, res) => {
       maritalStatus,
       job,
       personId: person.id,
+      permanentAddress,
       organizationId: req.orgId
     }, { transaction: t });
 
@@ -67,10 +70,11 @@ exports.createCustomer = async (req, res) => {
     const customer = await Customer.create({
       stakeholderId: stakeholder.id,
       whatsApp,
-      email: email,
+      email,
       typeId,
       language,
       loanLimit,
+      telegram,
       whatsAppEnabled: typeof whatsAppEnabled === 'boolean' ? whatsAppEnabled : false,
       telegramEnabled: typeof telegramEnabled === 'boolean' ? telegramEnabled : false,
       emailEnabled: typeof emailEnabled === 'boolean' ? emailEnabled : false,
