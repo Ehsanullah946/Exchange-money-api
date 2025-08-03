@@ -4,12 +4,12 @@
 module.exports = {
    async up(queryInterface, Sequelize) {
     await queryInterface.createTable('transfers', {
-    id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
-    transferNo: { type: Sequelize.STRING, allowNull: false },
-    transferAmount: { type: Sequelize.DECIMAL(10, 2), allowNull: false },
+    id: { type: Sequelize.INTEGER, autoIncrement: true,unique:true},
+    transferNo: { type: Sequelize.STRING, allowNull: false, primaryKey: true  },
+    transferAmount: { type: Sequelize.DECIMAL(10, 2), allowNull: false, primaryKey: true  },
     chargesAmount: { type: Sequelize.DECIMAL(10, 2), allowNull: false, defaultValue: 0.00 },
     chargesType: { type: Sequelize.INTEGER, allowNull: false,defaultValue: 1 },
-    tDate: { type: Sequelize.DATE, allowNull: false },
+    tDate: { type: Sequelize.DATE, allowNull: false, primaryKey: true  },
     description: { type: Sequelize.TEXT },
     fingerprint: { type: Sequelize.BLOB },
     photo: { type: Sequelize.BLOB },
@@ -20,7 +20,8 @@ module.exports = {
     branchChargesType: { type: Sequelize.INTEGER},
     toWhere: {
         type: Sequelize.INTEGER,
-        allowNull:false
+        allowNull: false,
+         primaryKey: true 
     },
     organizationId: {
         type: Sequelize.INTEGER,
@@ -47,10 +48,9 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull:false
     }
-
     });
   },
-  async down(queryInterface, Sequelize) {
+  async down(queryInterface) {
     await queryInterface.dropTable('transfers');
   }
 };
