@@ -9,22 +9,33 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull:false
     }
+  },
+   {
+    tableName: "types",
+    timestamps: false
   });
 
   MoneyType.associate = (models) => {
-      MoneyType.belongsTo(models.Organization, { foreignKey: "organizationId" });
 
+    //   console.log("models.Transfer:", models.Transfer);
+    // console.log("models.Receive:", models.Receive);
+    //  console.log("models.Exchange:", models.Exchange);
+    //   console.log("models.Account:", models.Account);
+
+      MoneyType.belongsTo(models.Organization, { foreignKey: "organizationId" });
 
       MoneyType.hasMany(models.Transfer, { foreignKey: "moneyTypeId" });
       MoneyType.hasMany(models.Transfer, { foreignKey: "chargesType" });
       MoneyType.hasMany(models.Transfer, { foreignKey: "branchChargesType" });
-      MoneyType.hasMany(models.Transfer, { foreignKey: "branchChargesType" });
-
+    
+      MoneyType.hasMany(models.Receive, { foreignKey: "branchChargesType" });
       MoneyType.hasMany(models.Receive, { foreignKey: "moneyTypeId" });
+      MoneyType.hasMany(models.Receive, { foreignKey: "chargesType" });
+    
       MoneyType.hasMany(models.Exchange, { as: "SaleType", foreignKey: "saleMoneyType" });
       MoneyType.hasMany(models.Exchange, { as: "PurchaseType", foreignKey: "purchaseMoneyType" });
       MoneyType.belongsTo(models.Account, { foreignKey: "typeId" });
-      
+   
   };
 
   return MoneyType;

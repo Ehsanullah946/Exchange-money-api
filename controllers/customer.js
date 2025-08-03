@@ -1,16 +1,15 @@
-// controllers/customer.js
-const { Person, Stakeholder, Customer, Branch } = require('../models');
+const { Person, Stakeholder, Customer} = require('../models');
 
 exports.getCustomers = async (req, res) => {
   try {
     const data = await req.model.findAll({
       ...req.orgQuery,
-      include: [
-        {
-          model: Branch,
-          attributes: ["id", "name", "contractType", "faxNo"]
-        }
-      ]
+             include: [
+            {
+              model: Stakeholder,
+              include: [Person]
+            }
+          ]
     });
     res.json(data);
   } catch (err) {
@@ -33,11 +32,14 @@ exports.createCustomer = async (req, res) => {
       maritalStatus,
       job,
       whatsApp,
-      emailAddress,
+      email,
       typeId,
       language,
       loanLimit,
-      branchId
+      branchId,
+      whatsAppEnabled,
+      telegramEnabled,
+      emailEnabled
     } = req.body;
 
     // 1. Create Person
@@ -65,10 +67,13 @@ exports.createCustomer = async (req, res) => {
     const customer = await Customer.create({
       stakeholderId: stakeholder.id,
       whatsApp,
-      email: emailAddress,
+      email: email,
       typeId,
       language,
       loanLimit,
+      whatsAppEnabled: typeof whatsAppEnabled === 'boolean' ? whatsAppEnabled : false,
+      telegramEnabled: typeof telegramEnabled === 'boolean' ? telegramEnabled : false,
+      emailEnabled: typeof emailEnabled === 'boolean' ? emailEnabled : false,
       branchId: branchId || null,
       organizationId: req.orgId
     }, { transaction: t });
@@ -119,12 +124,12 @@ exports.getCustomerById = async (req, res) => {
     const customer = await req.model.findOne({
       ...req.orgQuery,
       where: { ...req.orgQuery.where, id: req.params.id },
-      include: [
-        {
-          model: Branch,
-          attributes: ["id", "name", "contractType", "faxNo"]
-        }
-      ]
+          include: [
+            {
+              model: Stakeholder,
+              include: [Person]
+            }
+          ]
     });
 
     if (!customer) return res.status(404).json({ message: 'Customer not found' });

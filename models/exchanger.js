@@ -9,6 +9,10 @@ module.exports = (sequelize, DataTypes) => {
           type: DataTypes.INTEGER,
           allowNull:false
         }
+    },
+     {
+    tableName: "exchangers",
+    timestamps: false
   });
 
   Exchanger.associate = (models) => {

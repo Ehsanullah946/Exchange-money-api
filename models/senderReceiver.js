@@ -9,6 +9,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: false,
        },
+    },
+     {
+    tableName: "senderreceivers",
+    timestamps: false
   });
 
   SenderReceiver.associate = (models) => {
@@ -16,10 +20,11 @@ module.exports = (sequelize, DataTypes) => {
       SenderReceiver.belongsTo(models.Organization, { foreignKey: "organizationId" });
       
       SenderReceiver.hasMany(models.Transfer, { as: "Sender", foreignKey: "senderId" });
+    
       SenderReceiver.hasMany(models.Transfer, { as: "Receiver", foreignKey: "receiverId" });
 
-      SenderReceiver.hasMany(models.Receive, { as: "Sender", foreignKey: "senderId" });
-      SenderReceiver.hasMany(models.Receive, { as: "Receiver", foreignKey: "receiverId" });
+      SenderReceiver.hasMany(models.Receive, { foreignKey: "senderId" });
+      SenderReceiver.hasMany(models.Receive, {  foreignKey: "receiverId" });
   };
 
   return SenderReceiver;

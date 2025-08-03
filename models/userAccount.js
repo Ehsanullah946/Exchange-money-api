@@ -14,7 +14,12 @@ module.exports = (sequelize, DataTypes) => {
       },
     usertypeId: { type: DataTypes.INTEGER, allowNull: false },
     whatsApp: { type: DataTypes.STRING(64) }
-  });
+  },
+    {
+    tableName: "useraccounts",  // make sure table name matches your DB
+    timestamps: false           // disable createdAt & updatedAt
+  }
+  );
 
   UserAccount.associate = (models) => {
     UserAccount.belongsTo(models.Organization, { foreignKey: "organizationId" });

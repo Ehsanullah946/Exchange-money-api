@@ -7,7 +7,8 @@ module.exports = {
         No: { type: Sequelize.INTEGER, autoIncrement: true, unique:true,allowNull:false },
         credit: {
         type: Sequelize.DECIMAL(10, 2),
-        allowNull: false
+          allowNull: false,
+          defaultValue: 0.00
         },
         dateOfCreation: {
             type: Sequelize.DATE,

@@ -1,7 +1,7 @@
 const jwt= require("jsonwebtoken");
 const AppError = require("../utils/appError");
 const catchAsynch = require("./catchAsynch");
-const UserAccount = require("../models/userAccount");
+const { UserAccount } = require("../models");
 
 exports.protect = catchAsynch(async (req, res,next) => {
    
@@ -20,7 +20,9 @@ exports.protect = catchAsynch(async (req, res,next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    const user = await UserAccount.findByPk(decoded.id);
+        const user = await UserAccount.findByPk(decoded.id);
+        
+        
     if (!user) {
         return next(new AppError("user not found", 401));
     }
