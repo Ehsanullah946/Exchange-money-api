@@ -9,10 +9,6 @@ module.exports = {
       maritalStatus: Sequelize.STRING(32),
       job: Sequelize.STRING(64),
       permanentAddress: Sequelize.TEXT,
-      organizationId: {
-      type: Sequelize.INTEGER,
-      allowNull: false,
-      },
       personId: {
       type: Sequelize.INTEGER,
       allowNull: false,

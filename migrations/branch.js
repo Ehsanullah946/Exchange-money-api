@@ -21,10 +21,6 @@ module.exports = {
         type: Sequelize.BOOLEAN,
         defaultValue: false
     },
-    organizationId: {
-        type: Sequelize.INTEGER,
-        allowNull:false
-    },
     customerId: {
         type: Sequelize.INTEGER,
         allowNull:false

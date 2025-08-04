@@ -9,7 +9,6 @@ module.exports = (sequelize, DataTypes) => {
       whatsApp: DataTypes.STRING(32),
       email: DataTypes.STRING(64),
       telegram: DataTypes.STRING(32),
-      organizationId: { type: DataTypes.INTEGER, allowNull: false },
       whatsAppEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
       telegramEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
       emailEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
@@ -21,7 +20,6 @@ module.exports = (sequelize, DataTypes) => {
 
   Customer.associate = (models) => {
       Customer.belongsTo(models.Stakeholder, { foreignKey: "stakeholderId" });
-      Customer.belongsTo(models.Organization, { foreignKey: "organizationId" });
       Customer.hasMany(models.Branch, { foreignKey: "customerId" });
       Customer.hasMany(models.Account, { foreignKey: "customerId" });
   };

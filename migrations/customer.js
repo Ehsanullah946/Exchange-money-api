@@ -13,7 +13,6 @@ module.exports = {
       whatsApp: Sequelize.STRING(32),
       email: Sequelize.STRING(64),
       telegram: Sequelize.STRING(32),
-      organizationId: { type: Sequelize.INTEGER, allowNull: false },
       whatsAppEnabled: { type: Sequelize.BOOLEAN, defaultValue: false },
       telegramEnabled: { type: Sequelize.BOOLEAN, defaultValue: false },
       emailEnabled: { type: Sequelize.BOOLEAN, defaultValue: false },

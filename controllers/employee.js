@@ -20,19 +20,16 @@ exports.createEmployee = async (req, res) => {
     // 1. Create Person
     const person = await Person.create({
       firstName, lastName, fatherName,photo, nationalCode, phoneNo, currentAddress,
-      organizationId: req.orgId
     }, { transaction: t });
 
     // 2. Create Stakeholder
     const stakeholder = await Stakeholder.create({
       gender, maritalStatus, job, personId: person.id,
-      organizationId: req.orgId
     }, { transaction: t });
 
     // 3. Create Employee
     const employee = await Employee.create({
       stakeholderId: stakeholder.id,
-      organizationId: req.orgId
     }, { transaction: t });
 
     await t.commit();
@@ -79,10 +76,14 @@ exports.deleteEmployee = async (req, res) => {
 exports.getEmployeeById =async (req, res)=>{
     try {
         const employee = await req.model.findOne({
-            ...req.orgQuery,
-            where:req.orgQuery.where,id: req.params.id
-        })
-          if (!employee) return res.status(404).json({ message: 'employee not found' });
+      ...req.orgQuery,
+      where: { 
+        ...req.orgQuery.where, 
+        id: req.params.id 
+      }
+    })
+      
+      if (!employee) return res.status(404).json({ message: 'employee not found' });
         res.status(200).json({
             status: "success",
             data: {

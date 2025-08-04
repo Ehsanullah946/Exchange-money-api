@@ -9,6 +9,7 @@ const exchangerRouter = require("./routes/exhangerRoute");
 const senderRceiverRouter = require("./routes/customerRoute");
 const branchRouter = require("./routes/branchRoute");
 const moneyType = require("./routes/moneyTypeRoute");
+const accountRouter = require("./routes/accountRoutes");
 
 app.use(express.json());
 
@@ -20,6 +21,7 @@ app.use("/api/v1/exchanger", exchangerRouter);
 app.use("/api/v1/senderReceiver", senderRceiverRouter);
 app.use("/api/v1/branch", branchRouter);
 app.use("/api/v1/moneyType", moneyType);
+app.use("/api/v1/account", accountRouter);
 
 
 module.exports = app;

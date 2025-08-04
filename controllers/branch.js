@@ -2,6 +2,66 @@ const { Person, Stakeholder, Customer, Branch } = require('../models');
 
 
 // CREATE Branch (Person → Stakeholder → Customer → Branch)
+// exports.createBranch = async (req, res) => {
+//   const t = await Branch.sequelize.transaction();
+//   try {
+//     const {
+//       firstName, lastName, fatherName, nationalCode, currentAddress, phoneNo,
+//       gender, maritalStatus, job,
+//       language, loanLimit, whatsApp, email, telegram,
+//       contractType, faxNo, direct
+//     } = req.body;
+
+//     // 1. Person
+//     const person = await Person.create({
+//       firstName,
+//       lastName,
+//       fatherName,
+//       nationalCode,
+//       currentAddress,
+//       phoneNo,
+//       organizationId: req.orgId
+//     }, { transaction: t });
+
+//     // 2. Stakeholder
+//     const stakeholder = await Stakeholder.create({
+//       gender,
+//       maritalStatus,
+//       job,
+//       personId: person.id,
+//       organizationId: req.orgId
+//     }, { transaction: t });
+
+//     // 3. Customer
+//     const customer = await Customer.create({
+//       stakeholderId: stakeholder.id,
+//       language,
+//       loanLimit,
+//       whatsApp,
+//       email: email,
+//       telegram,
+//       organizationId: req.orgId
+//     }, { transaction: t });
+
+//     // 4. Branch
+//     const branch = await Branch.create({
+//       customerId: customer.id,
+//       contractType,
+//       faxNo,
+//       direct,
+//       organizationId: req.orgId
+//     }, { transaction: t });
+
+//     await t.commit();
+//     res.status(201).json({ message: "Branch created successfully", branch });
+
+//   } catch (err) {
+//     await t.rollback();
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
+
 exports.createBranch = async (req, res) => {
   const t = await Branch.sequelize.transaction();
   try {
@@ -12,7 +72,7 @@ exports.createBranch = async (req, res) => {
       contractType, faxNo, direct
     } = req.body;
 
-    // 1. Person
+    // 1. Person (Org is here only)
     const person = await Person.create({
       firstName,
       lastName,
@@ -28,8 +88,7 @@ exports.createBranch = async (req, res) => {
       gender,
       maritalStatus,
       job,
-      personId: person.id,
-      organizationId: req.orgId
+      personId: person.id
     }, { transaction: t });
 
     // 3. Customer
@@ -38,9 +97,8 @@ exports.createBranch = async (req, res) => {
       language,
       loanLimit,
       whatsApp,
-      email: email,
-      telegram,
-      organizationId: req.orgId
+      email,
+      telegram
     }, { transaction: t });
 
     // 4. Branch
@@ -48,8 +106,7 @@ exports.createBranch = async (req, res) => {
       customerId: customer.id,
       contractType,
       faxNo,
-      direct,
-      organizationId: req.orgId
+      direct
     }, { transaction: t });
 
     await t.commit();
@@ -62,23 +119,36 @@ exports.createBranch = async (req, res) => {
 };
 
 
-// GET all branches (org-scoped)
+
+
+
+
 exports.getBranches = async (req, res) => {
   try {
     const branches = await Branch.findAll({
-      where: { organizationId: req.orgId },
       include: [
         {
           model: Customer,
+          required:true,
           include: [
             {
               model: Stakeholder,
-              include: [Person]
+              required:true,
+              include: [
+                {
+                  model: Person,
+                  required:true,
+                  where: { organizationId: req.orgId } // Filter here
+                }
+              ]
             }
           ]
         }
       ]
     });
+       if (!branches) {
+      return res.status(404).json({ message: "Branch not found" });
+    }
 
     res.status(200).json(branches);
   } catch (err) {
@@ -86,26 +156,68 @@ exports.getBranches = async (req, res) => {
   }
 };
 
+
+
+
+// exports.getBranchById = async (req, res) => {
+//   try {
+//     const branch = await Branch.findOne({
+//       where: { organizationId: req.orgId, id: req.params.id },
+//        include: [
+//     {
+//       model: Customer,
+//       include: [
+//         {
+//           model: Stakeholder,
+//           include: [
+//             {
+//               model: Person, // photo is in Person
+//               attributes: ["firstName", "lastName", "fatherName", "phoneNo", "photo"]
+//             }
+//           ]
+//         }
+//       ]
+//     }
+//   ]
+//     });
+
+//     if (!branch) {
+//       return res.status(404).json({ message: "Branch not found" });
+//     }
+
+//     res.status(200).json(branch);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
+
+// UPDATE Branch (updates Person + Stakeholder + Customer + Branch)
+
 exports.getBranchById = async (req, res) => {
   try {
     const branch = await Branch.findOne({
-      where: { organizationId: req.orgId, id: req.params.id },
-       include: [
-    {
-      model: Customer,
+      where: { id: req.params.id },
       include: [
         {
-          model: Stakeholder,
+          model: Customer,
+          required:true,
           include: [
             {
-              model: Person, // photo is in Person
-              attributes: ["firstName", "lastName", "fatherName", "phoneNo", "photo"]
+              model: Stakeholder,
+              required:true,
+              include: [
+                {
+                  model: Person,
+                  required:true,
+                  attributes: ["firstName", "lastName", "fatherName", "phoneNo", "photo"],
+                  where: { organizationId: req.orgId } // Filter by org here
+                }
+              ]
             }
           ]
         }
       ]
-    }
-  ]
     });
 
     if (!branch) {
@@ -119,19 +231,80 @@ exports.getBranchById = async (req, res) => {
 };
 
 
-// UPDATE Branch (updates Person + Stakeholder + Customer + Branch)
+
+
+// exports.updateBranch = async (req, res) => {
+//   const t = await Branch.sequelize.transaction();
+//   try {
+//     const branch = await Branch.findOne({
+//       where: { id: req.params.id, organizationId: req.orgId }
+//     });
+
+//     if (!branch) return res.status(404).json({ message: 'Branch not found' });
+
+//     const customer = await Customer.findOne({ where: { id: branch.customerId } });
+//     const stakeholder = await Stakeholder.findOne({ where: { id: customer.stakeholderId } });
+//     const person = await Person.findOne({ where: { id: stakeholder.personId } });
+
+//     // Update Person
+//     await person.update(req.body, { transaction: t });
+
+//     // Update Stakeholder
+//     await stakeholder.update(req.body, { transaction: t });
+
+//     // Update Customer
+//     await customer.update(req.body, { transaction: t });
+
+//     // Update Branch
+//     await branch.update(req.body, { transaction: t });
+
+//     await t.commit();
+//     res.json({ message: "Branch updated successfully" });
+
+//   } catch (err) {
+//     await t.rollback();
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
+
+// DELETE Branch (removes Branch + Customer + Stakeholder + Person)
+
+
+
 exports.updateBranch = async (req, res) => {
   const t = await Branch.sequelize.transaction();
   try {
+    // Find the branch by joining through the chain and filtering by orgId
     const branch = await Branch.findOne({
-      where: { id: req.params.id, organizationId: req.orgId }
+      where: { id: req.params.id },
+      include: [
+        {
+          model: Customer,
+          include: [
+            {
+              model: Stakeholder,
+              include: [
+                {
+                  model: Person,
+                  where: { organizationId: req.orgId }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      transaction: t
     });
 
-    if (!branch) return res.status(404).json({ message: 'Branch not found' });
+    if (!branch) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Branch not found or not in your organization' });
+    }
 
-    const customer = await Customer.findOne({ where: { id: branch.customerId } });
-    const stakeholder = await Stakeholder.findOne({ where: { id: customer.stakeholderId } });
-    const person = await Person.findOne({ where: { id: stakeholder.personId } });
+    const customer = branch.Customer;
+    const stakeholder = customer.Stakeholder;
+    const person = stakeholder.Person;
 
     // Update Person
     await person.update(req.body, { transaction: t });
@@ -155,20 +328,42 @@ exports.updateBranch = async (req, res) => {
 };
 
 
-// DELETE Branch (removes Branch + Customer + Stakeholder + Person)
+
 exports.deleteBranch = async (req, res) => {
   const t = await Branch.sequelize.transaction();
   try {
+    // Find the branch by org scope
     const branch = await Branch.findOne({
-      where: { id: req.params.id, organizationId: req.orgId }
+      where: { id: req.params.id },
+      include: [
+        {
+          model: Customer,
+          include: [
+            {
+              model: Stakeholder,
+              include: [
+                {
+                  model: Person,
+                  where: { organizationId: req.orgId }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      transaction: t
     });
 
-    if (!branch) return res.status(404).json({ message: 'Branch not found' });
+    if (!branch) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Branch not found or not in your organization' });
+    }
 
-    const customer = await Customer.findOne({ where: { id: branch.customerId } });
-    const stakeholder = await Stakeholder.findOne({ where: { id: customer.stakeholderId } });
-    const person = await Person.findOne({ where: { id: stakeholder.personId } });
+    const customer = branch.Customer;
+    const stakeholder = customer.Stakeholder;
+    const person = stakeholder.Person;
 
+    // Delete in correct order
     await branch.destroy({ transaction: t });
     await customer.destroy({ transaction: t });
     await stakeholder.destroy({ transaction: t });
@@ -182,3 +377,6 @@ exports.deleteBranch = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+
+

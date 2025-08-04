@@ -20,14 +20,10 @@ module.exports = {
         telegramEnabled: { type: Sequelize.BOOLEAN, defaultValue: false },
         active: { type: Sequelize.BOOLEAN, defaultValue: true },
         deleted: { type: Sequelize.BOOLEAN, defaultValue: false },
-        organizationId: {
-        type: Sequelize.INTEGER,
-        allowNull:false
-    },
         typeId: {
-        type: Sequelize.INTEGER,primaryKey:true,
+        type: Sequelize.INTEGER, primaryKey:true,
         allowNull:false
-    },
+    }, 
         customerId: {
         type: Sequelize.INTEGER, primaryKey:true,
         allowNull:false

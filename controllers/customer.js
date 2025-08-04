@@ -1,15 +1,21 @@
-const { Person, Stakeholder, Customer} = require('../models');
+const { Person, Stakeholder, Customer } = require('../models');
 
 exports.getCustomers = async (req, res) => {
   try {
-    const data = await req.model.findAll({
-      ...req.orgQuery,
-             include: [
+    const data = await Customer.findAll({
+      include: [
+        {
+          model: Stakeholder,
+           required: true,
+          include: [
             {
-              model: Stakeholder,
-              include: [Person]
+              model: Person,
+              required: true,
+              where: { organizationId: req.orgId }
             }
           ]
+        }
+      ]
     });
     res.json(data);
   } catch (err) {
@@ -17,34 +23,18 @@ exports.getCustomers = async (req, res) => {
   }
 };
 
+
 exports.createCustomer = async (req, res) => {
   const t = await Customer.sequelize.transaction();
   try {
     const {
-      firstName,
-      lastName,
-      fatherName,
-      photo,
-      nationalCode,
-      phoneNo,
-      currentAddress,
-      permanentAddress,
-      gender,
-      maritalStatus,
-      job,
-      whatsApp,
-      telegram,
-      email,
-      typeId,
-      language,
-      loanLimit,
-      branchId,
-      whatsAppEnabled,
-      telegramEnabled,
-      emailEnabled
+      firstName, lastName, fatherName, photo, nationalCode, phoneNo,
+      currentAddress, permanentAddress, gender, maritalStatus, job,
+      whatsApp, telegram, email, typeId, language, loanLimit,
+      whatsAppEnabled, telegramEnabled, emailEnabled
     } = req.body;
 
-    // 1. Create Person
+    // 1. Create Person (only place where organizationId is stored)
     const person = await Person.create({
       firstName,
       lastName,
@@ -62,11 +52,10 @@ exports.createCustomer = async (req, res) => {
       maritalStatus,
       job,
       personId: person.id,
-      permanentAddress,
-      organizationId: req.orgId
+      permanentAddress
     }, { transaction: t });
 
-    // 3. Create Customer
+    // 3. Create Customer (no organizationId here)
     const customer = await Customer.create({
       stakeholderId: stakeholder.id,
       whatsApp,
@@ -75,11 +64,9 @@ exports.createCustomer = async (req, res) => {
       language,
       loanLimit,
       telegram,
-      whatsAppEnabled: typeof whatsAppEnabled === 'boolean' ? whatsAppEnabled : false,
-      telegramEnabled: typeof telegramEnabled === 'boolean' ? telegramEnabled : false,
-      emailEnabled: typeof emailEnabled === 'boolean' ? emailEnabled : false,
-      branchId: branchId || null,
-      organizationId: req.orgId
+      whatsAppEnabled: Boolean(whatsAppEnabled),
+      telegramEnabled: Boolean(telegramEnabled),
+      emailEnabled: Boolean(emailEnabled)
     }, { transaction: t });
 
     await t.commit();
@@ -125,18 +112,26 @@ exports.deleteCustomer = async (req, res) => {
 
 exports.getCustomerById = async (req, res) => {
   try {
-    const customer = await req.model.findOne({
-      ...req.orgQuery,
-      where: { ...req.orgQuery.where, id: req.params.id },
+    const customer = await Customer.findOne({
+      where: { id: req.params.id }, // make sure we only look for the requested ID
+      include: [
+        {
+          model: Stakeholder,
+          required: true, // must have a Stakeholder
           include: [
             {
-              model: Stakeholder,
-              include: [Person]
+              model: Person,
+              required: true, // must have a Person
+              where: { organizationId: req.orgId } // scope to logged-in org
             }
           ]
+        }
+      ]
     });
 
-    if (!customer) return res.status(404).json({ message: 'Customer not found' });
+    if (!customer) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
 
     res.status(200).json({
       status: "success",
