@@ -1,67 +1,6 @@
 const { Person, Stakeholder, Customer, Branch } = require('../models');
 
 
-// CREATE Branch (Person → Stakeholder → Customer → Branch)
-// exports.createBranch = async (req, res) => {
-//   const t = await Branch.sequelize.transaction();
-//   try {
-//     const {
-//       firstName, lastName, fatherName, nationalCode, currentAddress, phoneNo,
-//       gender, maritalStatus, job,
-//       language, loanLimit, whatsApp, email, telegram,
-//       contractType, faxNo, direct
-//     } = req.body;
-
-//     // 1. Person
-//     const person = await Person.create({
-//       firstName,
-//       lastName,
-//       fatherName,
-//       nationalCode,
-//       currentAddress,
-//       phoneNo,
-//       organizationId: req.orgId
-//     }, { transaction: t });
-
-//     // 2. Stakeholder
-//     const stakeholder = await Stakeholder.create({
-//       gender,
-//       maritalStatus,
-//       job,
-//       personId: person.id,
-//       organizationId: req.orgId
-//     }, { transaction: t });
-
-//     // 3. Customer
-//     const customer = await Customer.create({
-//       stakeholderId: stakeholder.id,
-//       language,
-//       loanLimit,
-//       whatsApp,
-//       email: email,
-//       telegram,
-//       organizationId: req.orgId
-//     }, { transaction: t });
-
-//     // 4. Branch
-//     const branch = await Branch.create({
-//       customerId: customer.id,
-//       contractType,
-//       faxNo,
-//       direct,
-//       organizationId: req.orgId
-//     }, { transaction: t });
-
-//     await t.commit();
-//     res.status(201).json({ message: "Branch created successfully", branch });
-
-//   } catch (err) {
-//     await t.rollback();
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
-
 exports.createBranch = async (req, res) => {
   const t = await Branch.sequelize.transaction();
   try {
@@ -155,41 +94,6 @@ exports.getBranches = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-
-
-
-
-// exports.getBranchById = async (req, res) => {
-//   try {
-//     const branch = await Branch.findOne({
-//       where: { organizationId: req.orgId, id: req.params.id },
-//        include: [
-//     {
-//       model: Customer,
-//       include: [
-//         {
-//           model: Stakeholder,
-//           include: [
-//             {
-//               model: Person, // photo is in Person
-//               attributes: ["firstName", "lastName", "fatherName", "phoneNo", "photo"]
-//             }
-//           ]
-//         }
-//       ]
-//     }
-//   ]
-//     });
-
-//     if (!branch) {
-//       return res.status(404).json({ message: "Branch not found" });
-//     }
-
-//     res.status(200).json(branch);
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
 
 
 // UPDATE Branch (updates Person + Stakeholder + Customer + Branch)

@@ -2,7 +2,21 @@ const { Person, Stakeholder, Employee } = require('../models');
 
 exports.getEmployees = async (req, res) => {
   try {
-    const data = await req.model.findAll(req.orgQuery);
+    const data = await req.model.findAll({
+      include: [
+        {
+          model: Stakeholder,
+           required: true,
+          include: [
+            {
+              model: Person,
+              required: true,
+              where: { organizationId: req.orgId }
+            }
+          ]
+        }
+      ]
+    });
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -19,7 +33,8 @@ exports.createEmployee = async (req, res) => {
 
     // 1. Create Person
     const person = await Person.create({
-      firstName, lastName, fatherName,photo, nationalCode, phoneNo, currentAddress,
+      firstName, lastName, fatherName, photo, nationalCode, phoneNo, currentAddress,
+       organizationId: req.orgId
     }, { transaction: t });
 
     // 2. Create Stakeholder
@@ -75,12 +90,21 @@ exports.deleteEmployee = async (req, res) => {
 
 exports.getEmployeeById =async (req, res)=>{
     try {
-        const employee = await req.model.findOne({
-      ...req.orgQuery,
-      where: { 
-        ...req.orgQuery.where, 
-        id: req.params.id 
-      }
+        const employee = await Employee.findOne({
+     where: { id: req.params.id }, // make sure we only look for the requested ID
+      include: [
+        {
+          model: Stakeholder,
+          required: true, // must have a Stakeholder
+          include: [
+            {
+              model: Person,
+              required: true, // must have a Person
+              where: { organizationId: req.orgId } // scope to logged-in org
+            }
+          ]
+        }
+      ]
     })
       
       if (!employee) return res.status(404).json({ message: 'employee not found' });

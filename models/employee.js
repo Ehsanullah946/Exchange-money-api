@@ -1,12 +1,8 @@
 module.exports = (sequelize, DataTypes) => {
     const Employee = sequelize.define("Employee", {
         id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-     position: DataTypes.STRING(64),
-     organizationId: {
-        type: DataTypes.INTEGER,
-        allowNull:false
-    },
-     stakeholderId: {
+         position: DataTypes.STRING(64),
+         stakeholderId: {
         type: DataTypes.INTEGER,
         allowNull:false
     }
@@ -18,7 +14,6 @@ module.exports = (sequelize, DataTypes) => {
 
   Employee.associate = (models) => {
     Employee.belongsTo(models.Stakeholder, { foreignKey: "stakeholderId" });
-    Employee.belongsTo(models.Organization, { foreignKey: "organizationId" });
     Employee.hasMany(models.UserAccount, { foreignKey: "employeeId" });
   };
 
