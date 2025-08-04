@@ -9,19 +9,18 @@ exports.getExchangers = async (req, res) => {
   }
 };
 
-
-
 exports.createExchanger = async (req, res) => {
   const t = await Exchanger.sequelize.transaction();
   try {
     const {
-      firstName, lastName, fatherName,photo, nationalCode, phoneNo, currentAddress
+      firstName, lastName, fatherName, photo, nationalCode, phoneNo, currentAddress
+      
     } = req.body;
 
     // 1. Create Person
     const person = await Person.create({
       firstName, lastName, fatherName,photo, nationalCode, phoneNo, currentAddress,
-      organizationId: req.orgId
+      organizationId: req.orgId     
     }, { transaction: t });
 
     // 2. Create Exchanger
