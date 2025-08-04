@@ -45,6 +45,7 @@ exports.createOrganization = async (req, res) => {
       });
 
     // Step 3 — Create first admin user
+    
     const user = await UserAccount.create(
       {
         username,

@@ -12,7 +12,6 @@ module.exports = (sequelize, DataTypes) => {
 
   Stakeholder.associate = (models) => {
     Stakeholder.belongsTo(models.Person, { foreignKey: "personId" });
-    Stakeholder.belongsTo(models.Organization, { foreignKey: "organizationId" });
     Stakeholder.hasOne(models.Customer, { foreignKey: "stakeholderId" });
     Stakeholder.hasOne(models.Employee, { foreignKey: "stakeholderId" });
     Stakeholder.hasOne(models.SenderReceiver, { foreignKey: "stakeholderId" });

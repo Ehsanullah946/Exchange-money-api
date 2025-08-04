@@ -11,5 +11,6 @@ router.get('/', protect, allowRoles(2, 3, 4), orgScope(MoneyType), moneyTypeCont
 router.post('/', protect, allowRoles(2, 3), orgScope(MoneyType), moneyTypeController.createMoneyType);
 router.patch('/:id', protect, allowRoles(2, 3), orgScope(MoneyType), moneyTypeController.updateMoneyType);
 router.delete('/:id', protect, allowRoles(2, 3), orgScope(MoneyType), moneyTypeController.deleteMoneyType);
+router.get('/:id', protect, allowRoles(2, 3), orgScope(MoneyType), moneyTypeController.getMoneyTypeById);
 
 module.exports = router;

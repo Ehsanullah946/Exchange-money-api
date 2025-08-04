@@ -15,10 +15,6 @@ module.exports = (sequelize, DataTypes) => {
         telegramEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
         active: { type: DataTypes.BOOLEAN, defaultValue: true },
         deleted: { type: DataTypes.BOOLEAN, defaultValue: false },
-        organizationId: {
-        type: DataTypes.INTEGER,
-        allowNull:false
-    },
         typeId: {
         type: DataTypes.INTEGER,primaryKey:true,
         allowNull:false
@@ -36,7 +32,6 @@ module.exports = (sequelize, DataTypes) => {
   Account.associate = (models) => {
       Account.belongsTo(models.Customer, { foreignKey: "customerId" });
       Account.belongsTo(models.MoneyType, { foreignKey: "typeId" });
-      Account.belongsTo(models.Organization, { foreignKey: "organizationId" });
   };
 
   return Account;

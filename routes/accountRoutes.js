@@ -2,8 +2,8 @@ const express = require('express');
 const { protect } = require('../middlewares/authMiddlewares');
 const { allowRoles } = require('../middlewares/roleMiddleware');
 const orgScope = require('../middlewares/orgScope');
+const accountController = require('../controllers/account');
 const { Account } = require('../models');
-const accountController = require('../controllers/branch');
 
 const router = express.Router();
 

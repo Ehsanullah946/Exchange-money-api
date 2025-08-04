@@ -17,10 +17,6 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.BOOLEAN,
         defaultValue: false
     },
-    organizationId: {
-        type: DataTypes.INTEGER,
-        allowNull:false
-    },
     customerId: {
         type: DataTypes.INTEGER,
         allowNull:false
@@ -32,7 +28,6 @@ module.exports = (sequelize, DataTypes) => {
   );
 
   Branch.associate = (models) => {
-      Branch.belongsTo(models.Organization, { foreignKey: "organizationId" });
       Branch.belongsTo(models.Customer, { foreignKey: "customerId" });
       Branch.hasMany(models.ExtraTransferNo, { foreignKey: "branchId"});
       Branch.hasMany(models.Receive, { foreignKey: "fromWhere" });
