@@ -4,7 +4,6 @@ module.exports = (sequelize, DataTypes) => {
   const Customer = sequelize.define("Customer", {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     stakeholderId: { type: DataTypes.INTEGER, allowNull: false },
-    orgCustomerId: { type: DataTypes.INTEGER },
       typeId: DataTypes.INTEGER,
       language: DataTypes.INTEGER,
       loanLimit: DataTypes.DECIMAL(10,2),

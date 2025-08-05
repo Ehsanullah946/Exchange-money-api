@@ -57,33 +57,78 @@ exports.createEmployee = async (req, res) => {
 };
 
 exports.updateEmployee = async (req, res) => {
+  const t = Employee.sequelize.transaction();
   try {
     const employee = await req.model.findOne({
-      ...req.orgQuery,
-      where: { ...req.orgQuery.where, id: req.params.id }
+      where: { id: req.params.id },
+      include: [
+        {
+          model: Stakeholder,
+          required: true,
+          include: [
+            {
+              model: Person,
+              required: true,
+            where:{organizationId:req.orgId}
+          }
+          ]
+        }
+      ],
+      transaction:t
     });
 
     if (!employee) return res.status(404).json({ message: 'Employee not found' });
 
-    await employee.update(req.body);
+    const stakeholder = employee.Stakeholder;
+    const person = stakeholder.Person;
+
+    await person.updete(req.body, { transaction: t });
+    await stakeholder.updete(req.body, { transaction: t });
+    await employee.updete(req.body, { transaction: t });
+ 
+    await t.commit();
     res.json({ message: 'Employee updated successfully', employee });
   } catch (err) {
+    await t.rollback();
     res.status(500).json({ message: err.message });
   }
 };
 
 exports.deleteEmployee = async (req, res) => {
+  const t = Employee.sequelize.transaction();
   try {
     const employee = await req.model.findOne({
-      ...req.orgQuery,
-      where: { ...req.orgQuery.where, id: req.params.id }
+      where: { id: req.params.id },
+      include: [
+        {
+          model: Stakeholder,
+          required: true,
+          include: [
+            {
+              model: Person,
+              required: true,
+              where:{organizationId:req.orgId}
+            }
+          ]
+        }
+      ],
+      transaction:t
+      
     });
-
     if (!employee) return res.status(404).json({ message: 'Employee not found' });
 
-    await employee.destroy();
+
+    const stakeholder = employee.Stakeholder;
+    const person = stakeholder.Person;
+
+    await person.destroy({transaction:t})
+    await stakeholder.destroy({transaction:t})
+    await employee.destroy({transaction:t})
+
+    await t.commit();
     res.json({ message: 'Employee deleted successfully' });
   } catch (err) {
+    await t.rollback();
     res.status(500).json({ message: err.message });
   }
 };
@@ -99,8 +144,8 @@ exports.getEmployeeById =async (req, res)=>{
           include: [
             {
               model: Person,
-              required: true, 
-              where: { organizationId: req.orgId } 
+              required: true,
+              where:{ organizationId: req.orgId } 
             }
           ]
         }
