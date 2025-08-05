@@ -119,6 +119,7 @@ exports.updateAccount = async (req, res) => {
   const t = await Account.sequelize.transaction();
   try {
     const account = await Account.findByPk(req.params.id, { transaction: t });
+    
     if (!account) {
       await t.rollback();
       return res.status(404).json({ message: "Account not found" });
