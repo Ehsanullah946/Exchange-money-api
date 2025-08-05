@@ -5,19 +5,14 @@ module.exports = (sequelize, DataTypes) => {
           type: DataTypes.INTEGER,
           allowNull:false
         },
-        organizationId: {
-          type: DataTypes.INTEGER,
-          allowNull:false
-        }
-    },
+      },
      {
     tableName: "exchangers",
     timestamps: false
   });
 
   Exchanger.associate = (models) => {
-    Exchanger.belongsTo(models.Customer, { foreignKey: "customerId" });
-    Exchanger.belongsTo(models.Organization, { foreignKey: "organizationId" });
+    Exchanger.belongsTo(models.Person, { foreignKey: 'personId' });
   };
 
   return Exchanger;

@@ -26,13 +26,11 @@ exports.createSenderReceiver = async (req, res) => {
     // 2. Create Stakeholder
     const stakeholder = await Stakeholder.create({
       gender, maritalStatus, job, personId: person.id,
-      organizationId: req.orgId
     }, { transaction: t });
 
     // 3. Create SenderReceiver
     const sr = await SenderReceiver.create({
       stakeholderId: stakeholder.id,
-      organizationId: req.orgId
     }, { transaction: t });
 
     await t.commit();

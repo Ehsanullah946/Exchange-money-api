@@ -91,16 +91,16 @@ exports.deleteEmployee = async (req, res) => {
 exports.getEmployeeById =async (req, res)=>{
     try {
         const employee = await Employee.findOne({
-     where: { id: req.params.id }, // make sure we only look for the requested ID
+     where: { id: req.params.id }, 
       include: [
         {
           model: Stakeholder,
-          required: true, // must have a Stakeholder
+          required: true, 
           include: [
             {
               model: Person,
-              required: true, // must have a Person
-              where: { organizationId: req.orgId } // scope to logged-in org
+              required: true, 
+              where: { organizationId: req.orgId } 
             }
           ]
         }

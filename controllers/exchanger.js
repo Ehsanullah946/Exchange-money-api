@@ -2,7 +2,15 @@ const { Person, Exchanger } = require('../models');
 
 exports.getExchangers = async (req, res) => {
   try {
-    const data = await req.model.findAll(req.orgQuery);
+    const data = await req.model.findAll({
+          include: [
+            {
+              model: Person,
+              required: true,
+              where: { organizationId: req.orgId }
+           }
+      ]
+    });
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -14,7 +22,6 @@ exports.createExchanger = async (req, res) => {
   try {
     const {
       firstName, lastName, fatherName, photo, nationalCode, phoneNo, currentAddress
-      
     } = req.body;
 
     // 1. Create Person
@@ -26,7 +33,6 @@ exports.createExchanger = async (req, res) => {
     // 2. Create Exchanger
     const exchanger = await Exchanger.create({
       personId: person.id,
-      organizationId: req.orgId
     }, { transaction: t });
 
     await t.commit();
@@ -75,8 +81,14 @@ exports.getExchangerById =async (req, res)=>{
     
     try {
         const exchanger = await req.model.findOne({
-            ...req.orgQuery,
-            where:req.orgQuery.where,id: req.params.id
+           where: { id: req.params.id },
+          include: [
+            {
+              model: Person,
+              required: true, 
+              where: { organizationId: req.orgId }
+            }
+          ]
         })
         
           if (!exchanger) return res.status(404).json({ message: 'exchanger not found' });

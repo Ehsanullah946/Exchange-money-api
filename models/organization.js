@@ -12,7 +12,6 @@ module.exports = (sequelize, DataTypes) => {
 
   Organization.associate = (models) => {
       Organization.hasMany(models.Exchange, { foreignKey: "organizationId" });
-      Organization.hasMany(models.Exchanger, { foreignKey: "organizationId" });
       Organization.hasMany(models.MoneyType, { foreignKey: "organizationId" });
       Organization.hasMany(models.SenderReceiver, { foreignKey: "organizationId" });
       Organization.hasMany(models.Person, { foreignKey: "organizationId" });
