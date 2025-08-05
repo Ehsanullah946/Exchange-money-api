@@ -57,9 +57,9 @@ exports.createEmployee = async (req, res) => {
 };
 
 exports.updateEmployee = async (req, res) => {
-  const t = Employee.sequelize.transaction();
+  const t =await Employee.sequelize.transaction();
   try {
-    const employee = await req.model.findOne({
+    const employee = await Employee.findOne({
       where: { id: req.params.id },
       include: [
         {
@@ -81,10 +81,10 @@ exports.updateEmployee = async (req, res) => {
 
     const stakeholder = employee.Stakeholder;
     const person = stakeholder.Person;
-
-    await person.updete(req.body, { transaction: t });
-    await stakeholder.updete(req.body, { transaction: t });
+    
     await employee.updete(req.body, { transaction: t });
+    await stakeholder.updete(req.body, { transaction: t });
+    await person.updete(req.body, { transaction: t });
  
     await t.commit();
     res.json({ message: 'Employee updated successfully', employee });
@@ -95,9 +95,9 @@ exports.updateEmployee = async (req, res) => {
 };
 
 exports.deleteEmployee = async (req, res) => {
-  const t = Employee.sequelize.transaction();
+  const t =await Employee.sequelize.transaction();
   try {
-    const employee = await req.model.findOne({
+    const employee = await Employee.findOne({
       where: { id: req.params.id },
       include: [
         {
@@ -121,9 +121,9 @@ exports.deleteEmployee = async (req, res) => {
     const stakeholder = employee.Stakeholder;
     const person = stakeholder.Person;
 
-    await person.destroy({transaction:t})
-    await stakeholder.destroy({transaction:t})
     await employee.destroy({transaction:t})
+    await stakeholder.destroy({transaction:t})
+    await person.destroy({transaction:t})
 
     await t.commit();
     res.json({ message: 'Employee deleted successfully' });
