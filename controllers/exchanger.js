@@ -1,4 +1,3 @@
-const { where, EmptyResultError } = require('sequelize');
 const { Person, Exchanger } = require('../models');
 
 exports.getExchangers = async (req, res) => {
