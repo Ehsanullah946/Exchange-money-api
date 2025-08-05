@@ -1,3 +1,4 @@
+const { where, EmptyResultError } = require('sequelize');
 const { Person, Exchanger } = require('../models');
 
 exports.getExchangers = async (req, res) => {
@@ -46,15 +47,27 @@ exports.createExchanger = async (req, res) => {
 
 
 exports.updateExchanger = async (req, res) => {
+  const t = await Exchanger.sequelize.transaction();
   try {
     const exchanger = await req.model.findOne({
-      ...req.orgQuery,
-      where: { ...req.orgQuery.where, id: req.params.id }
+      where: { id: req.params.id },
+      include: [
+        {
+          model: Person,
+          required: true,
+         where:{organizationId:req.orgId}
+       }
+      ],
+      transaction:t
     });
 
     if (!exchanger) return res.status(404).json({ message: 'Exchanger not found' });
 
-    await exchanger.update(req.body);
+    const person = exchanger.Person;
+    
+    await exchanger.update(req.body,{transaction:t});
+    await person.update(req.body, { transaction: t });
+
     res.json({ message: 'Exchanger updated successfully', exchanger });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -62,17 +75,31 @@ exports.updateExchanger = async (req, res) => {
 };
 
 exports.deleteExchanger = async (req, res) => {
+  const t = await Exchanger.sequelize.transaction();
   try {
     const exchanger = await req.model.findOne({
-      ...req.orgQuery,
-      where: { ...req.orgQuery.where, id: req.params.id }
+      where: { id: req.params.id },
+      include: [
+        {
+          model: Person,
+          required: true,
+          where: { organizationId: req.orgId }
+      }
+      ],
+      transaction:t
     });
 
     if (!exchanger) return res.status(404).json({ message: 'Exchanger not found' });
 
-    await exchanger.destroy();
+    const person = exchanger.Person;
+
+    await exchanger.destroy({ transaction: t });
+    await person.destroy({ transaction: t });
+  
+    await t.commit();
     res.json({ message: 'Exchanger deleted successfully' });
   } catch (err) {
+    await t.rollback();
     res.status(500).json({ message: err.message });
   }
 };

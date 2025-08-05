@@ -80,7 +80,7 @@ exports.createCustomer = async (req, res) => {
 };
 
 exports.updateCustomer = async (req, res) => {
-  const t = Customer.sequelize.transaction();
+  const t =await Customer.sequelize.transaction();
   try {
     const customer = await req.model.findOne({
       where: { id: req.params.id },
@@ -143,9 +143,9 @@ exports.deleteCustomer = async (req, res) => {
     const stakeholder = customer.Stakeholder;
     const person = stakeholder.Person;
 
-    await person.destroy({ transaction: t });
-    await stakeholder.destroy({ transaction: t });
     await customer.destroy({ transaction: t });
+    await stakeholder.destroy({ transaction: t });
+    await person.destroy({ transaction: t });
     
 
     await t.commit();

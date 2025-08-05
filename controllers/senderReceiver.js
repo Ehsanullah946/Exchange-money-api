@@ -57,6 +57,7 @@ exports.createSenderReceiver = async (req, res) => {
 
 
 exports.updateSenderReceiver = async (req, res) => {
+  const t = await SenderReceiver.sequelize.transaction();
   try {
     const sr = await req.model.findOne({
       ...req.orgQuery,
@@ -71,7 +72,6 @@ exports.updateSenderReceiver = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-
 
 
 exports.getSenderReceiverByid = async (req, res) => {
