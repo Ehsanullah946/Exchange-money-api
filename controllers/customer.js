@@ -80,33 +80,78 @@ exports.createCustomer = async (req, res) => {
 };
 
 exports.updateCustomer = async (req, res) => {
+  const t = Customer.sequelize.transaction();
   try {
     const customer = await req.model.findOne({
-      ...req.orgQuery,
-      where: { ...req.orgQuery.where, id: req.params.id }
+      where: { id: req.params.id },
+      include: [
+        {
+          model: Stakeholder,
+          required: true,
+          include: [
+            {
+              model: Person,
+              required: true,
+              where:{organizationId:req.orgId}
+            }
+          ]
+        }
+      ],
+      transaction:t
     });
-
     if (!customer) return res.status(404).json({ message: 'Customer not found' });
 
-    await customer.update(req.body);
+    const stakeholder = customer.Stakeholder;
+    const person = stakeholder.Person;
+
+    await person.update(req.body, { transaction: t });
+    await stakeholder.update(req.body, { transaction: t });
+    await customer.update(req.body, { transaction: t });
+    
+    await t.commit();
     res.json({ message: 'Customer updated successfully', customer });
   } catch (err) {
+    await t.rollback();
     res.status(500).json({ message: err.message });
   }
 };
 
 exports.deleteCustomer = async (req, res) => {
+  const t = await Customer.sequelize.transaction();
   try {
     const customer = await req.model.findOne({
-      ...req.orgQuery,
-      where: { ...req.orgQuery.where, id: req.params.id }
+      where: { id: req.params.id },
+      include: [
+        {
+          model: Stakeholder,
+          required: true,
+          include:[
+            {
+              model: Person,
+              required: true,
+              where:{organizationId:req.orgId}
+          }
+         ]
+          
+        }
+      ],
+      transaction:t
     });
 
     if (!customer) return res.status(404).json({ message: 'Customer not found' });
 
-    await customer.destroy();
+    const stakeholder = customer.Stakeholder;
+    const person = stakeholder.Person;
+
+    await person.destroy({ transaction: t });
+    await stakeholder.destroy({ transaction: t });
+    await customer.destroy({ transaction: t });
+    
+
+    await t.commit();
     res.json({ message: 'Customer deleted successfully' });
   } catch (err) {
+    await t.rollback();
     res.status(500).json({ message: err.message });
   }
 };
