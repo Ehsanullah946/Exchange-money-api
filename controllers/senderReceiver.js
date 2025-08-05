@@ -2,7 +2,20 @@ const { Person, Stakeholder, SenderReceiver } = require('../models');
 
 exports.getSenderReceivers = async (req, res) => {
   try {
-    const data = await req.model.findAll(req.orgQuery);
+    const data = await req.model.findAll({
+      include: [
+        {
+          model: Stakeholder,
+          required:true,
+          include: [
+            {
+              model: Person,
+              where:{organizationId:req.orgId}
+            }
+          ]
+        }
+      ]
+    });
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -63,9 +76,21 @@ exports.updateSenderReceiver = async (req, res) => {
 
 exports.getSenderReceiverByid = async (req, res) => {
   try {
-    const sr = await req.model.findOne({
-      ...req.orgQuery,
-      where: { ...req.orgQuery.where, id: req.params.id }
+    const sr = await SenderReceiver.findOne({
+      where: { id: req.params.id },
+      inclue: [
+        {
+          model: Stakeholder,
+          required: true,
+          include: [
+            {
+              model: Person,
+              required: true,
+              where:{organizationId:req.orgId}
+            }
+          ]
+        }
+      ]
     });
 
     if (!sr) return res.status(404).json({ message: 'senderRceiver not found' });

@@ -67,11 +67,12 @@ exports.createCustomer = async (req, res) => {
       whatsAppEnabled: Boolean(whatsAppEnabled),
       telegramEnabled: Boolean(telegramEnabled),
       emailEnabled: Boolean(emailEnabled)
-    }, { transaction: t });
+    }, { transaction: t, orgId: req.orgId  });
 
     await t.commit();
-    res.status(201).json(customer);
-
+    res.status(201).json({
+      ...customer.toJSON(),
+      orgCustomerId: customer.orgCustomerId});
   } catch (err) {
     await t.rollback();
     res.status(500).json({ message: err.message });

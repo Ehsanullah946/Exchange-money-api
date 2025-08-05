@@ -5,7 +5,8 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('customers', {
       id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
-      stakeholderId:{type:Sequelize.INTEGER,allowNull:false},
+      stakeholderId: { type: Sequelize.INTEGER, allowNull: false },
+      orgCustomerId: { type: Sequelize.INTEGER},
       typeId: Sequelize.INTEGER,
       language: Sequelize.INTEGER,
       loanLimit: Sequelize.DECIMAL(10,2),

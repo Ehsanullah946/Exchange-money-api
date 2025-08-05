@@ -1,4 +1,4 @@
-const { MoneyType } = require('../models');
+const { MoneyType, Sequelize } = require('../models');
 
 exports.getMoneyTypes = async (req, res) => {
   try {
@@ -35,13 +35,16 @@ exports.getMoneyTypeById = async (req, res) => {
 
 
 exports.createMoneyType = async (req, res) => {
+  const t = await MoneyType.sequelize.transaction();
   try {
     const record = await MoneyType.create({
       typeName: req.body.typeName,
       organizationId: req.orgId
-    });
-    res.status(201).json(record);
-  } catch (err) {
+    }, { transaction: t, orgId: req.orgId });
+     await t.commit();
+res.status(201).json(record);
+   } catch (err) {
+    await t.rollback();
     res.status(500).json({ message: err.message });
   }
 };
