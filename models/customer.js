@@ -1,7 +1,10 @@
+
+
 module.exports = (sequelize, DataTypes) => {
   const Customer = sequelize.define("Customer", {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-      stakeholderId:{type:DataTypes.INTEGER,allowNull:false},
+    stakeholderId: { type: DataTypes.INTEGER, allowNull: false },
+    orgCustomerId: { type: DataTypes.INTEGER },
       typeId: DataTypes.INTEGER,
       language: DataTypes.INTEGER,
       loanLimit: DataTypes.DECIMAL(10,2),
@@ -15,7 +18,7 @@ module.exports = (sequelize, DataTypes) => {
   },
    {
     tableName: "customers",
-    timestamps: false
+     timestamps: false,
   });
 
   Customer.associate = (models) => {
@@ -23,6 +26,12 @@ module.exports = (sequelize, DataTypes) => {
       Customer.hasMany(models.Branch, { foreignKey: "customerId" });
       Customer.hasMany(models.Account, { foreignKey: "customerId" });
   };
-
+  
   return Customer;
 };
+
+
+
+
+  
+

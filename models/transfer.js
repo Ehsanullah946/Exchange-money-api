@@ -17,7 +17,7 @@ module.exports = (sequelize, DataTypes) => {
     toWhere: {
         type: DataTypes.INTEGER,
         allowNull: false,
-         primaryKey: true 
+        primaryKey: true 
     },
     organizationId: {
         type: DataTypes.INTEGER,

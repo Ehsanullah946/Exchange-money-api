@@ -1,6 +1,8 @@
+const addOrgSequence = require("../utils/orgSequenceHelper");
 module.exports = (sequelize, DataTypes) => {
   const MoneyType = sequelize.define("MoneyType", {
-           id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    number:{type:DataTypes.INTEGER},
         typeName: {
         type: DataTypes.STRING,
         allowNull: false
@@ -37,6 +39,8 @@ module.exports = (sequelize, DataTypes) => {
       MoneyType.hasMany(models.Account, { foreignKey: "typeId" });
    
   };
+
+    addOrgSequence(MoneyType, "number");
 
   return MoneyType;
 };
