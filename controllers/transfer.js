@@ -283,3 +283,55 @@ exports.updateTransfer = async (req, res) => {
   }
 };
 
+
+exports.deleteTransfer = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const transferId = req.params.id;
+    const orgId = req.orgId;
+
+    const transfer = await Transfer.findOne({
+      where: { id: transferId, organizationId: orgId },
+      transaction: t
+    });
+
+    if (!transfer) {
+      await t.rollback();
+      return res.status(404).json({ message: "Transfer not found" });
+    }
+
+    // Reverse balances
+    if (transfer.customerId) {
+      const customerAccount = await Account.findOne({
+        where: { customerId: transfer.customerId, moneyTypeId: transfer.moneyTypeId },
+        transaction: t
+      });
+      if (customerAccount) {
+        customerAccount.credit += parseFloat(transfer.transferAmount) + parseFloat(transfer.chargesAmount);
+        await customerAccount.save({ transaction: t });
+      }
+    }
+
+    const branch = await Branch.findByPk(transfer.toWhere, { transaction: t });
+    if (branch) {
+      const branchAccount = await Account.findOne({
+        where: { customerId: branch.customerId, moneyTypeId: transfer.moneyTypeId },
+        transaction: t
+      });
+      if (branchAccount) {
+        branchAccount.credit -= parseFloat(transfer.transferAmount) + parseFloat(transfer.branchCharges);
+        await branchAccount.save({ transaction: t });
+      }
+    }
+
+    // Delete transfer
+    await transfer.destroy({ transaction: t });
+
+    await t.commit();
+    res.status(200).json({ message: "Transfer deleted successfully" });
+
+  } catch (err) {
+    await t.rollback();
+    res.status(500).json({ message: err.message });
+  }
+};
