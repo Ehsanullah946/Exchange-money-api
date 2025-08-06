@@ -4,7 +4,11 @@ module.exports = (sequelize, DataTypes) => {
         stakeholderId: {
             type: DataTypes.INTEGER,
             allowNull:false
-        },
+      },
+        organizationId: {
+        type: DataTypes.INTEGER,
+          allowNull:false
+        }
     },
      {
     tableName: "senderreceivers",
@@ -13,6 +17,7 @@ module.exports = (sequelize, DataTypes) => {
 
   SenderReceiver.associate = (models) => {
     SenderReceiver.belongsTo(models.Stakeholder, { foreignKey: "stakeholderId" });
+    SenderReceiver.belongsTo(models.Organization, { foreignKey: "organizationId" });
       
       SenderReceiver.hasMany(models.Transfer, { as: "Sender", foreignKey: "senderId" });
     

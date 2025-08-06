@@ -1,11 +1,11 @@
 module.exports = (sequelize, DataTypes) => {
   const Transfer = sequelize.define("Transfer", {
-    id: { type: DataTypes.INTEGER, autoIncrement: true,unique:true},
-    transferNo: { type: DataTypes.STRING, allowNull: false, primaryKey: true  },
-    transferAmount: { type: DataTypes.DECIMAL(10, 2), allowNull: false, primaryKey: true  },
+    id: { type: DataTypes.INTEGER, autoIncrement: true,unique:true, primaryKey:true},
+    transferNo: { type: DataTypes.STRING, allowNull: false  },
+    transferAmount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
     chargesAmount: { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0.00 },
     chargesType: { type: DataTypes.INTEGER, allowNull: false,defaultValue: 1 },
-    tDate: { type: DataTypes.DATE, allowNull: false, primaryKey: true  },
+    tDate: { type: DataTypes.DATE, allowNull: false,  defaultValue: DataTypes.NOW },
     description: { type: DataTypes.TEXT },
     fingerprint: { type: DataTypes.BLOB },
     photo: { type: DataTypes.BLOB },
@@ -17,7 +17,6 @@ module.exports = (sequelize, DataTypes) => {
     toWhere: {
         type: DataTypes.INTEGER,
         allowNull: false,
-        primaryKey: true 
     },
     organizationId: {
         type: DataTypes.INTEGER,
@@ -31,7 +30,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull:false
     },
-    customer: {
+    customerId: {
         type: DataTypes.INTEGER,
     },
     employeeId: {
@@ -47,8 +46,14 @@ module.exports = (sequelize, DataTypes) => {
   },
    {
     tableName: "transfers",
-    timestamps: false
-  });
+     timestamps: false,
+         indexes: [
+      {
+        unique: true,
+        fields: ["transferNo", "transferAmount", "tDate", "deleted"]
+      }
+    ]
+    });
 
   Transfer.associate = (models) => {
     Transfer.hasMany(models.ExtraTransferNo, { foreignKey: "transferId" });

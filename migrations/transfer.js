@@ -4,12 +4,12 @@
 module.exports = {
    async up(queryInterface, Sequelize) {
     await queryInterface.createTable('transfers', {
-    id: { type: Sequelize.INTEGER, autoIncrement: true,unique:true},
-    transferNo: { type: Sequelize.STRING, allowNull: false, primaryKey: true  },
-    transferAmount: { type: Sequelize.DECIMAL(10, 2), allowNull: false, primaryKey: true  },
+    id: { type: Sequelize.INTEGER, autoIncrement: true,primaryKey:true},
+    transferNo: { type: Sequelize.STRING, allowNull: false},
+    transferAmount: { type: Sequelize.DECIMAL(10, 2), allowNull: false  },
     chargesAmount: { type: Sequelize.DECIMAL(10, 2), allowNull: false, defaultValue: 0.00 },
     chargesType: { type: Sequelize.INTEGER, allowNull: false,defaultValue: 1 },
-    tDate: { type: Sequelize.DATE, allowNull: false, primaryKey: true  },
+    tDate: {  type: Sequelize.DATE, defaultValue: Sequelize.NOW },
     description: { type: Sequelize.TEXT },
     fingerprint: { type: Sequelize.BLOB },
     photo: { type: Sequelize.BLOB },
@@ -20,8 +20,7 @@ module.exports = {
     branchChargesType: { type: Sequelize.INTEGER},
     toWhere: {
         type: Sequelize.INTEGER,
-        allowNull: false,
-         primaryKey: true 
+        allowNull: false
     },
     organizationId: {
         type: Sequelize.INTEGER,
@@ -35,7 +34,7 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull:false
     },
-    customer: {
+    customerId: {
         type: Sequelize.INTEGER,
     },
     employeeId: {
@@ -48,6 +47,16 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull:false
     }
+    },
+    {
+    tableName: "transfers",
+     timestamps: false,
+         indexes: [
+      {
+        unique: true,
+        fields: ["transferNo", "transferAmount", "tDate", "deleted"]
+      }
+    ]
     });
   },
   async down(queryInterface) {
