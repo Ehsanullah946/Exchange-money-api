@@ -20,7 +20,7 @@ module.exports = {
         telegramEnabled: { type: Sequelize.BOOLEAN, defaultValue: false },
         active: { type: Sequelize.BOOLEAN, defaultValue: true },
         deleted: { type: Sequelize.BOOLEAN, defaultValue: false },
-        typeId: {
+        moneyTypeId: {
         type: Sequelize.INTEGER, primaryKey:true,
         allowNull:false
     }, 

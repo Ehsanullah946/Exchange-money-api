@@ -8,7 +8,11 @@ module.exports = {
         stakeholderId: {
             type: Sequelize.INTEGER,
             allowNull:false
-        },
+      },
+      organizationId: {
+        type: Sequelize.INTEGER,
+          allowNull:false
+        }
     });
   },
   async down(queryInterface, Sequelize) {

@@ -26,7 +26,7 @@ exports.createSenderReceiver = async (req, res) => {
   const t = await SenderReceiver.sequelize.transaction();
   try {
     const {
-      firstName, lastName, fatherName,photo, nationalCode, phoneNo, currentAddress,
+      firstName, lastName, fatherName, photo, nationalCode, phoneNo, currentAddress,
       gender, maritalStatus, job
     } = req.body;
 
@@ -44,7 +44,9 @@ exports.createSenderReceiver = async (req, res) => {
     // 3. Create SenderReceiver
     const sr = await SenderReceiver.create({
       stakeholderId: stakeholder.id,
+      organizationId:req.orgId
     }, { transaction: t });
+
 
     await t.commit();
     res.status(201).json(sr);

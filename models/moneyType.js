@@ -36,7 +36,7 @@ module.exports = (sequelize, DataTypes) => {
     
       MoneyType.hasMany(models.Exchange, { as: "SaleType", foreignKey: "saleMoneyType" });
       MoneyType.hasMany(models.Exchange, { as: "PurchaseType", foreignKey: "purchaseMoneyType" });
-      MoneyType.hasMany(models.Account, { foreignKey: "typeId" });
+      MoneyType.hasMany(models.Account, { foreignKey: "moneyTypeId" });
    
   };
 

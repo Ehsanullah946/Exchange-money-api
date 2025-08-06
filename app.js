@@ -10,6 +10,7 @@ const senderRceiverRouter = require("./routes/customerRoute");
 const branchRouter = require("./routes/branchRoute");
 const moneyType = require("./routes/moneyTypeRoute");
 const accountRouter = require("./routes/accountRoutes");
+const transferRouter = require("./routes/transferRoute");
 
 app.use(express.json());
 
@@ -22,6 +23,7 @@ app.use("/api/v1/senderReceiver", senderRceiverRouter);
 app.use("/api/v1/branch", branchRouter);
 app.use("/api/v1/moneyType", moneyType);
 app.use("/api/v1/account", accountRouter);
+app.use("/api/v1/transfer", transferRouter);
 
 
 module.exports = app;
