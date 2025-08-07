@@ -11,7 +11,7 @@ async function reverseTransferAccounts(transfer, t) {
     if (customerAccount) {
       customerAccount.credit += parseFloat(transfer.transferAmount) + parseFloat(transfer.chargesAmount);
       await customerAccount.save({ transaction: t });
-    }
+   }
   }
 
   // Reverse branch account
@@ -52,12 +52,11 @@ exports.createTransfer = async (req, res) => {
 
     // 1️⃣ Generate transfer number
     const lastTransfer = await Transfer.findOne({
-      where: { organizationId: orgId },
+      where: { organizationId: orgId, toWhere },
       order: [["transferNo", "DESC"]],
       transaction: t
     });
     const nextTransferNo = lastTransfer ? parseInt(lastTransfer.transferNo) + 1 : 1;
-
     // 2️⃣ Find or create sender/receiver
     const findOrCreateSenderReceiver = async (firstName) => {
       const [person] = await Person.findOrCreate({

@@ -1,17 +1,16 @@
 module.exports = (sequelize, DataTypes) => {
     const Receive = sequelize.define("Receive", {
-    id: { type: DataTypes.INTEGER, autoIncrement: true,unique:true},
-    receiveNo: { type: DataTypes.STRING, allowNull: false, primaryKey: true  },
-    receiveAmount: { type: DataTypes.DECIMAL(10, 2), allowNull: false, primaryKey: true  },
+    id: { type: DataTypes.INTEGER, autoIncrement: true,primaryKey:true},
+    receiveNo: { type: DataTypes.STRING, allowNull: false },
+    receiveAmount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
     chargesAmount: { type: DataTypes.DECIMAL(10, 2), allowNull: false , defaultValue: 0.00 },
     chargesType: { type: DataTypes.INTEGER, allowNull: false ,defaultValue:1},
-    rDate: { type: DataTypes.DATE, allowNull: false, primaryKey: true  },
+    rDate: { type: DataTypes.DATE, allowNull: false  },
     description: { type: DataTypes.TEXT },
     photo: { type: DataTypes.BLOB },
     fingerprint: { type: DataTypes.BLOB },
     guarantorRelation: { type: DataTypes.STRING },
-    deleted: { type: DataTypes.BOOLEAN, defaultValue: false, primaryKey: true  },
-    receivedDate: { type: DataTypes.DATE },
+    deleted: { type: DataTypes.BOOLEAN, defaultValue: false },
     rejected: { type: DataTypes.BOOLEAN, defaultValue: false },
     branchCharges: { type: DataTypes.DECIMAL(10, 2) },
     branchChargesType: { type: DataTypes.INTEGER },
@@ -21,7 +20,6 @@ module.exports = (sequelize, DataTypes) => {
     fromWhere: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      primaryKey: true 
     },
     organizationId: {
         type: DataTypes.INTEGER,
@@ -50,7 +48,13 @@ module.exports = (sequelize, DataTypes) => {
     }
   }, {
     tableName: "receives",
-    timestamps: false
+      timestamps: false,
+       indexes: [
+      {
+        unique: true,
+        fields: ["receiveNo", "receiveAmount", "rDate", "deleted"]
+      }
+    ]
   });
 
   Receive.associate = (models) => {

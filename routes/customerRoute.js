@@ -14,4 +14,5 @@ router.patch('/:id', protect, allowRoles(2, 3), orgScope(Customer), customerCont
 router.delete('/:id', protect, allowRoles(2, 3), orgScope(Customer), customerController.deleteCustomer);
 router.get('/:id', protect, allowRoles(2, 3), orgScope(Customer), customerController.getCustomerById);
 
+
 module.exports = router;

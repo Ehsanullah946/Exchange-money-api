@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { sequelize, UserAccount, Organization } = require('../models');
+const { sequelize, UserAccount, Organization,Customer } = require('../models');
 
 const generateToken = (id, organizationId, role) => {
   return jwt.sign({ id, organizationId, role }, process.env.JWT_SECRET, {
@@ -162,5 +162,93 @@ exports.login = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+
+
+// register customer
+
+
+exports.registerCustomer = async (req, res) => {
+  try {
+    const { username, password, email, whatsApp } = req.body;
+
+    if (!username || !password || !email) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Only admins or authorized users can create customers
+    if (![1, 2, 3].includes(req.user.role)) {
+      return res.status(403).json({ message: 'You do not have permission to create customers' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const customer = await UserAccount.create({
+      username,
+      password: hashedPassword,
+      email,
+      whatsApp,
+      usertypeId: 5, // Assuming 5 = Customer
+      organizationId: req.user.organizationId
+    });
+
+    res.status(201).json({
+      message: 'Customer registered successfully',
+      token: generateToken(customer.id, customer.organizationId, 5)
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+
+// user login system
+
+exports.loginCustomer = async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+
+    if (!phone || !password) {
+      return res
+        .status(400)
+        .json({ message: 'Please enter phone number and password' });
+    }
+
+    const customer = await Customer.findOne({ where: { phone } });
+
+    if (!customer) {
+      return res.status(401).json({ message: 'Invalid phone or password' });
+    }
+
+    const isMatch = await bcrypt.compare(password, customer.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid phone or password' });
+    }
+
+    const token = jwt.sign(
+      {
+        id: customer.id,
+        organizationId: customer.organizationId,
+        role: 'customer'
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(200).json({
+      message: 'Login successful',
+      data: {
+        id: customer.id,
+        fullName: customer.fullName,
+        phone: customer.phone
+      },
+      token
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
