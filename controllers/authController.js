@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { sequelize, UserAccount, Organization,Customer,Stakeholder,Person } = require('../models');
+const { sequelize, UserAccount, Organization } = require('../models');
 
 const generateToken = (id, organizationId, role) => {
   return jwt.sign({ id, organizationId, role }, process.env.JWT_SECRET, {
@@ -140,11 +140,13 @@ exports.login = async (req, res) => {
     }
 
     const user = await UserAccount.findOne({ where: { email } });
-    if (!user) {
-      return res
-        .status(401)
-        .json({ message: 'Invalid email or password' });
-    }
+      // In login function
+      if (!user) {
+        return res.status(401).json({ 
+          message: 'Invalid credentials',
+          code: 'INVALID_CREDENTIALS' // Standard error code
+        });
+      }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
@@ -167,47 +169,71 @@ exports.login = async (req, res) => {
 
 
 
+
 // customer login
+// exports.customerLogin = async (req, res) => {
+//   try {
+//     const { phoneNo, password, organizationId } = req.body;
 
+//     // Find stakeholder with organization verification
+//     const stakeholder = await Stakeholder.findOne({
+//       include: {
+//         model: Person,
+//         required: true,
+//         where: { 
+//           phoneNo, 
+//           organizationId 
+//         }
+//       },
+//       where: { canLogin: true }
+//     });
 
-exports.customerLogin = async (req, res) => {
-  try {
-    const { phoneNo, password } = req.body;
+//     if (!stakeholder?.password) {
+//       return res.status(401).json({ message: "Invalid credentials" });
+//     }
 
-    const stakeholder = await Stakeholder.findOne({
-      include: {
-        model: Person,
-        where: { phoneNo, organizationId: req.orgId }
-      },
-      where: { canLogin: true }
-    });
+//     const isMatch = await bcrypt.compare(password, stakeholder.password);
+//     if (!isMatch) {
+//       return res.status(401).json({ message: "Incorrect password" });
+//     }
 
-    if (!stakeholder || !stakeholder.password) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
+//     // Get full customer info with verification
+//     const customer = await Customer.findOne({
+//       where: { stakeholderId: stakeholder.id },
+//       include: [{
+//         model: Stakeholder,
+//         include: [Person]
+//       }]
+//     });
 
-    const isMatch = await bcrypt.compare(password, stakeholder.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Incorrect password" });
-    }
+//     if (!customer) {
+//       return res.status(404).json({ message: "Customer account not found" });
+//     }
 
-    // Get customer info
-    const customer = await Customer.findOne({
-      where: { stakeholderId: stakeholder.id }
-    });
+//     // Generate token with essential claims
+//     const token = jwt.sign(
+//       { 
+//         customerId: customer.id, 
+//         stakeholderId: stakeholder.id,
+//         organizationId,
+//         role: "customer",
+//         phoneNo // For additional verification
+//       },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "1d" }
+//     );
 
-    if (!customer) {
-      return res.status(404).json({ message: "Customer not found" });
-    }
-
-    const token = jwt.sign(
-      { customerId: customer.id, stakeholderId: stakeholder.id, role: "customer" },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
-
-    res.status(200).json({ token, customerId: customer.id });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}
+//     res.status(200).json({ 
+//       token,
+//       customer: {
+//         id: customer.id,
+//         organizationId
+//       }
+//     });
+//   } catch (err) {
+//     res.status(500).json({ 
+//       message: "Login failed",
+//       error: err.message
+//     });
+//   }
+// };

@@ -4,7 +4,7 @@ const { Account, Customer, Stakeholder, Person, MoneyType } = require("../models
 exports.createAccount = async (req, res) => {
   const t = await Account.sequelize.transaction();
   try {
-    const { credit, smsEnabled, whatsApp, email, telegramEnabled, active, deleted, typeId, customerId } = req.body;
+    const { credit, smsEnabled, whatsApp, email, telegramEnabled, active, deleted, moneyTypeId, customerId } = req.body;
 
     // 1. Verify Customer belongs to this org
     const customer = await Customer.findOne({
@@ -38,7 +38,7 @@ exports.createAccount = async (req, res) => {
       telegramEnabled,
       active,
       deleted,
-      typeId,
+      moneyTypeId,
       customerId
     }, { transaction: t });
 

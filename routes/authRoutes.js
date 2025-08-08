@@ -13,7 +13,7 @@ router.post('/create-organization', protect, (req, res, next) => {
 // Organization Admin adds a user to their org
 router.post('/add-user', protect, allowRoles(2), addUserToOrganization);
 
-router.post('/customer-login' , customerLogin);
+// router.post('/customer-login' , customerLogin);
 
 
 // Login
