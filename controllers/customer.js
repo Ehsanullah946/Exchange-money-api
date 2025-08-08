@@ -1,5 +1,5 @@
 const { Person, Stakeholder, Customer } = require('../models');
-
+const bcrypt = require("bcryptjs");
 exports.getCustomers = async (req, res) => {
   try {
     const data = await Customer.findAll({
@@ -31,8 +31,18 @@ exports.createCustomer = async (req, res) => {
       firstName, lastName, fatherName, photo, nationalCode, phoneNo,
       currentAddress, permanentAddress, gender, maritalStatus, job,
       whatsApp, telegram, email, typeId, language, loanLimit,
-      whatsAppEnabled, telegramEnabled, emailEnabled
+      whatsAppEnabled, telegramEnabled, emailEnabled,password
     } = req.body;
+
+
+    let hashedPassword = null;
+    let canLogin = false;
+    
+    if (req.body.password) {
+      hashedPassword = await bcrypt.hash(password, 12);
+      canLogin = true;
+    }
+
 
     // 1. Create Person (only place where organizationId is stored)
     const person = await Person.create({
@@ -52,7 +62,9 @@ exports.createCustomer = async (req, res) => {
       maritalStatus,
       job,
       personId: person.id,
-      permanentAddress
+      permanentAddress,
+      password:hashedPassword,
+      canLogin
     }, { transaction: t });
 
     // 3. Create Customer (no organizationId here)
