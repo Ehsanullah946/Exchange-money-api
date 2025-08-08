@@ -29,9 +29,11 @@ exports.protectCustomer = async (req, res, next) => {
       return res.status(404).json({ message: 'Customer not found' });
     }
 
-    req.customer = customer;
+     req.customerId = decoded.customerId;
+    req.stakeholderId = decoded.stakeholderId;
     next();
   } catch (err) {
     res.status(401).json({ message: 'Invalid token', err });
   }
 };
+
