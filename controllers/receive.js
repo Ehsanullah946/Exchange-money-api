@@ -1,3 +1,7 @@
+const {createTransferForReceive, applyReceiveAccounts,reverseReceiveAccounts}=require("../utils/receiveHelper")
+
+
+
 const {
   Receive,
   Transfer,
@@ -6,7 +10,7 @@ const {
   Stakeholder,
   SenderReceiver,
   Account,
-  sequelize
+  sequelize,
 } = require('../models');
 const { Op } = require('sequelize');
 
@@ -126,7 +130,7 @@ exports.createReceive = async (req, res) => {
 
       // 5️⃣ Create corresponding Transfer record for passTo branch
       const lastTransfer = await Transfer.findOne({
-        where: { organizationId: orgId, toWhere: passTo },
+        where: { organizationId: orgId},
         order: [['transferNo', 'DESC']],
         transaction: t
       });
@@ -202,3 +206,356 @@ exports.createReceive = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+
+
+exports.updateReceive = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const payload = req.body; // fields like receiveAmount, chargesAmount, branchCharges, fromWhere, passTo, customerId, etc.
+    const orgId = req.orgId;
+
+    const receive = await Receive.findByPk(id, { transaction: t });
+    if (!receive) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Receive not found' });
+    }
+
+    // 1) Reverse old effects
+    await reverseReceiveAccounts(receive, t);
+
+    // 2) Apply new effects and possibly get nextTransferNo for new passTo
+    const { createdTransferNo } = await applyReceiveAccounts(payload, t, orgId);
+
+    // 3) Update receive row
+    // if a transfer was created previously, it is referenced by receive.passNo
+    // We'll update passNo when we create new transfer.
+    const updatedFields = {
+      receiveAmount: payload.receiveAmount ?? receive.receiveAmount,
+      chargesAmount: payload.chargesAmount ?? receive.chargesAmount,
+      branchCharges: payload.passTo ? (payload.branchCharges ?? receive.branchCharges) : null,
+      branchChargesType: payload.passTo ? (payload.branchChargesType ?? receive.branchChargesType) : null,
+      rDate: payload.rDate ?? receive.rDate,
+      description: payload.description ?? receive.description,
+      guarantorRelation: payload.guarantorRelation ?? receive.guarantorRelation,
+      fromWhere: payload.fromWhere ?? receive.fromWhere,
+      passTo: payload.passTo ?? receive.passTo,
+      customerId: payload.customerId ?? receive.customerId,
+      moneyTypeId: payload.moneyTypeId ?? receive.moneyTypeId,
+      receiverId: payload.receiverId ?? receive.receiverId,
+      senderId: payload.senderId ?? receive.senderId,
+      // organizationId stays same
+    };
+
+    const oldTransfer = receive.passTo && receive.passNo
+      ? await Transfer.findOne({
+          where: {
+            organizationId: receive.organizationId,
+            transferNo: receive.passNo,
+            toWhere: receive.passTo
+          },
+          transaction: t
+        })
+      : null;
+    
+    
+    if (oldTransfer && (!updatedFields.passTo)) {
+      // Old transfer should be marked deleted (we already reversed accounts by reverseReceiveAccounts above)
+      await oldTransfer.update({ deleted: true }, { transaction: t });
+      updatedFields.passNo = null;
+    } else if (oldTransfer && updatedFields.passTo) {
+      // Replace old transfer with a new one
+      await oldTransfer.update({ deleted: true }, { transaction: t });
+      if (createdTransferNo) {
+        const created = await createTransferForReceive(payload, createdTransferNo, t, orgId, updatedFields.senderId || null, updatedFields.receiverId || null);
+        updatedFields.passNo = created.transferNo;
+      } else {
+        updatedFields.passNo = null;
+      }
+    } else if (!oldTransfer && updatedFields.passTo) {
+      // Create new transfer
+      if (createdTransferNo) {
+        const created = await createTransferForReceive(payload, createdTransferNo, t, orgId, updatedFields.senderId || null, updatedFields.receiverId || null);
+        updatedFields.passNo = created.transferNo;
+      } else {
+        updatedFields.passNo = null;
+      }
+    }
+
+    // Finally update receive record
+    await receive.update(updatedFields, { transaction: t });
+
+    await t.commit();
+    res.status(200).json({ message: 'Receive updated successfully', receive });
+  } catch (err) {
+    await t.rollback();
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * Delete Receive -> mark deleted = true and reverse funds (do not hard-delete).
+ * Also mark related Transfer deleted (if exists).
+ */
+exports.deleteReceive = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const receive = await Receive.findByPk(id, { transaction: t });
+    if (!receive) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Receive not found' });
+    }
+
+    if (receive.deleted) {
+      await t.rollback();
+      return res.status(400).json({ message: 'Receive already deleted' });
+    }
+
+    // Reverse what createReceive did
+    await reverseReceiveAccounts(receive, t);
+
+    // Mark this receive deleted
+    await receive.update({ deleted: true }, { transaction: t });
+
+    // Mark corresponding transfer deleted (if any)
+    if (receive.passTo && receive.passNo) {
+      const transf = await Transfer.findOne({
+        where: {
+          organizationId: receive.organizationId,
+          transferNo: receive.passNo,
+          toWhere: receive.passTo
+        },
+        transaction: t
+      });
+      if (transf) {
+        await transf.update({ deleted: true }, { transaction: t });
+      }
+    }
+
+    await t.commit();
+    res.status(200).json({ message: 'Receive deleted (soft) and balances reversed' });
+  } catch (err) {
+    await t.rollback();
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * Reject Receive -> mark rejected = true. Optionally reverse funds if reverseFunds === true.
+ * Also mark corresponding Transfer rejected=true if exists.
+ */
+exports.rejectReceive = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { reverseFunds = false } = req.body;
+
+    const receive = await Receive.findByPk(id, { transaction: t });
+    if (!receive) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Receive not found' });
+    }
+
+    // optionally reverse funds (if it hasn't been reversed yet and the record isn't deleted)
+    if (reverseFunds && !receive.deleted) {
+      await reverseReceiveAccounts(receive, t);
+    }
+
+    // mark rejected
+    await receive.update({ rejected: true }, { transaction: t });
+
+    // mark corresponding transfer rejected as well (if exists)
+    if (receive.passTo && receive.passNo) {
+      const transf = await Transfer.findOne({
+        where: {
+          organizationId: receive.organizationId,
+          transferNo: receive.passNo,
+          toWhere: receive.passTo
+        },
+        transaction: t
+      });
+      if (transf) {
+        await transf.update({ rejected: true }, { transaction: t });
+      }
+    }
+
+    await t.commit();
+    res.status(200).json({ message: 'Receive rejected successfully' });
+  } catch (err) {
+    await t.rollback();
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // ===== Helper: Adjust Balances for Create/Update =====
+// async function adjustBalancesOnCreateOrUpdate(data, t) {
+//   const { branchId, passNo, passTo, amount, commission, customerId } = data;
+
+//   // Case 1: Branch-only receive
+//   if (!passTo) {
+//     const branch = await Branch.findByPk(branchId, { transaction: t });
+//     if (!branch) throw new Error("Branch not found");
+
+//     branch.balance += (amount - commission);
+//     await branch.save({ transaction: t });
+//   }
+//   // Case 2: Branch → Branch
+//   else if (passTo && !customerId) {
+//     const originBranch = await Branch.findByPk(branchId, { transaction: t });
+//     const passToBranch = await Branch.findByPk(passTo, { transaction: t });
+
+//     if (!originBranch || !passToBranch) throw new Error("One of the branches not found");
+
+//     originBranch.balance -= amount;
+//     passToBranch.balance += (amount - commission);
+
+//     await originBranch.save({ transaction: t });
+//     await passToBranch.save({ transaction: t });
+//   }
+//   // Case 3: Branch → Customer
+//   else if (passTo && customerId) {
+//     const originBranch = await Branch.findByPk(branchId, { transaction: t });
+//     const customer = await Customer.findByPk(customerId, { transaction: t });
+
+//     if (!originBranch || !customer) throw new Error("Branch or customer not found");
+
+//     originBranch.balance -= amount;
+//     customer.balance += (amount - commission);
+
+//     await originBranch.save({ transaction: t });
+//     await customer.save({ transaction: t });
+//   }
+// }
+
+// // ===== Helper: Reverse Old Balances =====
+// async function reverseOldBalances(receiveRecord, t) {
+//   const { branchId, passNo, passTo, amount, commission, customerId } = receiveRecord;
+
+//   // Case 1: Branch-only
+//   if (!passTo) {
+//     const branch = await Branch.findByPk(branchId, { transaction: t });
+//     branch.balance -= (amount - commission);
+//     await branch.save({ transaction: t });
+//   }
+//   // Case 2: Branch → Branch
+//   else if (passTo && !customerId) {
+//     const originBranch = await Branch.findByPk(branchId, { transaction: t });
+//     const passToBranch = await Branch.findByPk(passTo, { transaction: t });
+
+//     originBranch.balance += amount;
+//     passToBranch.balance -= (amount - commission);
+
+//     await originBranch.save({ transaction: t });
+//     await passToBranch.save({ transaction: t });
+//   }
+//   // Case 3: Branch → Customer
+//   else if (passTo && customerId) {
+//     const originBranch = await Branch.findByPk(branchId, { transaction: t });
+//     const customer = await Customer.findByPk(customerId, { transaction: t });
+
+//     originBranch.balance += amount;
+//     customer.balance -= (amount - commission);
+
+//     await originBranch.save({ transaction: t });
+//     await customer.save({ transaction: t });
+//   }
+// }
+
+// // ===== Helper: Sync Transfer Record =====
+// async function syncTransfer(receive, t) {
+//   if (receive.passTo) {
+//     await Transfer.upsert({
+//       receiveId: receive.id,
+//       branchId: receive.branchId,
+//       passTo: receive.passTo,
+//       amount: receive.amount,
+//       commission: receive.commission,
+//     }, { transaction: t });
+//   } else {
+//     await Transfer.destroy({ where: { receiveId: receive.id }, transaction: t });
+//   }
+// }
+
+// // ===== Controller: Update Receive =====
+// exports.updateReceive = async (req, res) => {
+//   const t = await sequelize.transaction();
+//   try {
+//     const receive = await Receive.findByPk(req.params.id, { transaction: t });
+//     if (!receive) throw new Error("Receive not found");
+
+//     // Reverse old balances
+//     await reverseOldBalances(receive, t);
+
+//     // Apply new balances
+//     await adjustBalancesOnCreateOrUpdate(req.body, t);
+
+//     // Update record
+//     await receive.update(req.body, { transaction: t });
+
+//     // Sync transfer record
+//     await syncTransfer(receive, t);
+
+//     await t.commit();
+//     res.json({ message: "Receive updated successfully", receive });
+//   } catch (err) {
+//     await t.rollback();
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
+
+
+
+//  Delete Receive 
+exports.deleteReceive = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const receive = await Receive.findByPk(req.params.id, { transaction: t });
+    if (!receive) throw new Error("Receive not found");
+
+    // Reverse balances
+    await reverseOldBalances(receive, t);
+
+    // Delete linked transfer
+    await Transfer.destroy({ where: { receiveId: receive.id }, transaction: t });
+
+    // Delete receive
+    await receive.destroy({ transaction: t });
+
+    await t.commit();
+    res.json({ message: "Receive deleted successfully" });
+  } catch (err) {
+    await t.rollback();
+    res.status(500).json({ error: err.message });
+  }
+};
+

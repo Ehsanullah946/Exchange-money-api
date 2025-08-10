@@ -201,8 +201,6 @@ exports.createTransfer = async (req, res) => {
 };
 
 
-
-
 exports.updateTransfer = async (req, res) => {
   const t = await sequelize.transaction();
   try {
