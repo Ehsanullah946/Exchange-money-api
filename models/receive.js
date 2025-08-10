@@ -5,7 +5,7 @@ module.exports = (sequelize, DataTypes) => {
     receiveAmount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
     chargesAmount: { type: DataTypes.DECIMAL(10, 2), allowNull: false , defaultValue: 0.00 },
     chargesType: { type: DataTypes.INTEGER, allowNull: false ,defaultValue:1},
-    rDate: { type: DataTypes.DATE, allowNull: false  },
+    rDate: { type: DataTypes.DATE, defaultValue: DataTypes.NOW  },
     description: { type: DataTypes.TEXT },
     photo: { type: DataTypes.BLOB },
     fingerprint: { type: DataTypes.BLOB },

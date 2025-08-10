@@ -92,13 +92,15 @@ exports.createReceive = async (req, res) => {
 
     if (!passTo && !customerId) {
       // Case 1: No passTo, no customer - deduct receiveAmount + chargesAmount from originBranch only
-      originBranchAccount.credit -= (Number(receiveAmount) + Number(chargesAmount));
+     const totalDededuction= Number(receiveAmount) + Number(chargesAmount)
+      originBranchAccount.credit = Number(originBranchAccount.credit) - totalDededuction;
       await originBranchAccount.save({ transaction: t });
 
     } else if (passTo && !customerId) {
       // Case 2: passTo branch given, no customer
       // Deduct receiveAmount + chargesAmount + branchCharges from originBranch
-      originBranchAccount.credit -= (Number(receiveAmount) + Number(chargesAmount) + Number(branchCharges));
+      const totalDededuction= Number(receiveAmount) + Number(chargesAmount) + Number(branchCharges)
+      originBranchAccount.credit = Number(originBranchAccount.credit ) - totalDededuction;
       await originBranchAccount.save({ transaction: t });
 
       // Add receiveAmount + branchCharges to passTo branch account
@@ -117,8 +119,9 @@ exports.createReceive = async (req, res) => {
         await t.rollback();
         return res.status(400).json({ message: "PassTo branch account not found for this currency" });
       }
-
-      passToBranchAccount.credit += (Number(receiveAmount) + Number(branchCharges));
+      
+      const totalAddition = Number(receiveAmount) + Number(branchCharges);
+      passToBranchAccount.credit = Number(passToBranchAccount.credit) + totalAddition;
       await passToBranchAccount.save({ transaction: t });
 
       // 5️⃣ Create corresponding Transfer record for passTo branch
@@ -127,8 +130,9 @@ exports.createReceive = async (req, res) => {
         order: [['transferNo', 'DESC']],
         transaction: t
       });
-          nextTransferNo= lastTransfer ? parseInt(lastTransfer.transferNo) + 1 : 1;
-
+                      
+      nextTransferNo= lastTransfer ? parseInt(lastTransfer.transferNo) + 1 : 1;
+                     
       await Transfer.create({
         transferNo: nextTransferNo,
         transferAmount: receiveAmount,
@@ -149,7 +153,8 @@ exports.createReceive = async (req, res) => {
     } else if (customerId) {
       // Case 3: Customer selected (regardless of passTo, but you can clarify if passTo + customer not allowed)
       // Deduct receiveAmount + chargesAmount from originBranch account
-      originBranchAccount.credit -= (Number(receiveAmount) + Number(chargesAmount));
+      const totalDededuction = Number(receiveAmount) + Number(chargesAmount);
+      originBranchAccount.credit = Number(originBranchAccount.credit) - totalDededuction;
       await originBranchAccount.save({ transaction: t });
 
       // Add receiveAmount to customer account
@@ -163,7 +168,8 @@ exports.createReceive = async (req, res) => {
         return res.status(400).json({ message: "Customer account not found for this currency" });
       }
 
-      customerAccount.credit += Number(receiveAmount);
+   
+      customerAccount.credit = Number(customerAccount.credit) + Number(receiveAmount);
       await customerAccount.save({ transaction: t });
     }
 
