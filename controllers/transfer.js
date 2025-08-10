@@ -12,7 +12,7 @@ async function reverseTransferAccounts(transfer, t) {
     if (customerAccount) {
       customerAccount.credit += Number(transfer.transferAmount) + Number(transfer.chargesAmount);
       await customerAccount.save({ transaction: t });
-   }
+    }
 }
 
   
