@@ -28,14 +28,22 @@ module.exports = {
     organizationId: {
         type: Sequelize.INTEGER,
         allowNull:false
-    },
+      },
+      senderName: {
+    type: Sequelize.STRING,
+    allowNull: true // Temporary until linked to SenderReceiver
+  },
+  receiverName: {
+    type: Sequelize.STRING,
+    allowNull: true // Temporary until linked to SenderReceiver
+  }, 
     senderId: {
         type: Sequelize.INTEGER,
-        allowNull:false
+        allowNull:true
     },
     receiverId: {
         type: Sequelize.INTEGER,
-        allowNull:false
+        allowNull:true
     },
     customerId: {
         type: Sequelize.INTEGER,

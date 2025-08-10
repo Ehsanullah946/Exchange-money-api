@@ -20,18 +20,26 @@ module.exports = (sequelize, DataTypes) => {
     fromWhere: {
       type: DataTypes.INTEGER,
       allowNull: false,
-    },
+      },
+    senderName: {
+    type: DataTypes.STRING,
+    allowNull: true // Temporary until linked to SenderReceiver
+  },
+  receiverName: {
+    type: DataTypes.STRING,
+    allowNull: true // Temporary until linked to SenderReceiver
+  },
     organizationId: {
         type: DataTypes.INTEGER,
         allowNull:false
     },
     senderId: {
         type: DataTypes.INTEGER,
-        allowNull:false
+        allowNull:true
     },
     receiverId: {
         type: DataTypes.INTEGER,
-        allowNull:false
+        allowNull:true
     },
     customerId: {
         type: DataTypes.INTEGER,

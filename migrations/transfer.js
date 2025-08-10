@@ -28,11 +28,11 @@ module.exports = {
     },
     receiverId: {
         type: Sequelize.INTEGER,
-        allowNull:false
+        allowNull:true
     },
     senderId: {
         type: Sequelize.INTEGER,
-        allowNull:false
+        allowNull:true
     },
     customerId: {
         type: Sequelize.INTEGER,
