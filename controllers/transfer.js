@@ -14,8 +14,6 @@ async function reverseTransferAccounts(transfer, t) {
       await customerAccount.save({ transaction: t });
     }
 }
-
-  
   // Reverse branch account
   const branch = await Branch.findByPk(transfer.toWhere, { transaction: t });
   if (branch) {
@@ -45,12 +43,8 @@ exports.createTransfer = async (req, res) => {
       guarantorRelation,
       toWhere, // Branch ID
       customerId, // Optional
-      senderFirstName,
-      senderLastName,
-      senderPhone,
-      receiverFirstName,
-      receiverLastName,
-      receiverPhone,
+      senderName,
+      receiverName,
       moneyTypeId
     } = req.body;
 
@@ -72,51 +66,10 @@ exports.createTransfer = async (req, res) => {
     const nextTransferNo = lastTransfer ? lastTransfer.transferNo + 1 : 1;
 
     // 3️⃣ Find or create sender/receiver with full details
-    const findOrCreateSenderReceiver = async (data, isSender) => {
-      const [person] = await Person.findOrCreate({
-        where: { 
-          firstName: data.firstName,
-          lastName: data.lastName,
-          phoneNo: data.phone,
-          organizationId: orgId 
-        },
-        defaults: {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          phoneNo: data.phone,
-          organizationId: orgId
-        },
-        transaction: t
-      });
-
-      const [stakeholder] = await Stakeholder.findOrCreate({
-        where: { personId: person.id },
-        defaults: { personId: person.id },
-        transaction: t
-      });
-
-      const [sr] = await SenderReceiver.findOrCreate({
-        where: { stakeholderId: stakeholder.id },
-        defaults: { 
-          stakeholderId: stakeholder.id,
-          organizationId: orgId,
-          isSender 
-        },
-        transaction: t
-      });
-
-      return sr.id;
-    };
+  
 
     // 4️⃣ Create sender and receiver
-    const senderId = await findOrCreateSenderReceiver(
-      { firstName: senderFirstName, lastName: senderLastName, phone: senderPhone },
-      true
-    );
-    const receiverId = await findOrCreateSenderReceiver(
-      { firstName: receiverFirstName, lastName: receiverLastName, phone: receiverPhone },
-      false
-    );
+  
 
     // 5️⃣ Validate and process customer account (if provided)
     if (customerId) {
@@ -178,8 +131,10 @@ exports.createTransfer = async (req, res) => {
       branchChargesType,
       toWhere,
       organizationId: orgId,
-      receiverId,
-      senderId,
+      senderName,
+      receiverName,
+      receiverId:null,
+      senderId:null,
       customerId: customerId || null,
       moneyTypeId
     }, { transaction: t });
@@ -199,6 +154,152 @@ exports.createTransfer = async (req, res) => {
     });
   }
 };
+
+
+exports.updateTransferSender = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { 
+      firstName, lastName, fatherName, 
+      nationalCode, phoneNo, photo 
+    } = req.body;
+    const orgId = req.orgId;
+
+    const transfer = await Transfer.findByPk(id, { transaction: t });
+    if (!transfer) {
+      await t.rollback();
+      return res.status(404).json({ message: 'transfer not found' });
+    }
+
+    // Use nationalCode as unique identifier if provided
+    const whereClause = nationalCode 
+      ? { nationalCode, organizationId: orgId }
+      : { 
+          firstName: transfer.senderName,
+          organizationId: orgId 
+        };
+
+    const [person] = await Person.findOrCreate({
+      where: whereClause,
+      defaults: {
+        firstName: firstName || transfer.senderName,
+        lastName,
+        fatherName,
+        nationalCode,
+        phoneNo,
+        photo,
+        organizationId: orgId
+      },
+      transaction: t
+    });
+
+    const [stakeholder] = await Stakeholder.findOrCreate({
+      where: { personId: person.id },
+      defaults: { personId: person.id },
+      transaction: t
+    });
+
+    const [sender] = await SenderReceiver.findOrCreate({
+      where: { stakeholderId: stakeholder.id },
+      defaults: { 
+        stakeholderId: stakeholder.id,
+        organizationId: orgId,
+        isSender: true 
+      },
+      transaction: t
+    });
+
+    // Link to receive record
+    await transfer.update({ senderId: sender.id }, { transaction: t });
+
+    await t.commit();
+    res.json({ 
+      success: true,
+      message: 'Sender details updated',
+      transfer
+    });
+  } catch (err) {
+    await t.rollback();
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+
+// udpate reciever information of Transfer table 
+
+exports.updateReceiveReceiver = async (req, res) => {
+   const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { 
+      firstName, lastName, fatherName, 
+      nationalCode, phoneNo, photo 
+    } = req.body;
+    const orgId = req.orgId;
+
+    const transfer = await Transfer.findByPk(id, { transaction: t });
+    if (!transfer) {
+      await t.rollback();
+      return res.status(404).json({ message: 'transfer not found' });
+    }
+
+    // Use nationalCode as unique identifier if provided
+    const whereClause = nationalCode 
+      ? { nationalCode, organizationId: orgId }
+      : { 
+          firstName: transfer.receiverName,
+          organizationId: orgId 
+        };
+
+    const [person] = await Person.findOrCreate({
+      where: whereClause,
+      defaults: {
+        firstName: firstName || transfer.receiverName,
+        lastName,
+        fatherName,
+        nationalCode,
+        phoneNo,
+        photo,
+        organizationId: orgId
+      },
+      transaction: t
+    });
+
+    const [stakeholder] = await Stakeholder.findOrCreate({
+      where: { personId: person.id },
+      defaults: { personId: person.id },
+      transaction: t
+    });
+
+    const [receiver] = await SenderReceiver.findOrCreate({
+      where: { stakeholderId: stakeholder.id },
+      defaults: { 
+        stakeholderId: stakeholder.id,
+        organizationId: orgId,
+        isSender: false 
+      },
+      transaction: t
+    });
+
+    // Link to receive record
+    await transfer.update({ receiverId: receiver.id }, { transaction: t });
+
+    await t.commit();
+    res.json({ 
+      success: true,
+      message: 'receiver details updated',
+      transfer
+    });
+  } catch (err) {
+    await t.rollback();
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+
 
 
 exports.updateTransfer = async (req, res) => {

@@ -22,6 +22,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull:false
     },
+    senderName: {
+    type: DataTypes.STRING,
+    allowNull: true // Temporary until linked to SenderReceiver
+  },
+  receiverName: {
+    type: DataTypes.STRING,
+    allowNull: true // Temporary until linked to SenderReceiver
+  },
     receiverId: {
         type: DataTypes.INTEGER,
         allowNull:true
