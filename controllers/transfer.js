@@ -212,7 +212,6 @@ exports.updateTransferSender = async (req, res) => {
 
     // Link to receive record
     await transfer.update({ senderId: sender.id }, { transaction: t });
-
     await t.commit();
     res.json({ 
       success: true,
@@ -225,11 +224,9 @@ exports.updateTransferSender = async (req, res) => {
   }
 };
 
-
-
 // udpate reciever information of Transfer table 
 
-exports.updateReceiveReceiver = async (req, res) => {
+exports.updateTransferReceiver = async (req, res) => {
    const t = await sequelize.transaction();
   try {
     const { id } = req.params;
@@ -381,7 +378,7 @@ exports.updateTransfer = async (req, res) => {
 
     // 3️⃣ Process new amounts
     // Handle sender/receiver updates
-       const findOrCreateSenderReceiver = async (data, isSender) => {
+      const findOrCreateSenderReceiver = async (data, isSender) => {
       const [person] = await Person.findOrCreate({
         where: { 
           firstName: data.firstName,
