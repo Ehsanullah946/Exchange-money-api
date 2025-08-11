@@ -331,14 +331,6 @@ exports.updateReceiveReceiver = async (req, res) => {
 };
 
 
-
-
-
-
-
-
-
-
 exports.updateReceive = async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -392,26 +384,26 @@ exports.updateReceive = async (req, res) => {
     }
 
     // Update sender information if provided
-    if (payload.senderFirstName) {
+    if (payload.senderName) {
       if (!receive.SenderReceiver) {
         await t.rollback();
         return res.status(400).json({ message: 'No sender associated with this receive' });
       }
 
       await receive.SenderReceiver.Stakeholder.Person.update({
-        firstName: payload.senderFirstName || receive.SenderReceiver.Stakeholder.Person.firstName,
+        firstName: payload.senderName || receive.SenderReceiver.Stakeholder.Person.firstName,
       }, { transaction: t });
     }
 
     // Update receiver information if provided
-    if (payload.receiverFirstName) {
+    if (payload.receiverName) {
       if (!receive.SenderReceiver) {
         await t.rollback();
         return res.status(400).json({ message: 'No receiver associated with this receive' });
       }
 
       await receive.SenderReceiver.Stakeholder.Person.update({
-        firstName: payload.receiverFirstName || receive.SenderReceiver.Stakeholder.Person.firstName,
+        firstName: payload.receiverName || receive.SenderReceiver.Stakeholder.Person.firstName,
       }, { transaction: t });
     }
 

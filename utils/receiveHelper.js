@@ -75,16 +75,11 @@ const { Op } = require('sequelize');
     customerAccount.credit = Number(customerAccount.credit) - Number(receiveAmount);
     await customerAccount.save({ transaction: t });
 
-    // Note: based on your createReceive, when customerId is present we did NOT create/pass branchCharges to passTo.
-    // If you later change createReceive to give branchCharges to passTo when both present, update reversal logic here.
     return;
   }
 }
 
-/**
- * Helper: apply account changes for creating/updating a receive (mirrors createReceive).
- * Returns nextTransferNo (number) when passTo is set and a transfer record should be created.
- */
+
  exports.applyReceiveAccounts=async(payload, t, orgId) =>{
   const {
     receiveAmount,
@@ -96,7 +91,7 @@ const { Op } = require('sequelize');
     moneyTypeId
   } = payload;
 
-  // origin branch and account
+ 
   const originBranch = await Branch.findByPk(fromWhere, { transaction: t });
   if (!originBranch) throw new Error('Origin branch not found');
 
@@ -162,10 +157,7 @@ const { Op } = require('sequelize');
 
   return { createdTransferNo };
 }
-/**
- * Helper: create Transfer after createReceive when passTo set.
- * Returns created transfer instance (if created) or null.
- */
+
 
 exports.createTransferForReceive= async(receivePayload, nextTransferNo, t, orgId, senderId = null, receiverId = null)=> {
   if (!nextTransferNo) return null;

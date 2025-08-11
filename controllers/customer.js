@@ -94,7 +94,7 @@ exports.createCustomer = async (req, res) => {
 exports.updateCustomer = async (req, res) => {
   const t =await Customer.sequelize.transaction();
   try {
-    const customer = await req.model.findOne({
+    const customer = await Customer.findOne({
       where: { id: req.params.id },
       include: [
         {
@@ -111,7 +111,7 @@ exports.updateCustomer = async (req, res) => {
       ],
       transaction:t
     });
-    if (!customer) return res.status(404).json({ message: 'Customer not found' });
+    if (!customer) return res.status(404).json({ message: 'Customer not found not' });
 
     const stakeholder = customer.Stakeholder;
     const person = stakeholder.Person;

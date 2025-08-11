@@ -61,7 +61,7 @@ exports.createSenderReceiver = async (req, res) => {
 exports.updateSenderReceiver = async (req, res) => {
   const t = await SenderReceiver.sequelize.transaction();
   try {
-    const sr = await req.model.findOne({
+    const sr = await SenderReceiver.findOne({
       where: { id: req.params.id },
       include: [
         {
@@ -85,8 +85,8 @@ exports.updateSenderReceiver = async (req, res) => {
     const person = stakeholder.Person;
 
     await sr.update(req.body, { transaction: t });
-    await person.update(req.body, { transaction: true });
     await stakeholder.update(req.body, { transaction: t });
+    await person.update(req.body, { transaction: t });
     
 
     await t.commit();
@@ -97,7 +97,6 @@ exports.updateSenderReceiver = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-
 
 exports.getSenderReceiverByid = async (req, res) => {
   try {
