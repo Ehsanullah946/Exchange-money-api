@@ -338,77 +338,80 @@ exports.updateReceive = async (req, res) => {
     const payload = req.body; // fields like receiveAmount, chargesAmount, branchCharges, fromWhere, passTo, customerId, etc.
     const orgId = req.orgId;
 
-     const receive = await Receive.findByPk(id, { 
-     include: [
-    {
-      model: SenderReceiver,
-      as: 'sender', // Must match your association alias
-      required: false, // Changed to false to handle cases where not set
-      include: [
-        {
-          model: Stakeholder,
-          required: true,
-          include: [
-            {
-              model: Person,
-              where: { organizationId: req.orgId }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      model: SenderReceiver,
-      as: 'receiver', // Must match your association alias
-      required: false, // Changed to false to handle cases where not set
-      include: [
-        {
-          model: Stakeholder,
-          required: true,
-          include: [
-            {
-              model: Person,
-              where: { organizationId: req.orgId }
-            }
-          ]
-        }
-      ]
+
+     const receive = await Receive.findOne({
+      where: { id, organizationId: orgId },
+      transaction: t
+    });
+
+    if (!receive) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Receive not found' });
     }
-  ],
-  transaction: t 
-});
 
-if (!receive) {
-  await t.rollback();
-  return res.status(404).json({ message: 'Receive not found' });
-}
+    // Handle sender updates (two possible cases)
+    if (payload.senderName) {
+      // Case 1: No sender record exists yet - just update temporary name
+      if (!receive.senderId) {
+        await receive.update({ senderName: payload.senderName }, { transaction: t });
+      } 
+      // Case 2: Sender record exists - update full person record
+      else {
+        const sender = await SenderReceiver.findOne({
+          where: { id: receive.senderId },
+          include: [
+            {
+              model: Stakeholder,
+              include: [Person]
+            }
+          ],
+          transaction: t
+        });
 
-// Update sender information if provided
-if (payload.senderName) {
-  if (!receive.sender) { // Now using the alias
-    await t.rollback();
-    return res.status(400).json({ message: 'No sender associated with this receive' });
-  }
+        if (!sender) {
+          await t.rollback();
+          return res.status(400).json({ message: 'Sender record not found' });
+        }
 
-  await receive.sender.Stakeholder.Person.update({
-    firstName: payload.senderName,
-    // Add other fields if needed
-  }, { transaction: t });
-}
+        await sender.Stakeholder.Person.update({
+          firstName: payload.senderName
+          // Add other fields as needed
+        }, { transaction: t });
+      }
+    }
 
-// Update receiver information if provided
-if (payload.receiverName) {
-  if (!receive.receiver) { // Now using the alias
-    await t.rollback();
-    return res.status(400).json({ message: 'No receiver associated with this receive' });
-  }
+    // Handle receiver updates (same two cases)
+    if (payload.receiverName) {
+      // Case 1: No receiver record exists yet
+      if (!receive.receiverId) {
+        await receive.update({ receiverName: payload.receiverName }, { transaction: t });
+      } 
+      // Case 2: Receiver record exists
+      else {
+        const receiver = await SenderReceiver.findOne({
+          where: { id: receive.receiverId },
+          include: [
+            {
+              model: Stakeholder,
+              include: [Person]
+            }
+          ],
+          transaction: t
+        });
 
-  await receive.receiver.Stakeholder.Person.update({
-    firstName: payload.receiverName,
-    // Add other fields if needed
-  }, { transaction: t });
-}
+        if (!receiver) {
+          await t.rollback();
+          return res.status(400).json({ message: 'Receiver record not found' });
+        }
 
+        await receiver.Stakeholder.Person.update({
+          firstName: payload.receiverName
+          // Add other fields as needed
+        }, { transaction: t });
+      }
+    }
+
+ 
     // 1) Reverse old effects
     await reverseReceiveAccounts(receive, t);
 
