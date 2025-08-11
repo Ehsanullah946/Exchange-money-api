@@ -281,14 +281,14 @@ exports.updateReceiveReceiver = async (req, res) => {
     const whereClause = nationalCode 
       ? { nationalCode, organizationId: orgId }
       : { 
-          firstName: receive.senderName,
+          firstName: receive.receiverName,
           organizationId: orgId 
         };
 
     const [person] = await Person.findOrCreate({
       where: whereClause,
       defaults: {
-        firstName: firstName || receive.senderName,
+        firstName: firstName || receive.receiverName,
         lastName,
         fatherName,
         nationalCode,
@@ -305,7 +305,7 @@ exports.updateReceiveReceiver = async (req, res) => {
       transaction: t
     });
 
-    const [sender] = await SenderReceiver.findOrCreate({
+    const [receiver] = await SenderReceiver.findOrCreate({
       where: { stakeholderId: stakeholder.id },
       defaults: { 
         stakeholderId: stakeholder.id,
@@ -316,12 +316,12 @@ exports.updateReceiveReceiver = async (req, res) => {
     });
 
     // Link to receive record
-    await receive.update({ senderId: sender.id }, { transaction: t });
+    await receive.update({ receiverId: receiver.id }, { transaction: t });
 
     await t.commit();
     res.json({ 
       success: true,
-      message: 'Sender details updated',
+      message: 'receiver details updated',
       receive
     });
   } catch (err) {
@@ -345,7 +345,6 @@ exports.updateReceive = async (req, res) => {
     const { id } = req.params;
     const payload = req.body; // fields like receiveAmount, chargesAmount, branchCharges, fromWhere, passTo, customerId, etc.
     const orgId = req.orgId;
-
 
       const receive = await Receive.findByPk(id, { 
       include: [

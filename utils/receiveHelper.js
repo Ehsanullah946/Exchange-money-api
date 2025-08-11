@@ -2,7 +2,6 @@
  * Helper: reverse the account changes that were made by createReceive for a given receive row.
  * Mirrors exactly the logic inside your createReceive.
  */
-
 const {
   Transfer,
   Branch,
@@ -163,47 +162,6 @@ const { Op } = require('sequelize');
 
   return { createdTransferNo };
 }
-
-
-exports.createTransferForReceive = async (receive, t) => {
-  const orgId = receive.organizationId;
-  
-  // Generate transfer number
-  const lastTransfer = await Transfer.findOne({
-    where: { organizationId: orgId },
-    order: [["transferNo", "DESC"]],
-    transaction: t
-  });
-  const nextTransferNo = lastTransfer ? lastTransfer.transferNo + 1 : 1;
-
-  const transfer = await Transfer.create({
-    transferNo: nextTransferNo,
-    transferAmount: receive.receiveAmount,
-    chargesAmount: receive.chargesAmount || 0,
-    chargesType: receive.chargesType || 1,
-    tDate: receive.rDate || new Date(),
-    description: receive.description,
-    guarantorRelation: receive.guarantorRelation,
-    branchCharges: receive.branchCharges || 0,
-    branchChargesType: receive.branchChargesType,
-    toWhere: receive.passTo,
-    organizationId: orgId,
-    receiverId: receive.receiverId, // May still be null
-    senderId: receive.senderId,     // May still be null
-    customerId: receive.customerId,
-    moneyTypeId: receive.moneyTypeId
-  }, { transaction: t });
-
-  // Update receive with transfer reference
-  await receive.update({ passNo: transfer.transferNo }, { transaction: t });
-
-  return transfer;
-};
-
-
-
-
-
 /**
  * Helper: create Transfer after createReceive when passTo set.
  * Returns created transfer instance (if created) or null.
