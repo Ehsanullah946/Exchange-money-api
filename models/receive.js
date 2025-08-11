@@ -74,8 +74,8 @@ module.exports = (sequelize, DataTypes) => {
     Receive.belongsTo(models.Customer, { foreignKey: "customerId" });
     Receive.belongsTo(models.Employee, { foreignKey: "employeeId" });
       
-    Receive.belongsTo(models.SenderReceiver, { foreignKey: "senderId" });
-    Receive.belongsTo(models.SenderReceiver, { foreignKey: "receiverId" });
+    Receive.belongsTo(models.SenderReceiver, { as: 'sender', foreignKey: "senderId" });
+    Receive.belongsTo(models.SenderReceiver, { as: 'receiver', foreignKey: "receiverId" });
     Receive.belongsTo(models.Branch, { foreignKey: "fromWhere" });
     Receive.belongsTo(models.Branch, { foreignKey: "passTo" });
     Receive.belongsTo(models.Exchange, { foreignKey: "exchangeId" });

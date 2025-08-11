@@ -296,9 +296,6 @@ exports.updateTransferReceiver = async (req, res) => {
 };
 
 
-
-
-
 exports.updateTransfer = async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -327,12 +324,8 @@ exports.updateTransfer = async (req, res) => {
       guarantorRelation = transfer.guarantorRelation,
       toWhere = transfer.toWhere,
       customerId = transfer.customerId,
-      senderFirstName,
-      senderLastName,
-      senderPhone,
-      receiverFirstName,
-      receiverLastName,
-      receiverPhone,
+      senderName, // Changed from senderFirstName
+      receiverName, // Changed from receiverFirstName
       moneyTypeId = transfer.moneyTypeId
     } = req.body;
 
@@ -342,7 +335,8 @@ exports.updateTransfer = async (req, res) => {
       const customerAccount = await Account.findOne({
         where: { 
           customerId: transfer.customerId, 
-          moneyTypeId: transfer.moneyTypeId
+          moneyTypeId: transfer.moneyTypeId,
+          organizationId: orgId
         },
         transaction: t
       });
@@ -356,7 +350,7 @@ exports.updateTransfer = async (req, res) => {
 
     // Handle branch account reversal
     const originalBranch = await Branch.findOne({
-      where: { id: transfer.toWhere },
+      where: { id: transfer.toWhere, organizationId: orgId },
       transaction: t
     });
     
@@ -365,6 +359,7 @@ exports.updateTransfer = async (req, res) => {
         where: { 
           customerId: originalBranch.customerId, 
           moneyTypeId: transfer.moneyTypeId,
+          organizationId: orgId
         },
         transaction: t
       });
@@ -376,58 +371,66 @@ exports.updateTransfer = async (req, res) => {
       }
     }
 
-    // 3️⃣ Process new amounts
-    // Handle sender/receiver updates
-      const findOrCreateSenderReceiver = async (data, isSender) => {
-      const [person] = await Person.findOrCreate({
-        where: { 
-          firstName: data.firstName,
-          lastName: data.lastName,
-          phoneNo: data.phone,
-          organizationId: orgId 
-        },
-        defaults: {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          phoneNo: data.phone,
-          organizationId: orgId
-        },
-        transaction: t
-      });
+    // 3️⃣ Process sender/receiver updates
+    let senderId = transfer.senderId;
+    let receiverId = transfer.receiverId;
 
-      const [stakeholder] = await Stakeholder.findOrCreate({
-        where: { personId: person.id },
-        defaults: { personId: person.id },
-        transaction: t
-      });
-
-      const [sr] = await SenderReceiver.findOrCreate({
-        where: { stakeholderId: stakeholder.id },
-        defaults: { 
-          stakeholderId: stakeholder.id,
-          organizationId: orgId,
-          isSender 
-        },
-        transaction: t
-      });
-
-      return sr.id;
-    };
-
-    const senderId = await findOrCreateSenderReceiver(
-      { firstName: senderFirstName, lastName: senderLastName, phone: senderPhone },
-      true
-    );
+    // Only update sender if name is provided
     
-    const receiverId = await findOrCreateSenderReceiver(
-      { firstName: receiverFirstName, lastName: receiverLastName, phone: receiverPhone },
-      false
-    );
+   if (senderName && !senderId) {
+      // Just update the temporary name field
+      await transfer.update({ senderName }, { transaction: t });
+    } 
+    // Option 2: Update full sender record if exists
+    else if (senderName && senderId) {
+      const sender = await SenderReceiver.findOne({
+        where: { id: senderId },
+        include: [{
+          model: Stakeholder,
+          include: [Person]
+        }],
+        transaction: t
+      });
+      
+      if (sender) {
+        await sender.Stakeholder.Person.update({
+          firstName: senderName
+        }, { transaction: t });
+      }
+    }
 
+    // Repeat for receiver
+    if (receiverName && !receiverId) {
+      await transfer.update({ receiverName }, { transaction: t });
+    } 
+    else if (receiverName && receiverId) {
+      const receiver = await SenderReceiver.findOne({
+        where: { id: receiverId },
+        include: [{
+          model: Stakeholder,
+          include: [Person]
+        }],
+        transaction: t
+      });
+      
+      if (receiver) {
+        await receiver.Stakeholder.Person.update({
+          firstName: receiverName
+        }, { transaction: t });
+      }
+    }
+
+    
+
+    // 4️⃣ Process new amounts
     // Process customer account if exists
     if (customerId) {
       const customerAccount = await Account.findOne({
-        where: { customerId, moneyTypeId},
+        where: { 
+          customerId, 
+          moneyTypeId,
+          organizationId: orgId 
+        },
         transaction: t
       });
       
@@ -437,18 +440,13 @@ exports.updateTransfer = async (req, res) => {
       }
       
       const newTotal = Number(transferAmount) + Number(chargesAmount);
-      // if (customerAccount.credit < newTotal) {
-      //   await t.rollback();
-      //   return res.status(400).json({ message: "Insufficient funds" });
-      // }
-      
       customerAccount.credit = Number(customerAccount.credit) - newTotal;
       await customerAccount.save({ transaction: t });
     }
 
     // Process branch account
     const newBranch = await Branch.findOne({
-      where: { id: toWhere},
+      where: { id: toWhere, organizationId: orgId },
       transaction: t
     });
     
@@ -458,7 +456,11 @@ exports.updateTransfer = async (req, res) => {
     }
 
     const branchAccount = await Account.findOne({
-      where: { customerId: newBranch.customerId, moneyTypeId },
+      where: { 
+        customerId: newBranch.customerId, 
+        moneyTypeId,
+        organizationId: orgId 
+      },
       transaction: t
     });
     
@@ -471,9 +473,9 @@ exports.updateTransfer = async (req, res) => {
     branchAccount.credit = Number(branchAccount.credit) + newBranchTotal;
     await branchAccount.save({ transaction: t });
 
-    // 4️⃣ Update transfer record
-    await transfer.update({
-      transferAmount: Number(transferAmount),
+
+  const updateData = {
+    transferAmount: Number(transferAmount),
       chargesAmount: Number(chargesAmount),
       chargesType,
       tDate,
@@ -483,10 +485,15 @@ exports.updateTransfer = async (req, res) => {
       branchChargesType,
       toWhere,
       customerId: customerId || null,
-      senderId,
-      receiverId,
       moneyTypeId
-    }, { transaction: t });
+    };
+
+
+      if (senderId) updateData.senderId = senderId;
+    if (receiverId) updateData.receiverId = receiverId;
+
+    // 5️⃣ Update transfer record
+    await transfer.update(updateData, { transaction: t });
 
     await t.commit();
     res.status(200).json({ 
@@ -503,8 +510,6 @@ exports.updateTransfer = async (req, res) => {
     });
   }
 };
-
-
 
 
 // 🔹 DELETE

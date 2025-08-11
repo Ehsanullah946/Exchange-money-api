@@ -72,5 +72,7 @@ module.exports = {
   },
   async down(queryInterface) {
     await queryInterface.dropTable('receives');
+    await queryInterface.removeColumn('Receives', 'senderName');
+    await queryInterface.removeColumn('Receives', 'receiverName');
   }
 };

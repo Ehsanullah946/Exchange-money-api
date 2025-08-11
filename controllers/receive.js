@@ -338,74 +338,76 @@ exports.updateReceive = async (req, res) => {
     const payload = req.body; // fields like receiveAmount, chargesAmount, branchCharges, fromWhere, passTo, customerId, etc.
     const orgId = req.orgId;
 
-      const receive = await Receive.findByPk(id, { 
+     const receive = await Receive.findByPk(id, { 
+     include: [
+    {
+      model: SenderReceiver,
+      as: 'sender', // Must match your association alias
+      required: false, // Changed to false to handle cases where not set
       include: [
         {
-          model: SenderReceiver,
-           required:true,
-            // as: 'sender',
-          include: [
-        {
           model: Stakeholder,
-          required:true,
+          required: true,
           include: [
             {
               model: Person,
-              where:{organizationId:req.orgId}
+              where: { organizationId: req.orgId }
             }
           ]
         }
       ]
-        },
-        {
-          model: SenderReceiver,
-          required:true,
-          // as: 'receiver',
-          include: [
+    },
+    {
+      model: SenderReceiver,
+      as: 'receiver', // Must match your association alias
+      required: false, // Changed to false to handle cases where not set
+      include: [
         {
           model: Stakeholder,
-          required:true,
+          required: true,
           include: [
             {
               model: Person,
-              where:{organizationId:req.orgId}
+              where: { organizationId: req.orgId }
             }
           ]
         }
       ]
-        }
-      ],
-      transaction: t 
-    });
-
-    if (!receive) {
-      await t.rollback();
-      return res.status(404).json({ message: 'Receive not found' });
     }
+  ],
+  transaction: t 
+});
 
-    // Update sender information if provided
-    if (payload.senderName) {
-      if (!receive.SenderReceiver) {
-        await t.rollback();
-        return res.status(400).json({ message: 'No sender associated with this receive' });
-      }
+if (!receive) {
+  await t.rollback();
+  return res.status(404).json({ message: 'Receive not found' });
+}
 
-      await receive.SenderReceiver.Stakeholder.Person.update({
-        firstName: payload.senderName || receive.SenderReceiver.Stakeholder.Person.firstName,
-      }, { transaction: t });
-    }
+// Update sender information if provided
+if (payload.senderName) {
+  if (!receive.sender) { // Now using the alias
+    await t.rollback();
+    return res.status(400).json({ message: 'No sender associated with this receive' });
+  }
 
-    // Update receiver information if provided
-    if (payload.receiverName) {
-      if (!receive.SenderReceiver) {
-        await t.rollback();
-        return res.status(400).json({ message: 'No receiver associated with this receive' });
-      }
+  await receive.sender.Stakeholder.Person.update({
+    firstName: payload.senderName,
+    // Add other fields if needed
+  }, { transaction: t });
+}
 
-      await receive.SenderReceiver.Stakeholder.Person.update({
-        firstName: payload.receiverName || receive.SenderReceiver.Stakeholder.Person.firstName,
-      }, { transaction: t });
-    }
+// Update receiver information if provided
+if (payload.receiverName) {
+  if (!receive.receiver) { // Now using the alias
+    await t.rollback();
+    return res.status(400).json({ message: 'No receiver associated with this receive' });
+  }
+
+  await receive.receiver.Stakeholder.Person.update({
+    firstName: payload.receiverName,
+    // Add other fields if needed
+  }, { transaction: t });
+}
 
     // 1) Reverse old effects
     await reverseReceiveAccounts(receive, t);
@@ -467,6 +469,7 @@ exports.updateReceive = async (req, res) => {
         updatedFields.passNo = null;
       }
     }
+  
 
     // Finally update receive record
     await receive.update(updatedFields, { transaction: t });
