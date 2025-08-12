@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-  const depositWithdraw = sequelize.define("depositWithdraw", {
+  const DepositWithdraw = sequelize.define("depositWithdraw", {
        No: { type: DataTypes.INTEGER, autoIncrement: true,primaryKey:true },
         deposit: {
         type: DataTypes.DECIMAL(10, 2),
@@ -41,10 +41,11 @@ module.exports = (sequelize, DataTypes) => {
 }
   );
 
-  depositWithdraw.associate = (models) => {
-      depositWithdraw.belongsTo(models.Customer, { foreignKey: "customerId" });
-      depositWithdraw.belongsTo(models.MoneyType, { foreignKey: "moneyTypeId" });
+  DepositWithdraw.associate = (models) => {
+      DepositWithdraw.belongsTo(models.Account, { foreignKey: "accountNo" });
+      DepositWithdraw.belongsTo(models.Employee, { foreignKey: "employeeId" });
+      DepositWithdraw.belongsTo(models.Organization, { foreignKey: "organizationId" });
   };
 
-  return depositWithdraw;
+  return DepositWithdraw;
 };
