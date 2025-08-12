@@ -87,12 +87,10 @@ exports.createReceive = async (req, res) => {
         await t.rollback();
         return res.status(400).json({ message: "PassTo branch not found" });
       }
-
       const passToBranchAccount = await Account.findOne({
         where: { customerId: passToBranch.customerId, moneyTypeId },
         transaction: t
       });
-
       if (!passToBranchAccount) {
         await t.rollback();
         return res.status(400).json({ message: "PassTo branch account not found for this currency" });
