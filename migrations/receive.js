@@ -29,7 +29,7 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull:false
       },
-      senderName: {
+    senderName: {
     type: Sequelize.STRING,
     allowNull: true // Temporary until linked to SenderReceiver
   },
@@ -57,6 +57,11 @@ module.exports = {
     },
     exchangeId: {
         type: Sequelize.INTEGER,
+    },
+    receiveStatus: {
+      type: Sequelize.BOOLEAN,
+      defaultValue: false,
+      allowNull:false
     }
     },
         {
