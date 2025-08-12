@@ -10,7 +10,6 @@ const {
   sequelize,
 } = require('../models');
 const { Op } = require('sequelize');
-const receive = require("../models/receive");
 
 exports.createReceive = async (req, res) => {
   const t = await sequelize.transaction();
@@ -140,7 +139,7 @@ exports.createReceive = async (req, res) => {
       const totalDededuction = Number(receiveAmount) + Number(chargesAmount);
       originBranchAccount.credit = Number(originBranchAccount.credit) - totalDededuction;
       await originBranchAccount.save({ transaction: t });
-
+ 
       // Add receiveAmount to customer account
       const customerAccount = await Account.findOne({
         where: { customerId, moneyTypeId },

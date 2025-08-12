@@ -50,6 +50,11 @@ module.exports = (sequelize, DataTypes) => {
     moneyTypeId: {
         type: DataTypes.INTEGER,
         allowNull:false
+     },
+      receiveStatus: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue:false
     },
     exchangeId: {
         type: DataTypes.INTEGER,
