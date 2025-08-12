@@ -26,6 +26,10 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull:true
     },
+        organizationId: {
+        type: Sequelize.INTEGER,
+        allowNull:true
+    },
         accountNo: {
         type: Sequelize.INTEGER,
         allowNull:false
@@ -34,28 +38,20 @@ module.exports = {
         photo: { type: Sequelize.BLOB},
         WithdrawReturnDate: { type: Sequelize.DATE },
     },
+     
     {
     tableName: "depositWithdraw",
-     timestamps: false,
-        indexes: [
-    {
-      unique: true,
-      fields: ['deposit', 'withdraw', 'deleted', 'accountNo', 'DWDate'],
-      name: 'depositWithdraw_uniques'
-    }
-  ]
-      });
-    
-    // Add unique constraint
-    await queryInterface.addConstraint('depositWithdraw', {
+        timestamps: false,
+});        
+   // Add unique constraint
+   await queryInterface.addConstraint('depositWithdraw', {
       fields: ['deposit', 'withdraw', 'deleted', 'accountNo', 'DWDate'],
       type: 'unique',
-      name: 'depositWithdraw_uniques'
+      name: 'depositWithdraw_full_identifier'
     });
   },
-  async down(queryInterface, Sequelize) {
+  async down(queryInterface) {
     await queryInterface.dropTable('depositWithdraw');
-    await queryInterface.removeConstraint('depositWithdraw', 'depositWithdraw_uniques');
-    await queryInterface.removeConstraint('depositWithdraw', 'depositWithdraw_uniques');
+    await queryInterface.removeConstraint('depositWithdraw', 'depositWithdraw_full_identifier');
   }
 };
