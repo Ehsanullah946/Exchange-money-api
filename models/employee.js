@@ -15,6 +15,7 @@ module.exports = (sequelize, DataTypes) => {
   Employee.associate = (models) => {
     Employee.belongsTo(models.Stakeholder, { foreignKey: "stakeholderId" });
     Employee.hasMany(models.UserAccount, { foreignKey: "employeeId" });
+    Employee.hasMany(models.DepositWithdraw, { foreignKey: "employeeId" });
   };
 
   return Employee;

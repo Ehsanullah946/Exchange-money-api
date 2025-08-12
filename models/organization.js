@@ -18,6 +18,7 @@ module.exports = (sequelize, DataTypes) => {
       Organization.hasMany(models.Receive, { foreignKey: "organizationId" });
       Organization.hasMany(models.Transfer, { foreignKey: "organizationId" });
       Organization.hasMany(models.UserAccount, { foreignKey: "organizationId" });
+      Organization.hasMany(models.DepositWithdraw, { foreignKey: "organizationId" });
   };
 
   return Organization;
