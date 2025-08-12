@@ -1,6 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
   const Account = sequelize.define("Account", {
-    No: { type: DataTypes.INTEGER, autoIncrement: true, unique:true,allowNull:false },
+    No: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey:true},
         credit: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false
@@ -16,17 +16,29 @@ module.exports = (sequelize, DataTypes) => {
         active: { type: DataTypes.BOOLEAN, defaultValue: true },
         deleted: { type: DataTypes.BOOLEAN, defaultValue: false },
         moneyTypeId: {
-        type: DataTypes.INTEGER,primaryKey:true,
-        allowNull:false
+        type: DataTypes.INTEGER,
+        primaryKey:true
     },
         customerId: {
-        type: DataTypes.INTEGER, primaryKey:true,
-        allowNull:false
+        type: DataTypes.INTEGER,
+        primaryKey:true
     }
   }
   , {
     tableName: "accounts",
-    timestamps: false
+    timestamps: false,
+   indexes: [
+    {
+      unique: true,
+      fields: ['customerId', 'moneyTypeId', 'No'],
+      name: 'account_composite_pk'
+     },
+      {
+      unique: true,
+      fields: ['customerId', 'moneyTypeId'],
+      name: 'customer_currency_unique'
+    }
+  ]
   });
 
   Account.associate = (models) => {
