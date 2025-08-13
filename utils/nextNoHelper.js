@@ -1,7 +1,7 @@
 // helpers/generateNextNo.js
 async function generateNextNo({
   model,
-  noField = 'No',
+  noField,
   orgId,
   transaction,
   fromWhere = null,
@@ -10,14 +10,14 @@ async function generateNextNo({
   // If a manual number is provided, just return it
   if (manualNo) return manualNo.toString();
 
-  const existing = await model.findOne({
-    where: { No: manualNo },
-    transaction,
-  });
+  //   const existing = await model.findOne({
+  //     where: { No: manualNo },
+  //     transaction,
+  //   });
 
-  if (existing) {
-    throw new Error('the  number already exists');
-  }
+  //   if (existing) {
+  //     throw new Error('the  number already exists');
+  //   }
 
   // Build the query conditions
   const whereCondition = { organizationId: orgId };
