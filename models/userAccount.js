@@ -16,8 +16,8 @@ module.exports = (sequelize, DataTypes) => {
     whatsApp: { type: DataTypes.STRING(64) }
   },
     {
-    tableName: "useraccounts",  // make sure table name matches your DB
-    timestamps: false           // disable createdAt & updatedAt
+    tableName: "useraccounts",  
+    timestamps: false           
   }
   );
 

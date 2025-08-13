@@ -42,8 +42,8 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   Account.associate = (models) => {
-      Account.belongsTo(models.Customer, { foreignKey: "customerId" });
       Account.hasMany(models.DepositWithdraw, { foreignKey: "accountNo" });
+      Account.belongsTo(models.Customer, { foreignKey: "customerId" });
       Account.belongsTo(models.MoneyType, { foreignKey: "moneyTypeId" });
   };
 
