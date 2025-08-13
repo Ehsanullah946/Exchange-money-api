@@ -12,6 +12,7 @@ const moneyType = require("./routes/moneyTypeRoute");
 const accountRouter = require("./routes/accountRoutes");
 const transferRouter = require("./routes/transferRoute");
 const receiveRouter = require("./routes/receiveRoutes");
+const depositWithdrawRouter = require("./routes/depositWithdrawRoutes");
 
 app.use(express.json());
 
@@ -26,6 +27,7 @@ app.use("/api/v1/moneyType", moneyType);
 app.use("/api/v1/account", accountRouter);
 app.use("/api/v1/transfer", transferRouter);
 app.use("/api/v1/receive", receiveRouter);
+app.use("/api/v1/depositWithdraw", depositWithdrawRouter);
 
 
 module.exports = app;
