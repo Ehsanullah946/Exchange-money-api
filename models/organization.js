@@ -30,6 +30,9 @@ module.exports = (sequelize, DataTypes) => {
     Organization.hasMany(models.AccountToAccount, {
       foreignKey: 'organizationId',
     });
+    Organization.hasMany(models.Expence, {
+      foreignKey: 'organizationId',
+    });
   };
 
   return Organization;
