@@ -22,13 +22,13 @@ const router = express.Router();
 // //   accountToaccountController.getAccountToAccounts
 // // );
 
-// router.post(
-//   '/',
-//   protect,
-//   allowRoles(2, 3),
-//   orgScope(AccountToAccount),
-//   accountToaccountController.createAccountToAccount
-// );
+router.post(
+  '/',
+  protect,
+  allowRoles(2, 3),
+  orgScope(AccountToAccount),
+  accountToaccountController.createAccountToAccount
+);
 // router.put(
 //   '/:no',
 //   protect,
