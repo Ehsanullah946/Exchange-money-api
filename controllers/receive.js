@@ -1,5 +1,4 @@
 const generateNextNo = require('../utils/nextNoHelper');
-
 const {
   createTransferForReceive,
   applyReceiveAccounts,
