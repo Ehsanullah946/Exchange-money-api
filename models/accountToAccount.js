@@ -11,7 +11,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      Amount: {
+      amount: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
       },
@@ -34,6 +34,13 @@ module.exports = (sequelize, DataTypes) => {
     {
       tableName: 'accounttoaccount',
       timestamps: false,
+      indexes: [
+        {
+          unique: true,
+          fields: ['fromAccount', 'toAccount', 'deleted', 'amount', 'tDate'],
+          name: 'accounttoaccount_composite_pk',
+        },
+      ],
     }
   );
   AccountToAccount.associate = (models) => {
