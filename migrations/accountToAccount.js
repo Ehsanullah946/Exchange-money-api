@@ -15,7 +15,7 @@ module.exports = {
           type: Sequelize.INTEGER,
           allowNull: false,
         },
-        Amount: {
+        amount: {
           type: Sequelize.DECIMAL(10, 2),
           allowNull: false,
         },
@@ -42,8 +42,8 @@ module.exports = {
       }
     );
     // Add unique constraint
-    await queryInterface.addConstraint('depositWithdraw', {
-      fields: ['fromAccount', 'toAccount', 'deleted', 'Amount', 'tDate'],
+    await queryInterface.addConstraint('accounttoaccount', {
+      fields: ['fromAccount', 'toAccount', 'deleted', 'amount', 'tDate'],
       type: 'unique',
       name: 'accounttoaccount_full_identifier',
     });
