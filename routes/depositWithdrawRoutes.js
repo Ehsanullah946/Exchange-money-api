@@ -7,10 +7,41 @@ const { DepositWithdraw } = require('../models');
 
 const router = express.Router();
 
-// router.get('/', protect, allowRoles(2,3,4), orgScope(DepositWithdraw), depositWithdrawController.getDepositWithdraws);
-// router.get('/:id', protect, allowRoles(2, 3, 4), orgScope(DepositWithdraw), depositWithdrawController.getDepositWithdrawById);
-router.post('/', protect, allowRoles(2, 3), orgScope(DepositWithdraw), depositWithdrawController.createDepositWithdraw);
-// router.patch('/:id', protect, allowRoles(2, 3), orgScope(DepositWithdraw), depositWithdrawController.updateDepositWithdraw);
-// router.delete('/:id', protect, allowRoles(2, 3), orgScope(DepositWithdraw), depositWithdrawController.deleteDepositWithdraw);
+router.get(
+  '/',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(DepositWithdraw),
+  depositWithdrawController.getDepositWithdraws
+);
+// router.get(
+//   '/:id',
+//   protect,
+//   allowRoles(2, 3, 4),
+//   orgScope(DepositWithdraw),
+//   depositWithdrawController.getDepositWithdraws
+// );
+
+router.post(
+  '/',
+  protect,
+  allowRoles(2, 3),
+  orgScope(DepositWithdraw),
+  depositWithdrawController.createDepositWithdraw
+);
+router.put(
+  '/:no',
+  protect,
+  allowRoles(2, 3),
+  orgScope(DepositWithdraw),
+  depositWithdrawController.updateDepositWithdraw
+);
+router.delete(
+  '/:no',
+  protect,
+  allowRoles(2, 3),
+  orgScope(DepositWithdraw),
+  depositWithdrawController.deleteDepositWithdraw
+);
 
 module.exports = router;

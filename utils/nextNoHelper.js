@@ -7,31 +7,40 @@ async function generateNextNo({
   fromWhere = null,
   manualNo = null,
 }) {
-  // If a manual number is provided, just return it
-  if (manualNo) return manualNo.toString();
-
-  //   const existing = await model.findOne({
-  //     where: { No: manualNo },
-  //     transaction,
-  //   });
-
-  //   if (existing) {
-  //     throw new Error('the  number already exists');
-  //   }
-
-  // Build the query conditions
   const whereCondition = { organizationId: orgId };
   if (fromWhere !== null) whereCondition.fromWhere = fromWhere;
 
-  // Get the last record for that organization (and optionally fromWhere)
-  const lastRecord = await model.findOne({
+  // 1. Manual number mode with duplicate check
+  if (manualNo) {
+    whereCondition[noField] = manualNo.toString();
+
+    const exists = await model.findOne({
+      where: whereCondition,
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (exists) {
+      throw new Error(
+        `${noField} '${manualNo}' already exists for this organization`
+      );
+    }
+
+    return manualNo.toString();
+  }
+
+  // 2. Auto-generate mode — always find the MAX number
+  const maxRecord = await model.findOne({
+    attributes: [
+      [model.sequelize.fn('MAX', model.sequelize.col(noField)), 'maxNo'],
+    ],
     where: whereCondition,
-    order: [[noField, 'DESC']],
     transaction,
+    lock: transaction.LOCK.UPDATE,
   });
 
-  // Calculate next number
-  const nextNo = lastRecord ? parseInt(lastRecord[noField], 10) + 1 : 1;
+  const maxNo = maxRecord?.get('maxNo');
+  const nextNo = maxNo ? parseInt(maxNo, 10) + 1 : 1;
 
   return nextNo.toString();
 }

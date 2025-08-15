@@ -1,38 +1,55 @@
-const { sequelize, Transfer, Account, Branch, Person, Stakeholder, SenderReceiver } = require("../models");
+const generateNextNo = require('../utils/nextNoHelper');
+const {
+  sequelize,
+  Transfer,
+  Account,
+  Branch,
+  Person,
+  Stakeholder,
+  SenderReceiver,
+} = require('../models');
 
 //  Helper: Reverse balances for a transfer
 async function reverseTransferAccounts(transfer, t) {
   // Reverse customer account if exists
   if (transfer.customerId) {
     const customerAccount = await Account.findOne({
-      where: { customerId: transfer.customerId, moneyTypeId: transfer.moneyTypeId },
-      transaction: t
+      where: {
+        customerId: transfer.customerId,
+        moneyTypeId: transfer.moneyTypeId,
+      },
+      transaction: t,
     });
 
     if (customerAccount) {
-      customerAccount.credit += Number(transfer.transferAmount) + Number(transfer.chargesAmount);
+      customerAccount.credit +=
+        Number(transfer.transferAmount) + Number(transfer.chargesAmount);
       await customerAccount.save({ transaction: t });
     }
-}
+  }
   // Reverse branch account
   const branch = await Branch.findByPk(transfer.toWhere, { transaction: t });
   if (branch) {
     const branchAccount = await Account.findOne({
-      where: { customerId: branch.customerId, moneyTypeId: transfer.moneyTypeId },
-      transaction: t
+      where: {
+        customerId: branch.customerId,
+        moneyTypeId: transfer.moneyTypeId,
+      },
+      transaction: t,
     });
     if (branchAccount) {
-      branchAccount.credit -= Number(transfer.transferAmount) + Number(transfer.branchCharges);
+      branchAccount.credit -=
+        Number(transfer.transferAmount) + Number(transfer.branchCharges);
       await branchAccount.save({ transaction: t });
     }
   }
 }
 
-
 exports.createTransfer = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const {
+      transferNo,
       transferAmount,
       chargesAmount = 0,
       chargesType,
@@ -45,7 +62,7 @@ exports.createTransfer = async (req, res) => {
       customerId, // Optional
       senderName,
       receiverName,
-      moneyTypeId
+      moneyTypeId,
     } = req.body;
 
     const orgId = req.orgId;
@@ -53,42 +70,30 @@ exports.createTransfer = async (req, res) => {
     // 1️⃣ Validate required fields
     if (!transferAmount || !toWhere || !moneyTypeId) {
       await t.rollback();
-      return res.status(400).json({ message: "Missing required fields" });
+      return res.status(400).json({ message: 'Missing required fields' });
     }
 
     // 2️⃣ Generate transfer number (org-wide sequential)
-    const lastTransfer = await Transfer.findOne({
-      where: { organizationId: orgId },
-      order: [["transferNo", "DESC"]],
-      transaction: t
+    const finalTransferNo = await generateNextNo({
+      model: Transfer,
+      noField: 'transferNo',
+      orgId,
+      manualNo: transferNo, // If null, it will auto-generate
+      transaction: t,
     });
-        
-    const nextTransferNo = lastTransfer ? lastTransfer.transferNo + 1 : 1;
 
-    // 3️⃣ Find or create sender/receiver with full details
-  
-
-    // 4️⃣ Create sender and receiver
-  
-
-    // 5️⃣ Validate and process customer account (if provided)
     if (customerId) {
       const customerAccount = await Account.findOne({
-        where: { customerId, moneyTypeId},
-        transaction: t
+        where: { customerId, moneyTypeId },
+        transaction: t,
       });
-      
+
       if (!customerAccount) {
         await t.rollback();
-        return res.status(400).json({ message: "Customer account not found" });
+        return res.status(400).json({ message: 'Customer account not found' });
       }
-      
+
       const totalDeduction = Number(transferAmount) + Number(chargesAmount);
-      // if (customerAccount.credit < totalDeduction) {
-      //   await t.rollback();
-      //   return res.status(400).json({ message: "Insufficient funds" });
-      // }
-      
       customerAccount.credit = Number(customerAccount.credit) - totalDeduction;
       await customerAccount.save({ transaction: t });
     }
@@ -96,22 +101,22 @@ exports.createTransfer = async (req, res) => {
     // 6️⃣ Validate and process branch account
     const branch = await Branch.findOne({
       where: { id: toWhere },
-      transaction: t
+      transaction: t,
     });
-    
+
     if (!branch) {
       await t.rollback();
-      return res.status(400).json({ message: "Invalid branch" });
+      return res.status(400).json({ message: 'Invalid branch' });
     }
 
     const branchAccount = await Account.findOne({
-      where: { customerId: branch.customerId, moneyTypeId},
-      transaction: t
+      where: { customerId: branch.customerId, moneyTypeId },
+      transaction: t,
     });
-    
+
     if (!branchAccount) {
       await t.rollback();
-      return res.status(400).json({ message: "Branch account not found" });
+      return res.status(400).json({ message: 'Branch account not found' });
     }
 
     const totalAddition = Number(transferAmount) + Number(branchCharges);
@@ -119,51 +124,50 @@ exports.createTransfer = async (req, res) => {
     await branchAccount.save({ transaction: t });
 
     // 7️⃣ Create transfer record
-    const newTransfer = await Transfer.create({
-      transferNo: nextTransferNo,
-      transferAmount: Number(transferAmount),
-      chargesAmount: Number(chargesAmount),
-      chargesType,
-      tDate: tDate || new Date(),
-      description,
-      guarantorRelation,
-      branchCharges: Number(branchCharges),
-      branchChargesType,
-      toWhere,
-      organizationId: orgId,
-      senderName,
-      receiverName,
-      receiverId:null,
-      senderId:null,
-      customerId: customerId || null,
-      moneyTypeId
-    }, { transaction: t });
+    const newTransfer = await Transfer.create(
+      {
+        transferNo: finalTransferNo,
+        transferAmount: Number(transferAmount),
+        chargesAmount: Number(chargesAmount),
+        chargesType,
+        tDate: tDate || new Date(),
+        description,
+        guarantorRelation,
+        branchCharges: Number(branchCharges),
+        branchChargesType,
+        toWhere,
+        organizationId: orgId,
+        senderName,
+        receiverName,
+        receiverId: null,
+        senderId: null,
+        customerId: customerId || null,
+        moneyTypeId,
+      },
+      { transaction: t }
+    );
 
     await t.commit();
-    res.status(201).json({ 
-      message: "Transfer created successfully",
-      transfer: newTransfer
+    res.status(201).json({
+      message: 'Transfer created successfully',
+      transfer: newTransfer,
     });
-
   } catch (err) {
     await t.rollback();
-    console.error("Transfer creation error:", err);
-    res.status(500).json({ 
-      message: "Failed to create transfer",
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    console.error('Transfer creation error:', err);
+    res.status(500).json({
+      message: 'Failed to create transfer',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined,
     });
   }
 };
-
 
 exports.updateTransferSender = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { id } = req.params;
-    const { 
-      firstName, lastName, fatherName, 
-      nationalCode, phoneNo, photo 
-    } = req.body;
+    const { firstName, lastName, fatherName, nationalCode, phoneNo, photo } =
+      req.body;
     const orgId = req.orgId;
 
     const transfer = await Transfer.findByPk(id, { transaction: t });
@@ -173,11 +177,11 @@ exports.updateTransferSender = async (req, res) => {
     }
 
     // Use nationalCode as unique identifier if provided
-    const whereClause = nationalCode 
+    const whereClause = nationalCode
       ? { nationalCode, organizationId: orgId }
-      : { 
+      : {
           firstName: transfer.senderName,
-          organizationId: orgId 
+          organizationId: orgId,
         };
 
     const [person] = await Person.findOrCreate({
@@ -189,34 +193,34 @@ exports.updateTransferSender = async (req, res) => {
         nationalCode,
         phoneNo,
         photo,
-        organizationId: orgId
+        organizationId: orgId,
       },
-      transaction: t
+      transaction: t,
     });
 
     const [stakeholder] = await Stakeholder.findOrCreate({
       where: { personId: person.id },
       defaults: { personId: person.id },
-      transaction: t
+      transaction: t,
     });
 
     const [sender] = await SenderReceiver.findOrCreate({
       where: { stakeholderId: stakeholder.id },
-      defaults: { 
+      defaults: {
         stakeholderId: stakeholder.id,
         organizationId: orgId,
-        isSender: true 
+        isSender: true,
       },
-      transaction: t
+      transaction: t,
     });
 
     // Link to receive record
     await transfer.update({ senderId: sender.id }, { transaction: t });
     await t.commit();
-    res.json({ 
+    res.json({
       success: true,
       message: 'Sender details updated',
-      transfer
+      transfer,
     });
   } catch (err) {
     await t.rollback();
@@ -224,16 +228,14 @@ exports.updateTransferSender = async (req, res) => {
   }
 };
 
-// udpate reciever information of Transfer table 
+// udpate reciever information of Transfer table
 
 exports.updateTransferReceiver = async (req, res) => {
-   const t = await sequelize.transaction();
+  const t = await sequelize.transaction();
   try {
     const { id } = req.params;
-    const { 
-      firstName, lastName, fatherName, 
-      nationalCode, phoneNo, photo 
-    } = req.body;
+    const { firstName, lastName, fatherName, nationalCode, phoneNo, photo } =
+      req.body;
     const orgId = req.orgId;
 
     const transfer = await Transfer.findByPk(id, { transaction: t });
@@ -243,11 +245,11 @@ exports.updateTransferReceiver = async (req, res) => {
     }
 
     // Use nationalCode as unique identifier if provided
-    const whereClause = nationalCode 
+    const whereClause = nationalCode
       ? { nationalCode, organizationId: orgId }
-      : { 
+      : {
           firstName: transfer.receiverName,
-          organizationId: orgId 
+          organizationId: orgId,
         };
 
     const [person] = await Person.findOrCreate({
@@ -259,42 +261,41 @@ exports.updateTransferReceiver = async (req, res) => {
         nationalCode,
         phoneNo,
         photo,
-        organizationId: orgId
+        organizationId: orgId,
       },
-      transaction: t
+      transaction: t,
     });
 
     const [stakeholder] = await Stakeholder.findOrCreate({
       where: { personId: person.id },
       defaults: { personId: person.id },
-      transaction: t
+      transaction: t,
     });
 
     const [receiver] = await SenderReceiver.findOrCreate({
       where: { stakeholderId: stakeholder.id },
-      defaults: { 
+      defaults: {
         stakeholderId: stakeholder.id,
         organizationId: orgId,
-        isSender: false 
+        isSender: false,
       },
-      transaction: t
+      transaction: t,
     });
 
     // Link to receive record
     await transfer.update({ receiverId: receiver.id }, { transaction: t });
 
     await t.commit();
-    res.json({ 
+    res.json({
       success: true,
       message: 'receiver details updated',
-      transfer
+      transfer,
     });
   } catch (err) {
     await t.rollback();
     res.status(500).json({ message: err.message });
   }
 };
-
 
 exports.updateTransfer = async (req, res) => {
   const t = await sequelize.transaction();
@@ -305,12 +306,12 @@ exports.updateTransfer = async (req, res) => {
     // 1️⃣ Find existing transfer with organization check
     const transfer = await Transfer.findOne({
       where: { id: transferId, organizationId: orgId },
-      transaction: t
+      transaction: t,
     });
-    
+
     if (!transfer) {
       await t.rollback();
-      return res.status(404).json({ message: "Transfer not found" });
+      return res.status(404).json({ message: 'Transfer not found' });
     }
 
     const {
@@ -326,23 +327,24 @@ exports.updateTransfer = async (req, res) => {
       customerId = transfer.customerId,
       senderName, // Changed from senderFirstName
       receiverName, // Changed from receiverFirstName
-      moneyTypeId = transfer.moneyTypeId
+      moneyTypeId = transfer.moneyTypeId,
     } = req.body;
 
     // 2️⃣ Reverse original transaction amounts
     // Handle customer account reversal if exists
     if (transfer.customerId) {
       const customerAccount = await Account.findOne({
-        where: { 
-          customerId: transfer.customerId, 
+        where: {
+          customerId: transfer.customerId,
           moneyTypeId: transfer.moneyTypeId,
-          organizationId: orgId
+          organizationId: orgId,
         },
-        transaction: t
+        transaction: t,
       });
-      
+
       if (customerAccount) {
-        const originalTotal = Number(transfer.transferAmount) + Number(transfer.chargesAmount);
+        const originalTotal =
+          Number(transfer.transferAmount) + Number(transfer.chargesAmount);
         customerAccount.credit = Number(customerAccount.credit) + originalTotal;
         await customerAccount.save({ transaction: t });
       }
@@ -351,22 +353,24 @@ exports.updateTransfer = async (req, res) => {
     // Handle branch account reversal
     const originalBranch = await Branch.findOne({
       where: { id: transfer.toWhere, organizationId: orgId },
-      transaction: t
+      transaction: t,
     });
-    
+
     if (originalBranch) {
       const branchAccount = await Account.findOne({
-        where: { 
-          customerId: originalBranch.customerId, 
+        where: {
+          customerId: originalBranch.customerId,
           moneyTypeId: transfer.moneyTypeId,
-          organizationId: orgId
+          organizationId: orgId,
         },
-        transaction: t
+        transaction: t,
       });
-      
+
       if (branchAccount) {
-        const originalBranchTotal = Number(transfer.transferAmount) + Number(transfer.branchCharges);
-        branchAccount.credit = Number(branchAccount.credit) - originalBranchTotal;
+        const originalBranchTotal =
+          Number(transfer.transferAmount) + Number(transfer.branchCharges);
+        branchAccount.credit =
+          Number(branchAccount.credit) - originalBranchTotal;
         await branchAccount.save({ transaction: t });
       }
     }
@@ -376,69 +380,76 @@ exports.updateTransfer = async (req, res) => {
     let receiverId = transfer.receiverId;
 
     // Only update sender if name is provided
-    
-   if (senderName && !senderId) {
+
+    if (senderName && !senderId) {
       // Just update the temporary name field
       await transfer.update({ senderName }, { transaction: t });
-    } 
+    }
     // Option 2: Update full sender record if exists
     else if (senderName && senderId) {
       const sender = await SenderReceiver.findOne({
         where: { id: senderId },
-        include: [{
-          model: Stakeholder,
-          include: [Person]
-        }],
-        transaction: t
+        include: [
+          {
+            model: Stakeholder,
+            include: [Person],
+          },
+        ],
+        transaction: t,
       });
-      
+
       if (sender) {
-        await sender.Stakeholder.Person.update({
-          firstName: senderName
-        }, { transaction: t });
+        await sender.Stakeholder.Person.update(
+          {
+            firstName: senderName,
+          },
+          { transaction: t }
+        );
       }
     }
 
     // Repeat for receiver
     if (receiverName && !receiverId) {
       await transfer.update({ receiverName }, { transaction: t });
-    } 
-    else if (receiverName && receiverId) {
+    } else if (receiverName && receiverId) {
       const receiver = await SenderReceiver.findOne({
         where: { id: receiverId },
-        include: [{
-          model: Stakeholder,
-          include: [Person]
-        }],
-        transaction: t
+        include: [
+          {
+            model: Stakeholder,
+            include: [Person],
+          },
+        ],
+        transaction: t,
       });
-      
+
       if (receiver) {
-        await receiver.Stakeholder.Person.update({
-          firstName: receiverName
-        }, { transaction: t });
+        await receiver.Stakeholder.Person.update(
+          {
+            firstName: receiverName,
+          },
+          { transaction: t }
+        );
       }
     }
-
-    
 
     // 4️⃣ Process new amounts
     // Process customer account if exists
     if (customerId) {
       const customerAccount = await Account.findOne({
-        where: { 
-          customerId, 
+        where: {
+          customerId,
           moneyTypeId,
-          organizationId: orgId 
+          organizationId: orgId,
         },
-        transaction: t
+        transaction: t,
       });
-      
+
       if (!customerAccount) {
         await t.rollback();
-        return res.status(400).json({ message: "Customer account not found" });
+        return res.status(400).json({ message: 'Customer account not found' });
       }
-      
+
       const newTotal = Number(transferAmount) + Number(chargesAmount);
       customerAccount.credit = Number(customerAccount.credit) - newTotal;
       await customerAccount.save({ transaction: t });
@@ -447,35 +458,34 @@ exports.updateTransfer = async (req, res) => {
     // Process branch account
     const newBranch = await Branch.findOne({
       where: { id: toWhere, organizationId: orgId },
-      transaction: t
+      transaction: t,
     });
-    
+
     if (!newBranch) {
       await t.rollback();
-      return res.status(400).json({ message: "New branch not found" });
+      return res.status(400).json({ message: 'New branch not found' });
     }
 
     const branchAccount = await Account.findOne({
-      where: { 
-        customerId: newBranch.customerId, 
+      where: {
+        customerId: newBranch.customerId,
         moneyTypeId,
-        organizationId: orgId 
+        organizationId: orgId,
       },
-      transaction: t
+      transaction: t,
     });
-    
+
     if (!branchAccount) {
       await t.rollback();
-      return res.status(400).json({ message: "Branch account not found" });
+      return res.status(400).json({ message: 'Branch account not found' });
     }
 
     const newBranchTotal = Number(transferAmount) + Number(branchCharges);
     branchAccount.credit = Number(branchAccount.credit) + newBranchTotal;
     await branchAccount.save({ transaction: t });
 
-
-  const updateData = {
-    transferAmount: Number(transferAmount),
+    const updateData = {
+      transferAmount: Number(transferAmount),
       chargesAmount: Number(chargesAmount),
       chargesType,
       tDate,
@@ -485,32 +495,29 @@ exports.updateTransfer = async (req, res) => {
       branchChargesType,
       toWhere,
       customerId: customerId || null,
-      moneyTypeId
+      moneyTypeId,
     };
 
-
-      if (senderId) updateData.senderId = senderId;
+    if (senderId) updateData.senderId = senderId;
     if (receiverId) updateData.receiverId = receiverId;
 
     // 5️⃣ Update transfer record
     await transfer.update(updateData, { transaction: t });
 
     await t.commit();
-    res.status(200).json({ 
-      message: "Transfer updated successfully",
-      transfer
+    res.status(200).json({
+      message: 'Transfer updated successfully',
+      transfer,
     });
-
   } catch (err) {
     await t.rollback();
-    console.error("Transfer update error:", err);
-    res.status(500).json({ 
-      message: "Failed to update transfer",
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    console.error('Transfer update error:', err);
+    res.status(500).json({
+      message: 'Failed to update transfer',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined,
     });
   }
 };
-
 
 // 🔹 DELETE
 exports.deleteTransfer = async (req, res) => {
@@ -520,15 +527,14 @@ exports.deleteTransfer = async (req, res) => {
     const transfer = await Transfer.findByPk(id, { transaction: t });
     if (!transfer) {
       await t.rollback();
-      return res.status(404).json({ message: "Transfer not found" });
+      return res.status(404).json({ message: 'Transfer not found' });
     }
 
     await reverseTransferAccounts(transfer, t);
     await transfer.update({ deleted: true }, { transaction: t });
 
     await t.commit();
-    res.status(200).json({ message: "Transfer deleted and balances reversed" });
-
+    res.status(200).json({ message: 'Transfer deleted and balances reversed' });
   } catch (err) {
     await t.rollback();
     res.status(500).json({ message: err.message });
@@ -545,7 +551,7 @@ exports.rejectTransfer = async (req, res) => {
     const transfer = await Transfer.findByPk(id, { transaction: t });
     if (!transfer) {
       await t.rollback();
-      return res.status(404).json({ message: "Transfer not found" });
+      return res.status(404).json({ message: 'Transfer not found' });
     }
 
     if (reverseFunds) {
@@ -555,8 +561,7 @@ exports.rejectTransfer = async (req, res) => {
     await transfer.update({ rejected: true }, { transaction: t });
 
     await t.commit();
-    res.status(200).json({ message: "Transfer rejected successfully" });
-
+    res.status(200).json({ message: 'Transfer rejected successfully' });
   } catch (err) {
     await t.rollback();
     res.status(500).json({ message: err.message });

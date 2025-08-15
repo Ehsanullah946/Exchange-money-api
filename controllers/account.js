@@ -1,36 +1,16 @@
-const { Account, Customer, Stakeholder, Person, MoneyType } = require("../models");
+const {
+  Account,
+  Customer,
+  Stakeholder,
+  Person,
+  MoneyType,
+} = require('../models');
 
 // CREATE Account
 exports.createAccount = async (req, res) => {
   const t = await Account.sequelize.transaction();
   try {
-    const { credit, smsEnabled, whatsApp, email, telegramEnabled, active, deleted, moneyTypeId, customerId } = req.body;
-
-    // 1. Verify Customer belongs to this org
-    const customer = await Customer.findOne({
-      where: { id: customerId },
-      include: {
-        model: Stakeholder,
-        include: {
-          model: Person,
-          attributes: ["organizationId"]
-        }
-      },
-      transaction: t
-    });
-
-    if (!customer) {
-      await t.rollback();
-      return res.status(400).json({ message: "Customer does not exist" });
-    }
-
-    if (customer.Stakeholder.Person.organizationId !== req.orgId) {
-      await t.rollback();
-      return res.status(403).json({ message: "Customer belongs to another organization" });
-    }
-
-    // 2. Create Account
-    const account = await Account.create({
+    const {
       credit,
       smsEnabled,
       whatsApp,
@@ -39,8 +19,49 @@ exports.createAccount = async (req, res) => {
       active,
       deleted,
       moneyTypeId,
-      customerId
-    }, { transaction: t });
+      customerId,
+    } = req.body;
+
+    // 1. Verify Customer belongs to this org
+    const customer = await Customer.findOne({
+      where: { id: customerId },
+      include: {
+        model: Stakeholder,
+        include: {
+          model: Person,
+          attributes: ['organizationId'],
+        },
+      },
+      transaction: t,
+    });
+
+    if (!customer) {
+      await t.rollback();
+      return res.status(400).json({ message: 'Customer does not exist' });
+    }
+
+    if (customer.Stakeholder.Person.organizationId !== req.orgId) {
+      await t.rollback();
+      return res
+        .status(403)
+        .json({ message: 'Customer belongs to another organization' });
+    }
+
+    // 2. Create Account
+    const account = await Account.create(
+      {
+        credit,
+        smsEnabled,
+        whatsApp,
+        email,
+        telegramEnabled,
+        active,
+        deleted,
+        moneyTypeId,
+        customerId,
+      },
+      { transaction: t }
+    );
 
     await t.commit();
     res.status(201).json(account);
@@ -55,25 +76,25 @@ exports.getAccounts = async (req, res) => {
   try {
     const accounts = await Account.findAll({
       include: [
-        { 
+        {
           model: Customer,
           required: true,
           include: [
-            { 
+            {
               model: Stakeholder,
               required: true,
               include: [
-                { 
+                {
                   model: Person,
                   required: true,
-                  where: { organizationId: req.orgId }
-                }
-              ]
-            }
-          ]
+                  where: { organizationId: req.orgId },
+                },
+              ],
+            },
+          ],
         },
-        { model: MoneyType }
-      ]
+        { model: MoneyType },
+      ],
     });
     res.json(accounts);
   } catch (err) {
@@ -87,27 +108,27 @@ exports.getAccountById = async (req, res) => {
     const account = await Account.findOne({
       where: { no: req.params.id },
       include: [
-        { 
+        {
           model: Customer,
           required: true,
           include: [
-            { 
+            {
               model: Stakeholder,
               required: true,
               include: [
-                { 
+                {
                   model: Person,
                   required: true,
-                  where: { organizationId: req.orgId }
-                }
-              ]
-            }
-          ]
+                  where: { organizationId: req.orgId },
+                },
+              ],
+            },
+          ],
         },
-        { model: MoneyType }
-      ]
+        { model: MoneyType },
+      ],
     });
-    if (!account) return res.status(404).json({ message: "Account not found" });
+    if (!account) return res.status(404).json({ message: 'Account not found' });
     res.json(account);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -118,10 +139,31 @@ exports.getAccountById = async (req, res) => {
 exports.updateAccount = async (req, res) => {
   const t = await Account.sequelize.transaction();
   try {
-    const account = await Account.findByPk(req.params.id, { transaction: t });
+    const account = await Account.findOne({
+      where: { no: req.params.id },
+      include: [
+        {
+          model: Customer,
+          required: true,
+          include: [
+            {
+              model: Stakeholder,
+              required: true,
+              include: [
+                {
+                  model: Person,
+                  required: true,
+                  where: { organizationId: req.orgId },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
     if (!account) {
       await t.rollback();
-      return res.status(404).json({ message: "Account not found" });
+      return res.status(404).json({ message: 'Account not found' });
     }
 
     await account.update(req.body, { transaction: t });
@@ -137,15 +179,40 @@ exports.updateAccount = async (req, res) => {
 exports.deleteAccount = async (req, res) => {
   const t = await Account.sequelize.transaction();
   try {
-    const account = await Account.findByPk(req.params.id, { transaction: t });
+    const account = await Account.findOne({
+      where: { no: req.params.id },
+      include: [
+        {
+          model: Customer,
+          required: true,
+          include: [
+            {
+              model: Stakeholder,
+              required: true,
+              include: [
+                {
+                  model: Person,
+                  required: true,
+                  where: { organizationId: req.orgId },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
     if (!account) {
       await t.rollback();
-      return res.status(404).json({ message: "Account not found" });
+      return res.status(404).json({ message: 'Account not found' });
     }
-
-    await account.destroy({ transaction: t });
+    // Soft delete the account
+    await Account.update(
+      { deleted: true },
+      { where: { No: req.params.id }, transaction: t }
+    );
     await t.commit();
-    res.json({ message: "Account deleted successfully" });
+    res.json({ message: 'Account deleted successfully' });
   } catch (err) {
     await t.rollback();
     res.status(500).json({ message: err.message });
