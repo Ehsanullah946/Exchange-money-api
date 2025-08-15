@@ -25,7 +25,7 @@ const {
     const orgId = req.orgId;
 
     // Validate that either deposit or withdraw is provided, but not both
-    if ((!deposit && !withdraw) || (deposit && withdraw)) {
+    if (!deposit && !withdraw) {
       await t.rollback();
       return res.status(400).json({
         message: 'Must provide either deposit or withdraw amount, not both',
@@ -213,155 +213,6 @@ const {
       });
     }
   }),
-  // Update a transaction (typically for marking withdrawal returns)
-  // (exports.updateDepositWithdraw = async (req, res) => {
-  //   const t = await sequelize.transaction();
-  //   try {
-  //     const { No } = req.params;
-  //     const orgId = req.orgId;
-  //     const {
-  //       deposit,
-  //       withdraw,
-  //       description,
-  //       employeeId,
-  //       accountNo,
-  //       fingerprint,
-  //       photo,
-  //       WithdrawReturnDate,
-  //     } = req.body;
-
-  //     // Validate that either deposit or withdraw is provided, but not both
-  //     if ((!deposit && !withdraw) || (deposit && withdraw)) {
-  //       await t.rollback();
-  //       return res.status(400).json({
-  //         message: 'Must provide either deposit or withdraw amount, not both',
-  //       });
-  //     }
-
-  //     // Validate amounts are positive
-  //     if ((deposit && deposit <= 0) || (withdraw && withdraw <= 0)) {
-  //       await t.rollback();
-  //       return res.status(400).json({
-  //         message: 'Amount must be greater than zero',
-  //       });
-  //     }
-
-  //     // Find the existing transaction
-  //     const existingTransaction = await DepositWithdraw.findOne({
-  //       where: { No, organizationId: orgId },
-  //       transaction: t,
-  //     });
-
-  //     if (!existingTransaction) {
-  //       await t.rollback();
-  //       return res.status(404).json({ message: 'Transaction not found' });
-  //     }
-
-  //     // Verify account exists if accountNo is being changed
-  //     if (accountNo && accountNo !== existingTransaction.accountNo) {
-  //       const account = await Account.findOne({
-  //         where: { No: accountNo },
-  //         include: [
-  //           {
-  //             model: Customer,
-  //             required: true,
-  //             include: [
-  //               {
-  //                 model: Stakeholder,
-  //                 required: true,
-  //                 include: [
-  //                   {
-  //                     model: Person,
-  //                     required: true,
-  //                     where: { organizationId: orgId },
-  //                   },
-  //                 ],
-  //               },
-  //             ],
-  //           },
-  //         ],
-  //         transaction: t,
-  //       });
-  //       if (!account) {
-  //         await t.rollback();
-  //         return res.status(404).json({ message: 'Account not found' });
-  //       }
-  //     }
-
-  //     // Verify employee exists if employeeId is being changed
-  //     if (employeeId && employeeId !== existingTransaction.employeeId) {
-  //       const employee = await Employee.findOne({
-  //         where: { id: employeeId },
-  //         include: [
-  //           {
-  //             model: Stakeholder,
-  //             required: true,
-  //             include: [
-  //               {
-  //                 model: Person,
-  //                 required: true,
-  //                 where: { organizationId: orgId },
-  //               },
-  //             ],
-  //           },
-  //         ],
-  //         transaction: t,
-  //       });
-  //       if (!employee) {
-  //         await t.rollback();
-  //         return res.status(404).json({ message: 'Employee not found' });
-  //       }
-  //     }
-
-  //     // Calculate the difference in amounts
-  //     const oldAmount =
-  //       existingTransaction.deposit || -existingTransaction.withdraw;
-  //     const newAmount = deposit || -withdraw;
-  //     const amountDifference = newAmount - oldAmount;
-
-  //     // Update the account balance (first revert old amount, then apply new amount)
-  //     await Account.update(
-  //       { credit: sequelize.literal(`credit + ${amountDifference}`) },
-  //       {
-  //         where: { No: accountNo || existingTransaction.accountNo },
-  //         transaction: t,
-  //       }
-  //     );
-
-  //     // Update the transaction record
-  //     const updatedTransaction = await DepositWithdraw.update(
-  //       {
-  //         deposit: deposit || 0,
-  //         withdraw: withdraw || 0,
-  //         description: description || existingTransaction.description,
-  //         employeeId: employeeId || existingTransaction.employeeId,
-  //         accountNo: accountNo || existingTransaction.accountNo,
-  //         fingerprint: fingerprint || existingTransaction.fingerprint,
-  //         photo: photo || existingTransaction.photo,
-  //         WithdrawReturnDate:
-  //           WithdrawReturnDate || existingTransaction.WithdrawReturnDate,
-  //       },
-  //       {
-  //         where: { No },
-  //         returning: true,
-  //         transaction: t,
-  //       }
-  //     );
-
-  //     await t.commit();
-  //     res.status(200).json({
-  //       message: 'Transaction updated successfully',
-  //       transaction: updatedTransaction[1][0], // Returns the updated record
-  //     });
-  //   } catch (err) {
-  //     await t.rollback();
-  //     res.status(500).json({
-  //       message: err.message,
-  //       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-  //     });
-  //   }
-  // });
-
   (exports.updateDepositWithdraw = async (req, res) => {
     const t = await sequelize.transaction();
     try {
@@ -369,15 +220,15 @@ const {
       const orgId = req.orgId;
 
       const {
-        deposit, // optional: number
-        withdraw, // optional: number
-        description, // optional
-        employeeId, // optional
-        accountNo, // optional (may change which account is affected)
-        fingerprint, // optional
-        photo, // optional
+        deposit,
+        withdraw,
+        description,
+        employeeId,
+        accountNo,
+        fingerprint,
+        photo,
         deleted = false,
-        WithdrawReturnDate, // optional
+        WithdrawReturnDate,
       } = req.body;
 
       // ---- helpers ----
