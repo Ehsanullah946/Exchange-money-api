@@ -92,17 +92,22 @@ exports.createAccountToAccount = async (req, res) => {
     });
     const nextNo = lastTransaction ? lastTransaction.No + 1 : 1;
 
-    const accountoaccount = await AccountToAccount.create({
-      No: nextNo,
-      fromAccount,
-      toAccount,
-      amount,
-      tDate: new Date(),
-      description,
-      organizationId: orgId,
-      employeeId,
-      fingerprint,
-    });
+    const accountoaccount = await AccountToAccount.create(
+      {
+        No: nextNo,
+        fromAccount,
+        toAccount,
+        amount,
+        tDate: new Date(),
+        description,
+        organizationId: orgId,
+        employeeId,
+        fingerprint,
+      },
+      {
+        transaction: t,
+      }
+    );
 
     await t.commit();
     res.status(200).json('the transaction created succesfuly', accountoaccount);
