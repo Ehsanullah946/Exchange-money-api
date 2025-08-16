@@ -216,7 +216,7 @@ const {
   (exports.updateDepositWithdraw = async (req, res) => {
     const t = await sequelize.transaction();
     try {
-      const { no } = req.params;
+      const { id } = req.params;
       const orgId = req.orgId;
 
       const {
@@ -261,7 +261,7 @@ const {
 
       // Lock the existing row to prevent race conditions
       const existing = await DepositWithdraw.findOne({
-        where: { No: no, organizationId: orgId },
+        where: { No: id, organizationId: orgId },
         transaction: t,
         lock: t.LOCK.UPDATE,
       });
@@ -299,7 +299,7 @@ const {
           WithdrawReturnDate: WithdrawReturnDate ?? existing.WithdrawReturnDate,
         },
         {
-          where: { No: no, organizationId: orgId },
+          where: { No: id, organizationId: orgId },
           transaction: t,
         }
       );
@@ -338,7 +338,7 @@ const {
       await t.commit();
 
       const updatedTransaction = await DepositWithdraw.findOne({
-        where: { No: no, organizationId: orgId },
+        where: { No: id, organizationId: orgId },
       });
 
       return res.status(200).json({
@@ -359,12 +359,12 @@ const {
 exports.deleteDepositWithdraw = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { no } = req.params;
+    const { id } = req.params;
     const orgId = req.orgId;
 
     // Lock the transaction row for safe update
     const existing = await DepositWithdraw.findOne({
-      where: { No: no, organizationId: orgId, deleted: false },
+      where: { No: id, organizationId: orgId, deleted: false },
       transaction: t,
       lock: t.LOCK.UPDATE,
     });
@@ -401,7 +401,7 @@ exports.deleteDepositWithdraw = async (req, res) => {
     await DepositWithdraw.update(
       { deleted: true },
       {
-        where: { No: no, organizationId: orgId },
+        where: { No: id, organizationId: orgId },
         transaction: t,
       }
     );

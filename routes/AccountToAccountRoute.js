@@ -29,19 +29,19 @@ router.post(
   orgScope(AccountToAccount),
   accountToaccountController.createAccountToAccount
 );
-// router.put(
-//   '/:no',
-//   protect,
-//   allowRoles(2, 3),
-//   orgScope(AccountToAccount),
-//   accountToaccountController.updateAccountToAccount
-// );
-// router.delete(
-//   '/:no',
-//   protect,
-//   allowRoles(2, 3),
-//   orgScope(AccountToAccount),
-//   accountToaccountController.deleteAccountToAccount
-// );
+router.patch(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(AccountToAccount),
+  accountToaccountController.updateAccountToAccount
+);
+router.delete(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(AccountToAccount),
+  accountToaccountController.deleteAccountToAccount
+);
 
 module.exports = router;
