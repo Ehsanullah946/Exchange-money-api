@@ -14,6 +14,7 @@ const transferRouter = require('./routes/transferRoute');
 const receiveRouter = require('./routes/receiveRoutes');
 const depositWithdrawRouter = require('./routes/depositWithdrawRoutes');
 const accountToAccountRouter = require('./routes/accountToAccountRoute');
+const expenceRouter = require('./routes/expenceRoutes');
 
 app.use(express.json());
 
@@ -29,5 +30,6 @@ app.use('/api/v1/transfer', transferRouter);
 app.use('/api/v1/receive', receiveRouter);
 app.use('/api/v1/depositWithdraw', depositWithdrawRouter);
 app.use('/api/v1/accountToAccount', accountToAccountRouter);
+app.use('/api/v1/expence', expenceRouter);
 
 module.exports = app;

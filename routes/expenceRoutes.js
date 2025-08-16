@@ -22,20 +22,20 @@ const router = express.Router();
 // //   expenceController.getExpences
 // // );
 
-// router.post(
-//   '/',
-//   protect,
-//   allowRoles(2, 3),
-//   orgScope(Expence),
-//   expenceController.createExpence
-// );
-// router.put(
-//   '/:no',
-//   protect,
-//   allowRoles(2, 3),
-//   orgScope(Expence),
-//   expenceController.updateExpence
-// );
+router.post(
+  '/',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Expence),
+  expenceController.createExpence
+);
+router.patch(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Expence),
+  expenceController.updateExpence
+);
 
 // router.delete(
 //   '/:no',
