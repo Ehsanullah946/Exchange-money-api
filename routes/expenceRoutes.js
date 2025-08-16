@@ -7,13 +7,14 @@ const { Expence } = require('../models');
 
 const router = express.Router();
 
-// router.get(
-//   '/',
-//   protect,
-//   allowRoles(2, 3, 4),
-//   orgScope(Expence),
-//   expenceController.getExpences
-// );
+router.get(
+  '/',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(Expence),
+  expenceController.getAllExpence
+);
+
 // // router.get(
 // //   '/:id',
 // //   protect,
