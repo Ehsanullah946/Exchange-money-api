@@ -37,12 +37,12 @@ router.patch(
   expenceController.updateExpence
 );
 
-// router.delete(
-//   '/:no',
-//   protect,
-//   allowRoles(2, 3),
-//   orgScope(Expence),
-//   expenceController.deleteExpence
-// );
+router.delete(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Expence),
+  expenceController.deleteExpence
+);
 
 module.exports = router;
