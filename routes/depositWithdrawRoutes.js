@@ -30,14 +30,14 @@ router.post(
   depositWithdrawController.createDepositWithdraw
 );
 router.put(
-  '/:no',
+  '/:id',
   protect,
   allowRoles(2, 3),
   orgScope(DepositWithdraw),
   depositWithdrawController.updateDepositWithdraw
 );
 router.delete(
-  '/:no',
+  '/:id',
   protect,
   allowRoles(2, 3),
   orgScope(DepositWithdraw),
