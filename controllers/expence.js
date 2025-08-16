@@ -87,3 +87,30 @@ exports.deleteExpence = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+exports.getAllExpence = async (req, res) => {
+  try {
+    const expence = Expence.findAll({
+      where: { organizationId: req.orgId },
+    });
+    if (!expence) {
+      res.status(404).json('expences not found');
+    }
+    res.status(200).json({ stutus: 'success', data: expence });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+exports.getExpenceById = async (req, res) => {
+  try {
+    const expence = Expence.findOne({
+      where: { No: req.params.id, organizationId: req.orgId },
+    });
+    if (!expence) {
+      res.status(404).json('expence not found');
+    }
+    res.status(200).json({ stutus: 'success', data: expence });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
