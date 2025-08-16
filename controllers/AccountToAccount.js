@@ -75,7 +75,6 @@ exports.createAccountToAccount = async (req, res) => {
         };
       }
 
-      // Load destination account and verify org
       const destAccount = await Account.findOne({
         where: { No: toAccount },
         include: [
@@ -180,7 +179,6 @@ exports.updateAccountToAccount = async (req, res) => {
         return { httpError: { code: 404, message: 'Transaction not found' } };
       }
 
-      // If from/to/amount changes, reverse old balances first
       if (
         fromAccount &&
         toAccount &&
@@ -263,7 +261,6 @@ exports.deleteAccountToAccount = async (req, res) => {
         return { httpError: { code: 404, message: 'Transaction not found' } };
       }
 
-      // Reverse the balances
       const origin = await Account.findByPk(transfer.fromAccount, {
         transaction: t,
         lock: t.LOCK.UPDATE,
@@ -276,7 +273,6 @@ exports.deleteAccountToAccount = async (req, res) => {
       await origin.increment('credit', { by: transfer.amount, transaction: t });
       await dest.decrement('credit', { by: transfer.amount, transaction: t });
 
-      // Mark as deleted
       transfer.deleted = true;
       await transfer.save({ transaction: t });
 
