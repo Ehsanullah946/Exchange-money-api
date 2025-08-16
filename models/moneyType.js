@@ -46,6 +46,7 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'purchaseMoneyType',
     });
     MoneyType.hasMany(models.Account, { foreignKey: 'moneyTypeId' });
+    MoneyType.hasMany(models.Rate, { foreignKey: 'fromCurrency' });
   };
 
   addOrgSequence(MoneyType, 'number');
