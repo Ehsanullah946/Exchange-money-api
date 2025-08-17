@@ -1,4 +1,4 @@
-const { Rate, MoneyType } = require('../models');
+const { Rate, MoneyType, sequelize } = require('../models');
 
 exports.getRates = async (req, res) => {
   try {
@@ -28,15 +28,22 @@ exports.getRateByCurrency = async (req, res) => {
   }
 };
 
-// 🔹 Create or update a rate
+//  Create or update a rate
 exports.createOrUpdateRate = async (req, res) => {
   try {
     const { fromCurrency, value1, value2 } = req.body;
+    const orgId = req.orgId;
+
+    const moneyType = await MoneyType.findOne({
+      where: { id: fromCurrency, organizationId: orgId },
+    });
+
+    if (!moneyType) {
+      return res.status(404).json({ message: 'currency not found' });
+    }
 
     if (!fromCurrency || value1 === undefined || value2 === undefined) {
-      return res
-        .status(400)
-        .json({ message: 'fromCurrency, value1 and value2 are required' });
+      return res.status(400).json({ message: '' });
     }
 
     const [rate, created] = await Rate.upsert({
@@ -44,6 +51,7 @@ exports.createOrUpdateRate = async (req, res) => {
       value1,
       value2,
       rDate: new Date(),
+      organizationId: orgId,
     });
 
     res.status(created ? 201 : 200).json({
@@ -57,7 +65,6 @@ exports.createOrUpdateRate = async (req, res) => {
   }
 };
 
-// 🔹 Delete a rate
 exports.deleteRate = async (req, res) => {
   try {
     const { fromCurrency } = req.params;
@@ -68,6 +75,37 @@ exports.deleteRate = async (req, res) => {
     }
 
     res.status(200).json({ message: 'Rate deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getLatestRates = async (req, res) => {
+  try {
+    // This works if schema allows multiple rows per currency
+    const latestRates = await Rate.findAll({
+      attributes: [
+        'fromCurrency',
+        [sequelize.fn('MAX', sequelize.col('rDate')), 'latestDate'],
+      ],
+      group: ['fromCurrency'],
+      raw: true,
+    });
+
+    // Fetch full rate rows with MoneyType joined
+    const result = [];
+    for (const item of latestRates) {
+      const rate = await Rate.findOne({
+        where: {
+          fromCurrency: item.fromCurrency,
+          rDate: item.latestDate,
+        },
+        include: [{ model: MoneyType }],
+      });
+      if (rate) result.push(rate);
+    }
+
+    res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

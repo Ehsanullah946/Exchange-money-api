@@ -9,6 +9,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
       },
+      organizationId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
     },
     {
       tableName: 'rates',
@@ -18,6 +22,7 @@ module.exports = (sequelize, DataTypes) => {
 
   Rate.associate = (models) => {
     Rate.belongsTo(models.MoneyType, { foreignKey: 'fromCurrency' });
+    Rate.belongsTo(models.Organization, { foreignKey: 'organizationId' });
   };
 
   return Rate;
