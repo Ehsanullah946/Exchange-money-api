@@ -1,6 +1,7 @@
 'use strict';
 
 const { DATE } = require('sequelize');
+const { allowRoles } = require('../middlewares/roleMiddleware');
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
@@ -12,6 +13,10 @@ module.exports = {
       rDate: {
         type: Sequelize.DATE,
         defaultValue: Sequelize.NOW,
+      },
+      organizationId: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
       },
     });
   },
