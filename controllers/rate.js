@@ -3,7 +3,8 @@ const { Rate, MoneyType, sequelize } = require('../models');
 exports.getRates = async (req, res) => {
   try {
     const rates = await Rate.findAll({
-      include: [{ model: MoneyType }],
+      where: { organizationId: req.orgId },
+      include: [{ model: MoneyType, organizationId: req.orgId }],
       order: [['rDate', 'DESC']],
     });
     res.status(200).json(rates);
@@ -16,8 +17,8 @@ exports.getRateByCurrency = async (req, res) => {
   try {
     const { fromCurrency } = req.params;
     const rate = await Rate.findOne({
-      where: { fromCurrency },
-      include: [{ model: MoneyType }],
+      where: { fromCurrency, organizationId: req.orgId },
+      include: [{ model: MoneyType, organizationId: req.orgId }],
     });
     if (!rate) {
       return res.status(404).json({ message: 'Rate not found' });
@@ -69,7 +70,9 @@ exports.deleteRate = async (req, res) => {
   try {
     const { fromCurrency } = req.params;
 
-    const deleted = await Rate.destroy({ where: { fromCurrency } });
+    const deleted = await Rate.destroy({
+      where: { fromCurrency, organizationId: req.orgId },
+    });
     if (!deleted) {
       return res.status(404).json({ message: 'Rate not found' });
     }
@@ -84,6 +87,7 @@ exports.getLatestRates = async (req, res) => {
   try {
     // This works if schema allows multiple rows per currency
     const latestRates = await Rate.findAll({
+      where: { organizationId: req.orgId },
       attributes: [
         'fromCurrency',
         [sequelize.fn('MAX', sequelize.col('rDate')), 'latestDate'],
@@ -97,10 +101,11 @@ exports.getLatestRates = async (req, res) => {
     for (const item of latestRates) {
       const rate = await Rate.findOne({
         where: {
+          organizationId: req.orgId,
           fromCurrency: item.fromCurrency,
           rDate: item.latestDate,
         },
-        include: [{ model: MoneyType }],
+        include: [{ model: MoneyType, where: { organizationId: req.orgId } }],
       });
       if (rate) result.push(rate);
     }
