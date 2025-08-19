@@ -6,15 +6,15 @@ exports.getSenderReceivers = async (req, res) => {
       include: [
         {
           model: Stakeholder,
-          required:true,
+          required: true,
           include: [
             {
               model: Person,
-              where:{organizationId:req.orgId}
-            }
-          ]
-        }
-      ]
+              where: { organizationId: req.orgId },
+            },
+          ],
+        },
+      ],
     });
     res.json(data);
   } catch (err) {
@@ -26,37 +26,60 @@ exports.createSenderReceiver = async (req, res) => {
   const t = await SenderReceiver.sequelize.transaction();
   try {
     const {
-      firstName, lastName, fatherName, photo, nationalCode, phoneNo, currentAddress,
-      gender, maritalStatus, job
+      firstName,
+      lastName,
+      fatherName,
+      photo,
+      nationalCode,
+      phone,
+      currentAddress,
+      gender,
+      maritalStatus,
+      job,
     } = req.body;
 
     // 1. Create Person
-    const person = await Person.create({
-      firstName, lastName, fatherName, photo, nationalCode, phoneNo, currentAddress,
-      organizationId: req.orgId
-    }, { transaction: t });
+    const person = await Person.create(
+      {
+        firstName,
+        lastName,
+        fatherName,
+        photo,
+        nationalCode,
+        phone,
+        currentAddress,
+        organizationId: req.orgId,
+      },
+      { transaction: t }
+    );
 
     // 2. Create Stakeholder
-    const stakeholder = await Stakeholder.create({
-      gender, maritalStatus, job, personId: person.id,
-    }, { transaction: t });
+    const stakeholder = await Stakeholder.create(
+      {
+        gender,
+        maritalStatus,
+        job,
+        personId: person.id,
+      },
+      { transaction: t }
+    );
 
     // 3. Create SenderReceiver
-    const sr = await SenderReceiver.create({
-      stakeholderId: stakeholder.id,
-      organizationId:req.orgId
-    }, { transaction: t });
-
+    const sr = await SenderReceiver.create(
+      {
+        stakeholderId: stakeholder.id,
+        organizationId: req.orgId,
+      },
+      { transaction: t }
+    );
 
     await t.commit();
     res.status(201).json(sr);
-
   } catch (err) {
     await t.rollback();
     res.status(500).json({ message: err.message });
   }
 };
-
 
 exports.updateSenderReceiver = async (req, res) => {
   const t = await SenderReceiver.sequelize.transaction();
@@ -71,15 +94,16 @@ exports.updateSenderReceiver = async (req, res) => {
             {
               model: Person,
               required: true,
-              where:{organizationId:req.orgId}
-            }
-          ]
-        }
+              where: { organizationId: req.orgId },
+            },
+          ],
+        },
       ],
-      transaction:t
+      transaction: t,
     });
 
-    if (!sr) return res.status(404).json({ message: 'SenderReceiver not found' });
+    if (!sr)
+      return res.status(404).json({ message: 'SenderReceiver not found' });
 
     const stakeholder = sr.Stakeholder;
     const person = stakeholder.Person;
@@ -87,7 +111,6 @@ exports.updateSenderReceiver = async (req, res) => {
     await sr.update(req.body, { transaction: t });
     await stakeholder.update(req.body, { transaction: t });
     await person.update(req.body, { transaction: t });
-    
 
     await t.commit();
 
@@ -110,14 +133,15 @@ exports.getSenderReceiverByid = async (req, res) => {
             {
               model: Person,
               required: true,
-              where:{organizationId:req.orgId}
-            }
-          ]
-        }
-      ]
+              where: { organizationId: req.orgId },
+            },
+          ],
+        },
+      ],
     });
 
-    if (!sr) return res.status(404).json({ message: 'senderRceiver not found' });
+    if (!sr)
+      return res.status(404).json({ message: 'senderRceiver not found' });
     res.json(sr);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -137,19 +161,20 @@ exports.deleteSenderReceiver = async (req, res) => {
             {
               model: Person,
               required: true,
-              where:{organizationId:req.orgId}
-            }
-          ]
-        }
+              where: { organizationId: req.orgId },
+            },
+          ],
+        },
       ],
-      transaction:t
+      transaction: t,
     });
 
-    if (!sr) return res.status(404).json({ message: 'SenderReceiver not found' });
+    if (!sr)
+      return res.status(404).json({ message: 'SenderReceiver not found' });
 
     const stakeholder = sr.Stakeholder;
     const person = stakeholder.Person;
-    
+
     await sr.destroy({ transaction: t });
     await stakeholder.destroy({ transaction: t });
     await person.destroy({ transaction: t });
