@@ -1,11 +1,12 @@
 const express = require('express');
+const router = express.Router();
 const { protect } = require('../middlewares/authMiddlewares');
 const orgScope = require('../middlewares/orgScope');
 const customerController = require('../controllers/customer');
+const authController = require('../controllers/authController');
+const customerAuth = require('../middlewares/customerAuth');
 const { Customer } = require('../models');
 const { allowRoles } = require('../middlewares/roleMiddleware');
-
-const router = express.Router();
 
 router.get(
   '/',
@@ -14,6 +15,7 @@ router.get(
   orgScope(Customer),
   customerController.getCustomers
 );
+
 router.get(
   '/:customerId/account',
   protect,
@@ -50,8 +52,8 @@ router.get(
   customerController.getCustomerById
 );
 
-router.post('/auth/initiate', customerController.initiateVerification);
-router.post('/auth/verify', customerController.verifyCode);
+router.post('/auth/initiate', authController.initiateVerification);
+router.post('/auth/verify', authController.verifyCode);
 
 // Protected customer routes
 router.get('/accounts', customerAuth, customerController.customerAccount);

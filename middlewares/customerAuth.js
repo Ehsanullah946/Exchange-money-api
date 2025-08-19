@@ -1,7 +1,7 @@
 // middleware/customerAuth.js
 const jwt = require('jsonwebtoken');
-const { Customer, Stakeholder, Person } = require('../models');
 require('dotenv').config();
+const { Customer, Stakeholder, Person } = require('../models');
 
 module.exports = async (req, res, next) => {
   try {
