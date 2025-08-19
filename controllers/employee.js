@@ -6,16 +6,16 @@ exports.getEmployees = async (req, res) => {
       include: [
         {
           model: Stakeholder,
-           required: true,
+          required: true,
           include: [
             {
               model: Person,
               required: true,
-              where: { organizationId: req.orgId }
-            }
-          ]
-        }
-      ]
+              where: { organizationId: req.orgId },
+            },
+          ],
+        },
+      ],
     });
     res.json(data);
   } catch (err) {
@@ -27,29 +27,54 @@ exports.createEmployee = async (req, res) => {
   const t = await Employee.sequelize.transaction();
   try {
     const {
-      firstName, lastName, fatherName,photo, nationalCode, phoneNo, currentAddress,
-      gender, maritalStatus, job
+      firstName,
+      lastName,
+      fatherName,
+      photo,
+      nationalCode,
+      phone,
+      currentAddress,
+      gender,
+      maritalStatus,
+      job,
     } = req.body;
 
     // 1. Create Person
-    const person = await Person.create({
-      firstName, lastName, fatherName, photo, nationalCode, phoneNo, currentAddress,
-       organizationId: req.orgId
-    }, { transaction: t });
+    const person = await Person.create(
+      {
+        firstName,
+        lastName,
+        fatherName,
+        photo,
+        nationalCode,
+        phone,
+        currentAddress,
+        organizationId: req.orgId,
+      },
+      { transaction: t }
+    );
 
     // 2. Create Stakeholder
-    const stakeholder = await Stakeholder.create({
-      gender, maritalStatus, job, personId: person.id,
-    }, { transaction: t });
+    const stakeholder = await Stakeholder.create(
+      {
+        gender,
+        maritalStatus,
+        job,
+        personId: person.id,
+      },
+      { transaction: t }
+    );
 
     // 3. Create Employee
-    const employee = await Employee.create({
-      stakeholderId: stakeholder.id,
-    }, { transaction: t });
+    const employee = await Employee.create(
+      {
+        stakeholderId: stakeholder.id,
+      },
+      { transaction: t }
+    );
 
     await t.commit();
     res.status(201).json(employee);
-
   } catch (err) {
     await t.rollback();
     res.status(500).json({ message: err.message });
@@ -57,7 +82,7 @@ exports.createEmployee = async (req, res) => {
 };
 
 exports.updateEmployee = async (req, res) => {
-  const t =await Employee.sequelize.transaction();
+  const t = await Employee.sequelize.transaction();
   try {
     const employee = await Employee.findOne({
       where: { id: req.params.id },
@@ -69,23 +94,24 @@ exports.updateEmployee = async (req, res) => {
             {
               model: Person,
               required: true,
-            where:{organizationId:req.orgId}
-          }
-          ]
-        }
+              where: { organizationId: req.orgId },
+            },
+          ],
+        },
       ],
-      transaction:t
+      transaction: t,
     });
 
-    if (!employee) return res.status(404).json({ message: 'Employee not found' });
+    if (!employee)
+      return res.status(404).json({ message: 'Employee not found' });
 
     const stakeholder = employee.Stakeholder;
     const person = stakeholder.Person;
-    
+
     await employee.updete(req.body, { transaction: t });
     await stakeholder.updete(req.body, { transaction: t });
     await person.updete(req.body, { transaction: t });
- 
+
     await t.commit();
     res.json({ message: 'Employee updated successfully', employee });
   } catch (err) {
@@ -95,7 +121,7 @@ exports.updateEmployee = async (req, res) => {
 };
 
 exports.deleteEmployee = async (req, res) => {
-  const t =await Employee.sequelize.transaction();
+  const t = await Employee.sequelize.transaction();
   try {
     const employee = await Employee.findOne({
       where: { id: req.params.id },
@@ -107,23 +133,22 @@ exports.deleteEmployee = async (req, res) => {
             {
               model: Person,
               required: true,
-              where:{organizationId:req.orgId}
-            }
-          ]
-        }
+              where: { organizationId: req.orgId },
+            },
+          ],
+        },
       ],
-      transaction:t
-      
+      transaction: t,
     });
-    if (!employee) return res.status(404).json({ message: 'Employee not found' });
-
+    if (!employee)
+      return res.status(404).json({ message: 'Employee not found' });
 
     const stakeholder = employee.Stakeholder;
     const person = stakeholder.Person;
 
-    await employee.destroy({transaction:t})
-    await stakeholder.destroy({transaction:t})
-    await person.destroy({transaction:t})
+    await employee.destroy({ transaction: t });
+    await stakeholder.destroy({ transaction: t });
+    await person.destroy({ transaction: t });
 
     await t.commit();
     res.json({ message: 'Employee deleted successfully' });
@@ -133,35 +158,34 @@ exports.deleteEmployee = async (req, res) => {
   }
 };
 
-exports.getEmployeeById =async (req, res)=>{
-    try {
-        const employee = await Employee.findOne({
-     where: { id: req.params.id }, 
+exports.getEmployeeById = async (req, res) => {
+  try {
+    const employee = await Employee.findOne({
+      where: { id: req.params.id },
       include: [
         {
           model: Stakeholder,
-          required: true, 
+          required: true,
           include: [
             {
               model: Person,
               required: true,
-              where:{ organizationId: req.orgId } 
-            }
-          ]
-        }
-      ]
-    })
-      
-      if (!employee) return res.status(404).json({ message: 'employee not found' });
-        res.status(200).json({
-            status: "success",
-            data: {
-                data:employee
-            }
-        })
-        
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-}
+              where: { organizationId: req.orgId },
+            },
+          ],
+        },
+      ],
+    });
 
+    if (!employee)
+      return res.status(404).json({ message: 'employee not found' });
+    res.status(200).json({
+      status: 'success',
+      data: {
+        data: employee,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
