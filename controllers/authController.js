@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { sequelize, UserAccount, Organization } = require('../models');
+require('dotenv').config();
 
 const generateToken = (id, organizationId, role) => {
   return jwt.sign({ id, organizationId, role }, process.env.JWT_SECRET, {
@@ -8,10 +9,6 @@ const generateToken = (id, organizationId, role) => {
   });
 };
 
-/**
- * Create new organization + its first admin user
- * Only Super Admin (role 1) can call this
- */
 exports.createOrganization = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
