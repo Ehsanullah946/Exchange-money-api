@@ -5,6 +5,7 @@ const {
   Rate,
   MoneyType,
   Account,
+  sequelize,
 } = require('../models');
 const bcrypt = require('bcryptjs');
 exports.getCustomers = async (req, res) => {
@@ -231,17 +232,16 @@ exports.getCustomerById = async (req, res) => {
   }
 };
 
-// Endpoint to get all accounts for a customer with total in main currency
 exports.getCustomerAccounts = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { customerId } = req.params;
     const orgId = req.orgId;
 
-    // 1. First find the main currency (Dollar) for this organization
+    // 1. Find main currency (USA)
     const mainCurrency = await MoneyType.findOne({
       where: {
-        typeName: 'Dollar', // or whatever identifies your main currency
+        typeName: 'USA',
         organizationId: orgId,
       },
       transaction: t,
@@ -251,15 +251,14 @@ exports.getCustomerAccounts = async (req, res) => {
       await t.rollback();
       return res.status(400).json({
         success: false,
-        message: 'Main currency (Dollar) not found for organization',
+        message: 'Main currency (USA) not found',
       });
     }
 
-    // 2. Get all accounts for the customer with currency info
+    // 2. Get all customer accounts
     const accounts = await Account.findAll({
       where: {
         customerId,
-        organizationId: orgId,
         deleted: false,
       },
       include: [
@@ -277,6 +276,7 @@ exports.getCustomerAccounts = async (req, res) => {
               include: [
                 {
                   model: Person,
+                  organizationId: orgId,
                   attributes: ['firstName', 'lastName'],
                 },
               ],
@@ -295,50 +295,55 @@ exports.getCustomerAccounts = async (req, res) => {
       });
     }
 
-    // 3. Get all conversion rates for this organization
-    const rates = await Rate.findAll({
+    // 3. Get unique currency IDs from accounts (excluding main currency)
+    const currencyIds = [
+      ...new Set(
+        accounts
+          .map((acc) => acc.moneyTypeId)
+          .filter((id) => id !== mainCurrency.id)
+      ),
+    ];
+
+    // 4. Get latest rates for each currency
+    const latestRates = await Rate.findAll({
       where: {
+        fromCurrency: currencyIds,
         organizationId: orgId,
       },
-      include: [
-        {
-          model: MoneyType,
-          as: 'MoneyType',
-          attributes: ['id', 'typeName'],
-        },
+      attributes: [
+        'fromCurrency',
+        'value1',
+        [sequelize.fn('MAX', sequelize.col('rDate')), 'latestDate'],
       ],
+      group: ['fromCurrency', 'value1'],
+      order: [[sequelize.literal('latestDate'), 'DESC']],
       transaction: t,
     });
 
-    // 4. Process each account and convert to main currency
+    // Create a map of currencyId to latest rate
+    const rateMap = latestRates.reduce((map, rate) => {
+      if (!map.has(rate.fromCurrency)) {
+        map.set(rate.fromCurrency, parseFloat(rate.value1));
+      }
+      return map;
+    }, new Map());
+
+    // 5. Process accounts
     let totalInMainCurrency = 0;
     const accountDetails = [];
 
     for (const account of accounts) {
-      // Skip if moneyType not found (shouldn't happen)
-      if (!account.MoneyType) continue;
-
-      // Find conversion rate (from this currency to main currency)
-      const rate = rates.find(
-        (r) =>
-          r.fromCurrency === account.moneyTypeId &&
-          r.MoneyType.id === account.moneyTypeId
-      );
-
+      const originalBalance = parseFloat(account.credit);
       let convertedValue = 0;
       let rateUsed = 1;
 
       if (account.moneyTypeId === mainCurrency.id) {
-        // Already in main currency
-        convertedValue = account.credit;
-        rateUsed = 1;
-      } else if (rate) {
-        // Convert using rate (value1 is our buy rate)
-        convertedValue = account.credit / rate.value1;
-        rateUsed = rate.value1;
+        // Already in main currency (USA)
+        convertedValue = originalBalance;
       } else {
-        // No rate found - can't convert
-        convertedValue = 0;
+        // Get the latest rate for this currency
+        rateUsed = rateMap.get(account.moneyTypeId) || 1;
+        convertedValue = originalBalance / rateUsed;
       }
 
       totalInMainCurrency += convertedValue;
@@ -347,31 +352,27 @@ exports.getCustomerAccounts = async (req, res) => {
         currencyId: account.moneyTypeId,
         currencyName: account.MoneyType.typeName,
         currencyNumber: account.MoneyType.number,
-        originalBalance: account.credit,
-        convertedBalance: convertedValue,
+        originalBalance: originalBalance,
+        convertedBalance: parseFloat(convertedValue.toFixed(2)),
         conversionRate: rateUsed,
         isMainCurrency: account.moneyTypeId === mainCurrency.id,
+        rateDate:
+          latestRates.find((r) => r.fromCurrency === account.moneyTypeId)
+            ?.rDate || null,
       });
     }
 
-    // 5. Get customer name
-    const customer = accounts[0].Customer;
-    const customerName = customer?.Stakeholder?.Person
-      ? `${customer.Stakeholder.Person.firstName} ${customer.Stakeholder.Person.lastName}`
-      : 'Unknown Customer';
-
     await t.commit();
 
-    // 6. Format the response
+    // 6. Format response
     res.status(200).json({
       success: true,
       customer: {
         id: customerId,
-        name: customerName,
       },
       accounts: accountDetails,
       total: {
-        value: totalInMainCurrency,
+        value: parseFloat(totalInMainCurrency.toFixed(2)),
         currency: mainCurrency.typeName,
         currencyId: mainCurrency.id,
         currencyNumber: mainCurrency.number,
@@ -386,14 +387,7 @@ exports.getCustomerAccounts = async (req, res) => {
     await t.rollback();
     res.status(500).json({
       success: false,
-      message: 'Failed to get customer accounts',
-      error:
-        process.env.NODE_ENV === 'development'
-          ? {
-              message: err.message,
-              stack: err.stack,
-            }
-          : undefined,
+      message: err.message,
     });
   }
 };

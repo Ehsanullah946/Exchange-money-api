@@ -7,12 +7,48 @@ const { allowRoles } = require('../middlewares/roleMiddleware');
 
 const router = express.Router();
 
-router.get('/', protect, allowRoles(2, 3, 4), orgScope(Customer), customerController.getCustomers);
-router.post('/', protect, allowRoles(2, 3), orgScope(Customer), customerController.createCustomer);
-router.patch('/:id', protect, allowRoles(2, 3), orgScope(Customer), customerController.updateCustomer);
-router.delete('/:id', protect, allowRoles(2, 3), orgScope(Customer), customerController.deleteCustomer);
-router.get('/:id', protect, allowRoles(2, 3), orgScope(Customer), customerController.getCustomerById);
-
+router.get(
+  '/',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(Customer),
+  customerController.getCustomers
+);
+router.get(
+  '/:customerId/account',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(Customer),
+  customerController.getCustomerAccounts
+);
+router.post(
+  '/',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Customer),
+  customerController.createCustomer
+);
+router.patch(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Customer),
+  customerController.updateCustomer
+);
+router.delete(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Customer),
+  customerController.deleteCustomer
+);
+router.get(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Customer),
+  customerController.getCustomerById
+);
 
 // router.get("/accounts", protectCustomer, async (req, res) => {
 //   try {
@@ -41,9 +77,5 @@ router.get('/:id', protect, allowRoles(2, 3), orgScope(Customer), customerContro
 //     });
 //   }
 // });
-
-
-
-
 
 module.exports = router;
