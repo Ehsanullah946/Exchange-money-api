@@ -4,7 +4,7 @@ const { sequelize, UserAccount, Organization } = require('../models');
 
 const generateToken = (id, organizationId, role) => {
   return jwt.sign({ id, organizationId, role }, process.env.JWT_SECRET, {
-    expiresIn: '7d'
+    expiresIn: '7d',
   });
 };
 
@@ -24,10 +24,12 @@ exports.createOrganization = async (req, res) => {
     // Check if org name exists
     const orgExists = await Organization.findOne({
       where: { name: organizationName },
-      transaction
+      transaction,
     });
     if (orgExists) {
-      return res.status(400).json({ message: 'Organization name already taken' });
+      return res
+        .status(400)
+        .json({ message: 'Organization name already taken' });
     }
 
     // Step 1 — Create organization
@@ -40,12 +42,12 @@ exports.createOrganization = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await sequelize.query('SET @creatorRole = ?', {
-        replacements: [req.user.role],
-        transaction
-      });
+      replacements: [req.user.role],
+      transaction,
+    });
 
     // Step 3 — Create first admin user
-    
+
     const user = await UserAccount.create(
       {
         username,
@@ -53,7 +55,7 @@ exports.createOrganization = async (req, res) => {
         email,
         whatsApp,
         usertypeId: 2, // Admin role
-        organizationId: organization.id
+        organizationId: organization.id,
       },
       { transaction }
     );
@@ -63,9 +65,8 @@ exports.createOrganization = async (req, res) => {
 
     res.status(201).json({
       message: 'Organization and first admin created successfully',
-      token: generateToken(user.id, organization.id, 2)
+      token: generateToken(user.id, organization.id, 2),
     });
-
   } catch (err) {
     // Rollback both if any error
     await transaction.rollback();
@@ -114,12 +115,12 @@ exports.addUserToOrganization = async (req, res) => {
       email,
       whatsApp,
       usertypeId: roleId,
-      organizationId: req.user.organizationId
+      organizationId: req.user.organizationId,
     });
 
     res.status(201).json({
       message: 'User added successfully',
-      token: generateToken(user.id, req.user.organizationId, roleId)
+      token: generateToken(user.id, req.user.organizationId, roleId),
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -140,100 +141,66 @@ exports.login = async (req, res) => {
     }
 
     const user = await UserAccount.findOne({ where: { email } });
-      // In login function
-      if (!user) {
-        return res.status(401).json({ 
-          message: 'Invalid credentials',
-          code: 'INVALID_CREDENTIALS' // Standard error code
-        });
-      }
+    // In login function
+    if (!user) {
+      return res.status(401).json({
+        message: 'Invalid credentials',
+        code: 'INVALID_CREDENTIALS', // Standard error code
+      });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res
-        .status(401)
-        .json({ message: 'Invalid email or password' });
+      return res.status(401).json({ message: 'Invalid email or password' });
     }
 
     res.json({
       message: 'Login successful',
       data: {
-        data:user
+        data: user,
       },
-      token: generateToken(user.id, user.organizationId, user.usertypeId)
+      token: generateToken(user.id, user.organizationId, user.usertypeId),
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
+// controllers/authController.js
+const AuthService = require('../utils/authService');
+const rateLimit = require('express-rate-limit');
 
+// Rate limiting for OTP requests
+const otpRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // 5 attempts per hour
+  message: 'Too many OTP requests. Please try again later.',
+});
 
+exports.initiateVerification = [
+  otpRateLimiter,
+  async (req, res, next) => {
+    try {
+      const { contact } = req.body;
+      const result = await AuthService.initiateVerification(contact);
+      res.json(result);
+      next();
+    } catch (err) {
+      res.status(400).json({ message: err.message });
+    }
+  },
+];
 
-// customer login
-// exports.customerLogin = async (req, res) => {
-//   try {
-//     const { phoneNo, password, organizationId } = req.body;
-
-//     // Find stakeholder with organization verification
-//     const stakeholder = await Stakeholder.findOne({
-//       include: {
-//         model: Person,
-//         required: true,
-//         where: { 
-//           phoneNo, 
-//           organizationId 
-//         }
-//       },
-//       where: { canLogin: true }
-//     });
-
-//     if (!stakeholder?.password) {
-//       return res.status(401).json({ message: "Invalid credentials" });
-//     }
-
-//     const isMatch = await bcrypt.compare(password, stakeholder.password);
-//     if (!isMatch) {
-//       return res.status(401).json({ message: "Incorrect password" });
-//     }
-
-//     // Get full customer info with verification
-//     const customer = await Customer.findOne({
-//       where: { stakeholderId: stakeholder.id },
-//       include: [{
-//         model: Stakeholder,
-//         include: [Person]
-//       }]
-//     });
-
-//     if (!customer) {
-//       return res.status(404).json({ message: "Customer account not found" });
-//     }
-
-//     // Generate token with essential claims
-//     const token = jwt.sign(
-//       { 
-//         customerId: customer.id, 
-//         stakeholderId: stakeholder.id,
-//         organizationId,
-//         role: "customer",
-//         phoneNo // For additional verification
-//       },
-//       process.env.JWT_SECRET,
-//       { expiresIn: "1d" }
-//     );
-
-//     res.status(200).json({ 
-//       token,
-//       customer: {
-//         id: customer.id,
-//         organizationId
-//       }
-//     });
-//   } catch (err) {
-//     res.status(500).json({ 
-//       message: "Login failed",
-//       error: err.message
-//     });
-//   }
-// };
+exports.verifyCode = [
+  otpRateLimiter,
+  async (req, res, next) => {
+    try {
+      const { contact, code } = req.body;
+      const result = await AuthService.verifyCode(contact, code);
+      res.json(result);
+      next();
+    } catch (err) {
+      res.status(400).json({ message: err.message });
+    }
+  },
+];

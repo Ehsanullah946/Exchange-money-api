@@ -50,32 +50,10 @@ router.get(
   customerController.getCustomerById
 );
 
-// router.get("/accounts", protectCustomer, async (req, res) => {
-//   try {
-//     // Verify the requested accounts belong to the authenticated customer
-//     const accounts = await Account.findAll({
-//       where: {
-//         customerId: req.customerId,
-//         // Add organization verification if accounts are org-scoped
-//       },
-//       include: [
-//         {
-//           model: MoneyType,
-//         }
-//       ]
-//     });
+router.post('/auth/initiate', customerController.initiateVerification);
+router.post('/auth/verify', customerController.verifyCode);
 
-//     if (!accounts || accounts.length === 0) {
-//       return res.status(404).json({ message: 'No accounts found for this customer' });
-//     }
-
-//     res.status(200).json(accounts);
-//   } catch (err) {
-//     res.status(500).json({
-//       message: 'Failed to fetch accounts',
-//       error: process.env.NODE_ENV === 'development' ? err.message : null
-//     });
-//   }
-// });
+// Protected customer routes
+router.get('/accounts', customerAuth, customerController.customerAccount);
 
 module.exports = router;
