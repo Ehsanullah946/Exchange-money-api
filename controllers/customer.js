@@ -400,10 +400,11 @@ exports.getCustomerAccounts = async (req, res) => {
     });
   }
 };
+
 exports.customerAccount = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { customerId } = req.params;
+    const customerId = req.customer.id;
     const orgId = req.orgId;
 
     // 1. Find main currency (USA)
