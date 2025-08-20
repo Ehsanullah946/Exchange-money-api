@@ -1,0 +1,480 @@
+[33mcommit 24c4321b7b1302813feba4eb2c7ed028936f36d0[m[33m ([m[1;36mHEAD[m[33m)[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Wed Aug 20 13:54:18 2025 +0430
+
+    changes .env
+
+[33mcommit 9320fd14bcde974febb0c488404833365d4d2a53[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Aug 19 21:26:10 2025 +0430
+
+    removed secret key
+
+[33mcommit 7c1f9ce91d971c1a00381d6fab3b6a086530579c[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Aug 19 21:08:13 2025 +0430
+
+    added .env
+
+[33mcommit 753bc8985f443ee1d97110971c58c8600bf78b63[m[33m ([m[1;31morigin/main[m[33m)[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Aug 19 10:46:40 2025 +0430
+
+    getting the name and date of creation the selecting account
+
+[33mcommit ddbdaa15ee3fa5a1fa2b1b5faea0d3fb7824ad00[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Aug 19 09:53:28 2025 +0430
+
+    fixed the calculation proble
+
+[33mcommit 1000eb9895629d7be0c017503bd1a2d8501a48c6[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Mon Aug 18 17:50:04 2025 +0430
+
+    created end point for customer account
+
+[33mcommit 7f39f2187b9fd88efc0b16d5df9196bd4d193481[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Mon Aug 18 16:34:01 2025 +0430
+
+    fixed some issues
+
+[33mcommit 8e46d7c470d387ff5e05ea7bcc39eb0f2cb99a3b[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sun Aug 17 17:08:20 2025 +0430
+
+    fixed some bugs
+
+[33mcommit 125557ad2824ef39724e09da570b8d1c7d086b2e[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sat Aug 16 18:10:10 2025 +0430
+
+    created Crud operation of rate table
+
+[33mcommit f7e52507b4f61c47d08bf487e561437239421498[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sat Aug 16 17:53:07 2025 +0430
+
+    getting expence all and by id
+
+[33mcommit 3bcaaf9f650987cf6860482a766bf010ddd196b4[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sat Aug 16 17:12:40 2025 +0430
+
+    created expence soft delete operatio
+
+[33mcommit bcd173cd74589972127837db59fd30f1c7f75c6e[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sat Aug 16 16:57:47 2025 +0430
+
+    created expence and update operation
+
+[33mcommit 3a7d1f7f40ad74d8f0ff9f29d71013902c989943[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sat Aug 16 16:38:31 2025 +0430
+
+    created account to account update and delete operation
+
+[33mcommit a716e9045181fff707d976ada21104f2760d8c66[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sat Aug 16 15:19:13 2025 +0430
+
+    created expence and other controller
+
+[33mcommit 0cf6d86fdf91239e5151631e0b4e53c34b9ae390[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 15 16:31:40 2025 +0430
+
+    created accountToAccount controller
+
+[33mcommit 51c388fe6b6aeef2b9d5f84d6518010e0ea6af2d[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 15 10:50:37 2025 +0430
+
+    created the model of expence and routes
+
+[33mcommit 6388069d33591886cf876f4a45a2faaf122647a8[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 15 10:25:39 2025 +0430
+
+    created full migration of expence
+
+[33mcommit 080815cd9225cdc434177f10e54f0987d992b162[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 15 09:35:06 2025 +0430
+
+    creatd routes of the accountToAccount operation
+
+[33mcommit 939c165e32511faa29fe9b6d1961a6f5ccb9e5e9[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 15 09:26:13 2025 +0430
+
+    created some constrains
+
+[33mcommit ff40c25dd6788576618fad62d01f71b777550dc2[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 15 09:05:31 2025 +0430
+
+    created model of accoun to account operation
+
+[33mcommit ba628bf4cc2e0222e67b46495b3f705b46e3439e[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 15 08:50:22 2025 +0430
+
+    created accoun to account migration
+
+[33mcommit 8277d2c89bb942ea9ac966710257cc08ea23ee4c[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 15 07:50:51 2025 +0430
+
+    created deposit withdraw save delete function
+
+[33mcommit 2cdce1110f3b2c74ce8170d5ff87cd0bd2930e16[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Wed Aug 13 20:37:43 2025 +0430
+
+    fixed bug
+
+[33mcommit 9de615de632977a3dde4654c9d2c0a9317578d8c[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Wed Aug 13 18:36:28 2025 +0430
+
+    creeaed helper function
+
+[33mcommit c41c1b3220792d161980b3ba8fb18c348a4542f8[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Wed Aug 13 16:56:22 2025 +0430
+
+    created some changes
+
+[33mcommit 9dbf35818e9897e12e662929db02d6c4804b9637[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Aug 12 20:01:04 2025 +0430
+
+    created assosiation of deposit withdraw
+
+[33mcommit 3bdade71ddb05fc580029b59f31c2ade0724002b[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Aug 12 18:15:13 2025 +0430
+
+    created withdraw deposite model
+
+[33mcommit 557e69a08097981c07c116374faf2feedee3bd48[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Aug 12 17:56:02 2025 +0430
+
+    adding migrations of withdraw and deposit
+
+[33mcommit 3aec51760c83eb5211454f5cda79d28b07b6055c[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Aug 12 15:09:55 2025 +0430
+
+    adding a column
+
+[33mcommit a6ccb5a3514323cbec6002dbe319fd6417fd287f[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Mon Aug 11 21:30:42 2025 +0430
+
+    updated receiveUpdate function
+
+[33mcommit 9df84e70066a07146906b061c6e8a4e36180ec71[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Mon Aug 11 18:40:55 2025 +0430
+
+    fixed some bugs
+
+[33mcommit 2049551554350b0eceb530a83acdcd1d7c876d6e[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Mon Aug 11 16:23:44 2025 +0430
+
+    fixed bugs and created route
+
+[33mcommit 2c790a996d07e39dc1683abecbe4f8b2210c6be9[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Mon Aug 11 07:22:08 2025 +0430
+
+    creating sernder and receiver update operation
+
+[33mcommit 8e1e2b4d5cc0674e5f7ca873b760330cb1efe90b[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sun Aug 10 22:41:01 2025 +0430
+
+    created update update senderRecever route
+
+[33mcommit 85d819f45fe605a1062d83ee3a23e366a51825ce[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sun Aug 10 22:34:33 2025 +0430
+
+    created another approach for creating sender and receiver
+
+[33mcommit 80a0e450d588dceb6e7d2da081ea9e998bc970e0[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sun Aug 10 17:53:05 2025 +0430
+
+    impelemented update and delete of receive
+
+[33mcommit b0aff1dc205e576e59bb72c328df4a3ed673bcff[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sun Aug 10 15:53:30 2025 +0430
+
+    fixed bug
+
+[33mcommit cc3d37a574b20ddf5515f502466f70d5ad6c3556[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sat Aug 9 21:20:17 2025 +0430
+
+    fixed bug
+
+[33mcommit c3363851a98f5a2e81875e20b1d593227cd9dad5[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 8 21:51:05 2025 +0430
+
+    fixed some bug
+
+[33mcommit 518e997356e9dd0a58bf12dcbebb7b38109ad0ad[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 8 20:51:34 2025 +0430
+
+    created receive rotues
+
+[33mcommit ada97db36183435d4c40a9772dc1fcf187bd4048[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 8 19:02:02 2025 +0430
+
+    created receive controller
+
+[33mcommit 71827d8945ffe023d1a0487d7edf93d45b3463ab[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 8 13:08:25 2025 +0430
+
+    changing stuf
+
+[33mcommit 21f9b6f51dc83bb345efe0e1ac85802dc9f82010[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 8 08:33:44 2025 +0430
+
+    created customer cridential
+
+[33mcommit 64ae596751e24181faa09f18a2f016339676125d[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Thu Aug 7 17:17:08 2025 +0430
+
+    created customer login logic
+
+[33mcommit 6ffa4d1467d084ee8769e21ae2b1e0ffaff307d9[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Wed Aug 6 22:33:17 2025 +0430
+
+    created rejected and delted operation
+
+[33mcommit ee617135c5a9260ce5200ccf6d5990725e82d8e8[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Wed Aug 6 22:07:02 2025 +0430
+
+    created transfer delete operation
+
+[33mcommit 598ac7a05b5a6bf4cda5204dd7780940cb756cb3[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Wed Aug 6 21:32:06 2025 +0430
+
+    created transfer update operation
+
+[33mcommit c00f3fe111068dfb395c51757c777be1de21a485[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Wed Aug 6 20:49:22 2025 +0430
+
+    created tranfer operation
+
+[33mcommit f4797b1d7582e92bc28a8ff4cd8b7d530b799239[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Aug 5 21:49:33 2025 +0430
+
+    created senderReceiver update and deleted controller
+
+[33mcommit b292b1ee03088b564facc5762582887035238824[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Aug 5 21:31:49 2025 +0430
+
+    created delete and updating of exchnager
+
+[33mcommit b6230fa248bfc3472f9bfce928757131bd0e04b5[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Aug 5 18:04:25 2025 +0430
+
+    created employee and customer updated and deleted transaction
+
+[33mcommit 9acdbaaa51be35a7a99b9fe67dfc5453f2c15827[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Aug 5 16:53:56 2025 +0430
+
+    created some features
+
+[33mcommit c2c9f1e57fafa99bc7197be22e723da9ebd9470b[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Aug 5 06:54:44 2025 +0430
+
+    created working
+
+[33mcommit 4faac82285ef4c4846b7983b171f3b09eabaf00b[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Mon Aug 4 17:40:05 2025 +0430
+
+    fixing employee controller
+
+[33mcommit 678a295ff06e727836f9a77c92f6ad0d311b4cfc[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Mon Aug 4 11:29:06 2025 +0430
+
+    modifying controllers and models
+
+[33mcommit c0110c347f4af0393a53359874bdcb7480e2809a[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sun Aug 3 23:17:41 2025 +0430
+
+    fixing some essues
+
+[33mcommit 56f79b74f3440494eef5e227e4d3673ea19fca07[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sun Aug 3 18:11:59 2025 +0430
+
+    creating acount controller and fixed bug
+
+[33mcommit d4481bd7d0a81ac375b26e60ff0b5296f5e344dd[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sun Aug 3 08:22:18 2025 +0430
+
+    created models
+
+[33mcommit ead51984f519cc12415b12fed4976523940b9e79[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sat Aug 2 20:58:54 2025 +0430
+
+    fixed bugs
+
+[33mcommit 3c9699dfb42d5468e43167251b6155f69c402b57[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sat Aug 2 17:05:25 2025 +0430
+
+    created tables and models
+
+[33mcommit 6dadd1ea1810acddadd76858c4754ae8a9d5decd[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sat Aug 2 10:42:06 2025 +0430
+
+    created models
+
+[33mcommit 9a41ae7dcc5e06bf491058218e5422a98e77493c[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Sat Aug 2 08:32:03 2025 +0430
+
+    created some migration
+
+[33mcommit db4a19108511437838ca08d46c41ed60728d320c[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 1 21:27:44 2025 +0430
+
+    fixed bugs
+
+[33mcommit 5b644aab791d3ecc67179170c3bd3b34c85b9736[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Fri Aug 1 13:29:23 2025 +0430
+
+    fixed bug
+
+[33mcommit 111527fcb506e9b321f5dca08414f0c1c8566517[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Thu Jul 31 22:01:27 2025 +0430
+
+    created controllers
+
+[33mcommit 31d27900d3ed6b06e7eca83ad87ce88b9af9d167[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Thu Jul 31 18:07:51 2025 +0430
+
+    created controller of branch and money type
+
+[33mcommit 81873161a5b5eb7064e082feb6c3a71e3e75b811[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Thu Jul 31 16:23:48 2025 +0430
+
+    created other  models
+
+[33mcommit 945e980df45ab372b74eb0d4109e2fd7efae7029[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Thu Jul 31 16:18:17 2025 +0430
+
+    created some models like accout many type and many more
+
+[33mcommit ef2b7d795e1e936be057ca41e8a1135a2c8e8a0c[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Wed Jul 30 22:31:07 2025 +0430
+
+    fixing the bug
+
+[33mcommit 45e9c045d05d63295ee62e276592d32b2925ca1d[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Wed Jul 30 16:02:28 2025 +0430
+
+    adding route to app.js
+
+[33mcommit a7079c16447c13cdbee73c2eb1f12752020337eb[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Wed Jul 30 15:56:50 2025 +0430
+
+    creating routes and controllers
+
+[33mcommit 33ff68d6d4a8007cbf5ba72ef7e7c43f852bb64d[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Wed Jul 30 10:12:33 2025 +0430
+
+    adding security essues
+
+[33mcommit 8049243469de6aabd5db5f08735b845efa71022b[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Jul 29 23:15:21 2025 +0430
+
+    created protected middleware
+
+[33mcommit c87b08ab34be229debfcafc04da65fa4eb9dccfe[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Jul 29 22:27:38 2025 +0430
+
+    creating login functionlity
+
+[33mcommit 436c38a49c996b2506424febebb16e342bd6f75b[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Jul 29 21:40:02 2025 +0430
+
+    creating register functionality
+
+[33mcommit d0c04e9e9c0a1c4ce603857a027e75407746e1ed[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Jul 29 18:43:44 2025 +0430
+
+    creating other models
+
+[33mcommit 233ce2179cfd428316a6e831d6daefb0ffc8760f[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Jul 29 18:16:47 2025 +0430
+
+    created models customer stakeholder....
+
+[33mcommit 90252da68d8412c979a52e726e599341efdd8f60[m
+Merge: a2d8337 ed7fcce
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Jul 29 09:36:30 2025 +0430
+
+    creating route and controller for auth
+
+[33mcommit a2d8337e9acbf262ebd387e15e324805e32b8176[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Jul 22 09:10:18 2025 +0430
+
+    first commit
+
+[33mcommit ed7fccecd85583685f85fa3174ccf24250e9b7a7[m
+Author: Ehsanullah946 <ehsanullahakbari53@gmail.com>
+Date:   Tue Jul 22 08:42:32 2025 +0430
+
+    Initial commit
