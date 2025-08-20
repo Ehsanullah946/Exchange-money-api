@@ -3,8 +3,6 @@ const router = express.Router();
 const { protect } = require('../middlewares/authMiddlewares');
 const orgScope = require('../middlewares/orgScope');
 const customerController = require('../controllers/customer');
-const authController = require('../controllers/authController');
-const customerAuth = require('../middlewares/customerAuth');
 const { Customer } = require('../models');
 const { allowRoles } = require('../middlewares/roleMiddleware');
 
@@ -51,11 +49,5 @@ router.get(
   orgScope(Customer),
   customerController.getCustomerById
 );
-
-router.post('/auth/initiate', authController.initiateVerification);
-router.post('/auth/verify', authController.verifyCode);
-
-// Protected customer routes
-router.get('/accounts', customerAuth, customerController.customerAccount);
 
 module.exports = router;

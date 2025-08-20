@@ -16,11 +16,13 @@ const depositWithdrawRouter = require('./routes/depositWithdrawRoutes');
 const accountToAccountRouter = require('./routes/accountToAccountRoute');
 const expenceRouter = require('./routes/expenceRoutes');
 const rateRouter = require('./routes/rateRoutes');
+const customerAuthRoute = require('./routes/customerAuthRoute');
 
 app.use(express.json());
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/customer', customerRouter);
+app.use('/api/v1/customer/auth', customerAuthRoute);
 app.use('/api/v1/employee', employeeRouter);
 app.use('/api/v1/exchanger', exchangerRouter);
 app.use('/api/v1/senderReceiver', senderRceiverRouter);

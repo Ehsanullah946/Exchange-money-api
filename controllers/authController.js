@@ -167,37 +167,57 @@ exports.login = async (req, res) => {
 const AuthService = require('../utils/authService');
 const rateLimit = require('express-rate-limit');
 
-// Rate limiting for OTP requests
-const otpRateLimiter = rateLimit({
+// Rate limiting for email requests
+const emailRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 5, // 5 attempts per hour
-  message: 'Too many OTP requests. Please try again later.',
+  message: 'Too many verification requests. Please try again later.',
 });
 
 exports.initiateVerification = [
-  otpRateLimiter,
-  async (req, res, next) => {
+  // emailRateLimiter,
+  async (req, res) => {
     try {
-      const { contact } = req.body;
-      const result = await AuthService.initiateVerification(contact);
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email address is required',
+        });
+      }
+
+      const result = await AuthService.initiateVerification(email);
       res.json(result);
-      next();
     } catch (err) {
-      res.status(400).json({ message: err.message });
+      res.status(400).json({
+        success: false,
+        message: err.message,
+      });
     }
   },
 ];
 
 exports.verifyCode = [
-  otpRateLimiter,
-  async (req, res, next) => {
+  emailRateLimiter,
+  async (req, res) => {
     try {
-      const { contact, code } = req.body;
-      const result = await AuthService.verifyCode(contact, code);
+      const { email, code } = req.body;
+
+      if (!email || !code) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email and verification code are required',
+        });
+      }
+
+      const result = await AuthService.verifyCode(email, code);
       res.json(result);
-      next();
     } catch (err) {
-      res.status(400).json({ message: err.message });
+      res.status(400).json({
+        success: false,
+        message: err.message,
+      });
     }
   },
 ];

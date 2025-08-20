@@ -216,7 +216,7 @@ exports.updateReceiveSender = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { id } = req.params;
-    const { firstName, lastName, fatherName, nationalCode, phoneNo, photo } =
+    const { firstName, lastName, fatherName, nationalCode, phone, photo } =
       req.body;
     const orgId = req.orgId;
 
@@ -241,7 +241,7 @@ exports.updateReceiveSender = async (req, res) => {
         lastName,
         fatherName,
         nationalCode,
-        phoneNo,
+        phone,
         photo,
         organizationId: orgId,
       },
@@ -284,7 +284,7 @@ exports.updateReceiveReceiver = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { id } = req.params;
-    const { firstName, lastName, fatherName, nationalCode, phoneNo, photo } =
+    const { firstName, lastName, fatherName, nationalCode, phone, photo } =
       req.body;
     const orgId = req.orgId;
 
@@ -309,7 +309,7 @@ exports.updateReceiveReceiver = async (req, res) => {
         lastName,
         fatherName,
         nationalCode,
-        phoneNo,
+        phone,
         photo,
         organizationId: orgId,
       },
