@@ -22,7 +22,7 @@ app.use(express.json());
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/customer', customerRouter);
-app.use('/api/v1/customer/auth', customerAuthRoute);
+app.use('/api/v1/auth/customer', customerAuthRoute);
 app.use('/api/v1/employee', employeeRouter);
 app.use('/api/v1/exchanger', exchangerRouter);
 app.use('/api/v1/senderReceiver', senderRceiverRouter);
@@ -35,5 +35,17 @@ app.use('/api/v1/depositWithdraw', depositWithdrawRouter);
 app.use('/api/v1/accountToAccount', accountToAccountRouter);
 app.use('/api/v1/expence', expenceRouter);
 app.use('/api/v1/rate', rateRouter);
+
+const errorHandler = (err, req, res, next) => {
+  console.error('Error:', err.message);
+
+  res.status(err.statusCode || 500).json({
+    success: false,
+    message: err.message,
+  });
+};
+
+// Use it as the last middleware
+app.use(errorHandler);
 
 module.exports = app;
