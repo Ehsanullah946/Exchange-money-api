@@ -7,7 +7,9 @@ const {
   Person,
   Stakeholder,
   SenderReceiver,
+  Customer,
 } = require('../models');
+const notificationService = require('../services/notificationService');
 
 //  Helper: Reverse balances for a transfer
 async function reverseTransferAccounts(transfer, t) {
@@ -28,7 +30,25 @@ async function reverseTransferAccounts(transfer, t) {
     }
   }
   // Reverse branch account
-  const branch = await Branch.findByPk(transfer.toWhere, { transaction: t });
+  const branch = await Branch.findByPk(
+    transfer.toWhere,
+    {
+      include: [
+        {
+          model: Customer,
+          include: [
+            {
+              model: Stakeholder,
+              include: [Person],
+            },
+          ],
+        },
+      ],
+      transaction: t,
+    },
+    { transaction: t }
+  );
+
   if (branch) {
     const branchAccount = await Account.findOne({
       where: {
@@ -147,10 +167,39 @@ exports.createTransfer = async (req, res) => {
       { transaction: t }
     );
 
+    const branchNotification = await notificationService.sendNotification(
+      'branch',
+      branch.id,
+      {
+        type: 'transfer',
+        transferNo: transferNo,
+        transferAmount: transferAmount,
+        chargesAmount: chargesAmount,
+        senderName: senderName,
+        receiverName: receiverName,
+        branchCharges: branchCharges,
+        data: newTransfer,
+        priority: transferAmount > 10000 ? 'high' : 'normal',
+      }
+    );
+
+    // Also notify the sender customer if needed
+    if (customerId) {
+      await notificationService.sendNotification('customer', customerId, {
+        type: 'transfer',
+        transferNo: transferNo,
+        transferAmount: transferAmount,
+        chargesAmount: chargesAmount,
+        receiverName: receiverName,
+        data: newTransfer,
+      });
+    }
+
     await t.commit();
     res.status(201).json({
       message: 'Transfer created successfully',
       transfer: newTransfer,
+      branchNotification,
     });
   } catch (err) {
     await t.rollback();

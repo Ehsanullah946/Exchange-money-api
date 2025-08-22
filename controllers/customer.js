@@ -7,7 +7,6 @@ const {
   Account,
   sequelize,
 } = require('../models');
-const bcrypt = require('bcryptjs');
 exports.getCustomers = async (req, res) => {
   try {
     const data = await Customer.findAll({
@@ -55,18 +54,8 @@ exports.createCustomer = async (req, res) => {
       whatsAppEnabled,
       telegramEnabled,
       emailEnabled,
-      password,
     } = req.body;
 
-    let hashedPassword = null;
-    let canLogin = false;
-
-    if (req.body.password) {
-      hashedPassword = await bcrypt.hash(password, 12);
-      canLogin = true;
-    }
-
-    // 1. Create Person (only place where organizationId is stored)
     const person = await Person.create(
       {
         firstName,
@@ -90,8 +79,6 @@ exports.createCustomer = async (req, res) => {
         job,
         personId: person.id,
         permanentAddress,
-        password: hashedPassword,
-        canLogin,
       },
       { transaction: t }
     );
