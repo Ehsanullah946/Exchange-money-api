@@ -86,6 +86,21 @@ class NotificationService {
     if (customerData.emailEnabled) {
       // Email can be added later if needed
     }
+
+    if (customerData.telegramEnabled && customerData.telegram) {
+      enabledChannels.push('telegram');
+      console.log('✅ Telegram enabled:', customerData.telegram);
+    } else {
+      console.log('❌ Telegram disabled or missing chat ID');
+    }
+
+    if (customerData.whatsAppEnabled && customerData.whatsApp) {
+      enabledChannels.push('whatsapp');
+      console.log('✅ WhatsApp enabled:', customerData.whatsApp);
+    } else {
+      console.log('❌ WhatsApp disabled or missing number');
+    }
+
     // Always enable internal/websocket for real-time updates
     enabledChannels.push('websocket');
 
@@ -120,8 +135,10 @@ class NotificationService {
           );
         }
 
+        console.log(`📤 ${channelName} result:`, channelResult);
         results.push(channelResult);
       } catch (error) {
+        console.error(`💥 ${channelName} error:`, error.message);
         results.push({
           success: false,
           error: error.message,
