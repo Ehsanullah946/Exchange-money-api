@@ -21,11 +21,17 @@ class NotificationService {
 
   setWebSocketIO(io) {
     this.channels.websocket.setIO(io);
+    this.initialized = true;
+    console.log('✅ Notification service initialized with WebSocket');
   }
 
   async sendNotification(recipientType, recipientId, notificationData) {
     let recipient;
     let customerData;
+
+    if (!this.initialized) {
+      console.warn('⚠️ Notification service not fully initialized');
+    }
 
     if (recipientType === 'branch') {
       // Get branch which has customer relationship
@@ -70,7 +76,7 @@ class NotificationService {
     const results = [];
 
     // Use customer's notification settings (since branch inherits from customer)
-    const enabledChannels = [];
+    let enabledChannels = [];
     if (customerData.telegramEnabled && customerData.telegram) {
       enabledChannels.push('telegram');
     }
@@ -122,6 +128,13 @@ class NotificationService {
           channel: channelName,
         });
       }
+    }
+
+    if (enabledChannels.includes('websocket') && !this.initialized) {
+      console.warn(
+        '⚠️ WebSocket not available, skipping WebSocket notification'
+      );
+      enabledChannels = enabledChannels.filter((ch) => ch !== 'websocket');
     }
 
     // Save notification to database

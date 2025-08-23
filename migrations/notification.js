@@ -24,7 +24,7 @@ module.exports = {
         },
         recipientBranchId: { type: Sequelize.INTEGER, allowNull: true },
         recipientCustomerId: { type: Sequelize.INTEGER, allowNull: true },
-        title: { type: Sequelize.STRING, allowNull: false },
+        title: { type: Sequelize.STRING, allowNull: true },
         message: { type: Sequelize.TEXT, allowNull: false },
         data: { type: Sequelize.JSON, allowNull: true },
         status: {

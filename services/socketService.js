@@ -1,4 +1,5 @@
 // services/socketService.js
+// services/socketService.js
 const socketIO = require('socket.io');
 
 let io;
@@ -12,52 +13,70 @@ const initSocket = (server) => {
   });
 
   io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id);
+    console.log('✅ Client connected:', socket.id);
 
     // Customer joins their room
     socket.on('join-customer', (customerId) => {
       socket.join(`customer_${customerId}`);
-      console.log(`Customer ${customerId} connected`);
+      console.log(
+        `👤 Customer ${customerId} joined room: customer_${customerId}`
+      );
     });
 
-    // Branch joins their room (uses customer ID since branch is a customer)
+    // Branch joins their room
     socket.on('join-branch', (branchId) => {
       socket.join(`branch_${branchId}`);
-      console.log(`Branch ${branchId} connected`);
-
-      // Also join the customer room if needed
-      // This would require fetching the customerId from branchId
+      console.log(`🏢 Branch ${branchId} joined room: branch_${branchId}`);
     });
 
-    // Join both customer and branch rooms based on user type
-    socket.on('join-user', async (userData) => {
-      if (userData.type === 'customer') {
-        socket.join(`customer_${userData.id}`);
-      } else if (userData.type === 'branch') {
-        socket.join(`branch_${userData.id}`);
-        // If branch has customer association, join that room too
-        if (userData.customerId) {
-          socket.join(`customer_${userData.customerId}`);
-        }
-      }
+    socket.on('disconnect', (reason) => {
+      console.log('❌ Client disconnected:', socket.id, 'Reason:', reason);
     });
 
-    socket.on('disconnect', () => {
-      console.log('Client disconnected:', socket.id);
+    socket.on('error', (error) => {
+      console.error('Socket error:', error);
     });
   });
 
-  const notificationService = require('./notificationService');
-  notificationService.setWebSocketIO(io);
-
+  console.log('✅ WebSocket server initialized');
   return io;
 };
 
 const getIO = () => {
   if (!io) {
-    throw new Error('Socket.io not initialized');
+    throw new Error(
+      'WebSocket server not initialized. Call initSocket() first.'
+    );
   }
   return io;
 };
 
-module.exports = { initSocket, getIO };
+// Helper function to check if a room has connections
+const getRoomConnections = (room) => {
+  if (!io) return 0;
+  const roomSockets = io.sockets.adapter.rooms.get(room);
+  return roomSockets ? roomSockets.size : 0;
+};
+
+// Helper function to send test notification
+const sendTestNotification = (room, message) => {
+  if (!io) {
+    console.error('WebSocket not initialized');
+    return false;
+  }
+
+  io.to(room).emit('notification', {
+    type: 'test',
+    message: message,
+    timestamp: new Date(),
+  });
+
+  return true;
+};
+
+module.exports = {
+  initSocket,
+  getIO,
+  getRoomConnections,
+  sendTestNotification,
+};

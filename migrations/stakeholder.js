@@ -13,15 +13,6 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: false,
       },
-      password: {
-        type: Sequelize.STRING(300),
-        allowNull: true,
-      },
-      canLogin: {
-        type: Sequelize.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
     });
   },
   async down(queryInterface, Sequelize) {

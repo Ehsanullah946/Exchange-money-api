@@ -21,7 +21,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       recipientBranchId: { type: DataTypes.INTEGER, allowNull: true },
       recipientCustomerId: { type: DataTypes.INTEGER, allowNull: true },
-      title: { type: DataTypes.STRING, allowNull: false },
+      title: { type: DataTypes.STRING, allowNull: true },
       message: { type: DataTypes.TEXT, allowNull: false },
       data: { type: DataTypes.JSON, allowNull: true },
       status: {

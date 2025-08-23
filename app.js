@@ -18,6 +18,10 @@ const expenceRouter = require('./routes/expenceRoutes');
 const rateRouter = require('./routes/rateRoutes');
 const customerAuthRoute = require('./routes/customerAuthRoute');
 
+const http = require('http');
+const { initSocket } = require('./services/socketService');
+const notificationService = require('./services/notificationService');
+
 app.use(express.json());
 
 app.use('/api/v1/auth', authRouter);
@@ -35,6 +39,12 @@ app.use('/api/v1/depositWithdraw', depositWithdrawRouter);
 app.use('/api/v1/accountToAccount', accountToAccountRouter);
 app.use('/api/v1/expence', expenceRouter);
 app.use('/api/v1/rate', rateRouter);
+
+const server = http.createServer(app);
+
+const io = initSocket(server);
+
+notificationService.setWebSocketIO(io);
 
 const errorHandler = (err, req, res, next) => {
   console.error('Error:', err.message);
