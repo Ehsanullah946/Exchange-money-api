@@ -34,6 +34,9 @@ module.exports = (sequelize, DataTypes) => {
     Customer.belongsTo(models.Stakeholder, { foreignKey: 'stakeholderId' });
     Customer.hasMany(models.Branch, { foreignKey: 'customerId' });
     Customer.hasMany(models.Account, { foreignKey: 'customerId' });
+    Customer.hasMany(models.Notification, {
+      foreignKey: 'recipientCustomerId',
+    });
   };
 
   return Customer;

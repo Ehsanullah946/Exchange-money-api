@@ -184,8 +184,8 @@ ${this.getMessageBody(data)}
     switch (data.type) {
       case 'transfer':
         return `💸 Transfer #${data.transferNo}
-From: ${data.senderFirstName}
-To: ${data.receiverFirstName}
+From: ${data.senderName}
+To: ${data.receiverName}
 Amount: ${data.transferAmount} AFN
 Charges: ${data.chargesAmount} AFN`;
 

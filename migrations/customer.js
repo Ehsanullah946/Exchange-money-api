@@ -8,7 +8,7 @@ module.exports = {
       stakeholderId: { type: Sequelize.INTEGER, allowNull: false },
       typeId: Sequelize.INTEGER,
       language: Sequelize.INTEGER,
-      loanLimit: Sequelize.DECIMAL(10,2),
+      loanLimit: Sequelize.DECIMAL(10, 2),
       active: { type: Sequelize.BOOLEAN, defaultValue: true },
       whatsApp: Sequelize.STRING(32),
       email: Sequelize.STRING(64),
@@ -16,9 +16,18 @@ module.exports = {
       whatsAppEnabled: { type: Sequelize.BOOLEAN, defaultValue: false },
       telegramEnabled: { type: Sequelize.BOOLEAN, defaultValue: false },
       emailEnabled: { type: Sequelize.BOOLEAN, defaultValue: false },
+      notificationPreferences: {
+        type: Sequelize.JSON,
+        defaultValue: {
+          transfers: true,
+          withdrawals: true,
+          deposits: true,
+          balanceAlerts: false,
+        },
+      },
     });
   },
   async down(queryInterface, Sequelize) {
     await queryInterface.dropTable('customers');
-  }
+  },
 };
