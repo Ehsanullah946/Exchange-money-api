@@ -17,6 +17,8 @@ const accountToAccountRouter = require('./routes/accountToAccountRoute');
 const expenceRouter = require('./routes/expenceRoutes');
 const rateRouter = require('./routes/rateRoutes');
 const customerAuthRoute = require('./routes/customerAuthRoute');
+const whatsappRouter = require('./routes/whatsapp');
+const WhatsAppMonitor = require('./scripts/whatsappMonitor');
 
 const http = require('http');
 const { initSocket } = require('./services/socketService');
@@ -39,6 +41,7 @@ app.use('/api/v1/depositWithdraw', depositWithdrawRouter);
 app.use('/api/v1/accountToAccount', accountToAccountRouter);
 app.use('/api/v1/expence', expenceRouter);
 app.use('/api/v1/rate', rateRouter);
+app.use('/api/v1/whatsapp', whatsappRouter);
 
 const server = http.createServer(app);
 
@@ -54,6 +57,10 @@ const errorHandler = (err, req, res, next) => {
     message: err.message,
   });
 };
+
+// Start WhatsApp monitor
+new WhatsAppMonitor();
+console.log('✅ WhatsApp connection monitor started');
 
 // Use it as the last middleware
 app.use(errorHandler);

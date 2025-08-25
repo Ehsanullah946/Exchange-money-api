@@ -12,13 +12,12 @@ exports.customerAccount = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const customerId = req.customer.id;
-    // const orgId = req.orgId;
+    const orgId = req.orgId;
 
-    // 1. Find main currency (USA)
     const mainCurrency = await MoneyType.findOne({
       where: {
         typeName: 'USA',
-        // organizationId: orgId,
+        organizationId: orgId,
       },
       transaction: t,
     });

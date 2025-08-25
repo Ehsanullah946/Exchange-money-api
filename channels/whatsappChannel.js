@@ -1,120 +1,220 @@
-// channels/whatsappChannel.js
+
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const EventEmitter = require('events');
 
-class WhatsAppChannel {
+class WhatsAppChannel extends EventEmitter {
   constructor() {
+    super();
     this.client = null;
     this.connected = false;
+    this.connecting = false;
+    this.qrCode = null;
     this.initialize();
   }
 
   async initialize() {
+    if (this.connecting) return;
+
+    this.connecting = true;
+    console.log('🔄 Initializing WhatsApp client...');
+
     try {
       this.client = new Client({
         authStrategy: new LocalAuth({
-          clientId: 'banking-app',
+          clientId: 'banking-app-whatsapp', // ✅ Session is saved automatically
         }),
         puppeteer: {
           headless: true,
-          args: ['--no-sandbox', '--disable-setuid-sandbox'],
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process',
+            '--disable-gpu',
+          ],
         },
+        takeoverOnConflict: true,
+        takeoverTimeoutMs: 60000,
       });
 
-      this.client.on('qr', (qr) => {
-        console.log('📱 WhatsApp QR Code:');
-        qrcode.generate(qr, { small: true });
-        // You can also save this QR code to a file or display it in admin panel
-      });
-
-      this.client.on('ready', () => {
-        console.log('✅ WhatsApp client is ready!');
-        this.connected = true;
-      });
-
-      this.client.on('disconnected', (reason) => {
-        console.log('❌ WhatsApp client disconnected:', reason);
-        this.connected = false;
-        // Attempt to reconnect after 5 seconds
-        setTimeout(() => this.initialize(), 5000);
-      });
-
-      this.client.on('auth_failure', (error) => {
-        console.error('❌ WhatsApp auth failure:', error);
-        this.connected = false;
-      });
-
+      this.setupEventHandlers();
       await this.client.initialize();
     } catch (error) {
-      console.error('❌ WhatsApp initialization error:', error.message);
-      this.connected = false;
+      console.error('❌ WhatsApp initialization failed:', error.message);
+      this.connecting = false;
+      this.scheduleReconnect();
     }
   }
 
-  async send(phoneNumber, message) {
+  setupEventHandlers() {
+    this.client.on('qr', (qr) => {
+      this.qrCode = qr;
+      console.log('📱 WhatsApp QR Code (scan this once):');
+      qrcode.generate(qr, { small: true });
+      this.emit('qr', qr);
+    });
+
+    this.client.on('ready', () => {
+      console.log('✅ WhatsApp client is ready and connected!');
+      this.connected = true;
+      this.connecting = false;
+      this.emit('ready');
+    });
+
+    this.client.on('authenticated', () => {
+      console.log('✅ WhatsApp authenticated successfully');
+      this.connected = true;
+      this.connecting = false;
+    });
+
+    this.client.on('auth_failure', (msg) => {
+      console.error('❌ WhatsApp authentication failed:', msg);
+      this.connected = false;
+      this.connecting = false;
+      this.scheduleReconnect();
+    });
+
+    this.client.on('disconnected', (reason) => {
+      console.log('❌ WhatsApp disconnected:', reason);
+      this.connected = false;
+      this.cleanup();
+      this.scheduleReconnect();
+    });
+
+    this.client.on('message', (msg) => {
+      if (msg.fromMe) {
+        console.log('📤 Outgoing message:', msg.body);
+      }
+    });
+  }
+
+  async send(phoneNumberOrChatId, message) {
     if (!this.connected) {
-      console.log('⏳ WhatsApp not connected, queuing message...');
-      return {
-        success: false,
-        error: 'WhatsApp client not connected',
-        channel: 'whatsapp',
-      };
+      console.log('⏳ WhatsApp not connected, attempting to reconnect...');
+      await this.initialize();
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      if (!this.connected) {
+        return {
+          success: false,
+          error: 'WhatsApp client not connected',
+          channel: 'whatsapp',
+          requiresReconnect: true,
+        };
+      }
     }
 
     try {
-      // Clean and format phone number
-      const formattedNumber = this.formatPhoneNumber(phoneNumber);
-      if (!formattedNumber) {
-        return {
-          success: false,
-          error: 'Invalid phone number',
-          channel: 'whatsapp',
-        };
+      let chatId;
+
+      if (
+        phoneNumberOrChatId.endsWith('@c.us') ||
+        phoneNumberOrChatId.endsWith('@g.us')
+      ) {
+        // Already a valid chatId
+        chatId = phoneNumberOrChatId;
+      } else {
+        // Format as a phone number (c.us)
+        const formattedNumber = this.formatPhoneNumber(phoneNumberOrChatId);
+        if (!formattedNumber) {
+          return {
+            success: false,
+            error: 'Invalid phone number format',
+            channel: 'whatsapp',
+          };
+        }
+        chatId = `${formattedNumber}@c.us`;
       }
 
-      const chatId = `${formattedNumber}@c.us`;
       console.log(`📤 Sending WhatsApp to: ${chatId}`);
 
+      // ✅ Send directly (no getChatById needed)
       const result = await this.client.sendMessage(chatId, message);
 
-      console.log('✅ WhatsApp sent successfully:', result.id.id);
-      return { success: true, messageId: result.id.id, channel: 'whatsapp' };
+      console.log('✅ WhatsApp message sent successfully');
+      return {
+        success: true,
+        messageId: result.id.id,
+        channel: 'whatsapp',
+        timestamp: new Date(),
+      };
     } catch (error) {
       console.error('❌ WhatsApp send error:', error.message);
-      return { success: false, error: error.message, channel: 'whatsapp' };
+
+      if (
+        error.message.includes('not connected') ||
+        error.message.includes('timeout')
+      ) {
+        this.connected = false;
+        this.scheduleReconnect();
+      }
+
+      return {
+        success: false,
+        error: error.message,
+        channel: 'whatsapp',
+      };
+    }
+  }
+
+  scheduleReconnect() {
+    if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+
+    this.reconnectTimeout = setTimeout(() => {
+      console.log('🔄 Attempting WhatsApp reconnection...');
+      this.initialize();
+    }, 10000);
+  }
+
+  cleanup() {
+    if (this.client) {
+      try {
+        this.client.removeAllListeners();
+        this.client.destroy();
+      } catch (error) {
+        console.error('Error cleaning up WhatsApp client:', error);
+      }
+      this.client = null;
     }
   }
 
   formatPhoneNumber(phone) {
     if (!phone) return null;
 
-    // Remove any non-digit characters
     let cleaned = phone.replace(/\D/g, '');
 
-    // Handle Afghan number formats
     if (cleaned.startsWith('0')) {
-      cleaned = '93' + cleaned.substring(1); // 0790123456 → 93790123456
+      cleaned = '93' + cleaned.substring(1);
     } else if (cleaned.startsWith('93')) {
-      // Already in correct format
+      // Already correct
     } else if (cleaned.length === 9) {
-      cleaned = '93' + cleaned; // 790123456 → 93790123456
+      cleaned = '93' + cleaned;
     }
 
-    // Validate Afghan number format
     if (cleaned.length !== 11 || !cleaned.startsWith('93')) {
-      console.error('Invalid Afghan phone number:', phone, '->', cleaned);
+      console.error('Invalid Afghan number:', phone, '->', cleaned);
       return null;
     }
 
     return cleaned;
   }
 
-  // Check connection status
   getStatus() {
     return {
       connected: this.connected,
-      ready: this.connected,
+      connecting: this.connecting,
+      hasQrCode: !!this.qrCode,
+      qrCode: this.qrCode,
+      timestamp: new Date(),
     };
+  }
+
+  async reconnect() {
+    this.cleanup();
+    await this.initialize();
   }
 }
 

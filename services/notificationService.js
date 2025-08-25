@@ -1,6 +1,7 @@
 // services/notificationService.js
 const TelegramChannel = require('../channels/telegramChannel');
 const WhatsAppChannel = require('../channels/whatsappChannel');
+const WhatsAppService = require('./whatsappService');
 const WebSocketChannel = require('../channels/websocketChannel');
 const {
   Notification,
@@ -14,7 +15,7 @@ class NotificationService {
   constructor() {
     this.channels = {
       telegram: new TelegramChannel(),
-      whatsapp: new WhatsAppChannel(),
+      whatsapp: WhatsAppService,
       websocket: new WebSocketChannel(),
     };
   }
@@ -102,6 +103,7 @@ class NotificationService {
     }
 
     // Always enable internal/websocket for real-time updates
+
     enabledChannels.push('websocket');
 
     for (const channelName of enabledChannels) {
@@ -115,9 +117,10 @@ class NotificationService {
             message.telegram
           );
         } else if (channelName === 'whatsapp') {
-          channelResult = await channel.send(
+          channelResult = await this.channels.whatsapp.sendWithRetry(
             customerData.whatsApp,
-            message.whatsapp
+            message.whatsapp,
+            3 // 3 retries
           );
         } else if (channelName === 'websocket') {
           const wsMessage = {
@@ -177,7 +180,7 @@ class NotificationService {
         id: recipientType === 'branch' ? recipient.id : customerData.id,
         name:
           recipientType === 'branch'
-            ? `Branch ${recipient.id}` // You might want to add branch name field
+            ? `Branch ${recipient.id}`
             : `${customerData.Stakeholder.Person.firstName} ${customerData.Stakeholder.Person.lastName}`,
       },
     };

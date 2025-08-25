@@ -15,17 +15,10 @@ module.exports = (sequelize, DataTypes) => {
         unique: 'person_nationalCode',
       },
       phone: {
-<<<<<<< HEAD
-        type: DataTypes.STRING(20),
-        unique: true,
-        validate: {
-          is: /^\+?[\d\s-]+$/, // Basic phone format validation
-=======
         type: DataTypes.STRING(15),
         unique: true,
         validate: {
           is: /^\+?[\d\s-]+$/, // Basic phone validation
->>>>>>> 65eaed8 (adding some column to person)
         },
       },
       email: {
@@ -39,15 +32,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
       },
-<<<<<<< HEAD
-      verificationCode: DataTypes.STRING,
-      codeExpiresAt: DataTypes.DATE,
-=======
       verificationCode: DataTypes.STRING(6),
       codeExpiresAt: DataTypes.DATE,
       lastLogin: DataTypes.DATE,
 
->>>>>>> 65eaed8 (adding some column to person)
       currentAddress: DataTypes.TEXT,
       organizationId: {
         type: DataTypes.INTEGER,
