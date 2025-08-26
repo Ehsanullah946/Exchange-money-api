@@ -6,9 +6,12 @@ const {
   Customer,
   Stakeholder,
   Person,
+  MoneyType,
 } = require('../models');
 
-(exports.createDepositWithdraw = async (req, res) => {
+const notificationService = require('../services/notificationService');
+
+exports.createDepositWithdraw = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const {
@@ -24,7 +27,7 @@ const {
 
     const orgId = req.orgId;
 
-    // Validate that either deposit or withdraw is provided, but not both
+    // ✅ validation
     if (!deposit && !withdraw) {
       await t.rollback();
       return res.status(400).json({
@@ -32,7 +35,6 @@ const {
       });
     }
 
-    // Validate amounts are positive
     if ((deposit && deposit <= 0) || (withdraw && withdraw <= 0)) {
       await t.rollback();
       return res.status(400).json({
@@ -40,7 +42,7 @@ const {
       });
     }
 
-    // Get the next transaction number for this organization
+    // ✅ get next No
     const lastTransaction = await DepositWithdraw.findOne({
       where: { organizationId: orgId },
       order: [['No', 'DESC']],
@@ -48,7 +50,7 @@ const {
     });
     const nextNo = lastTransaction ? lastTransaction.No + 1 : 1;
 
-    // Verify account exists
+    // ✅ verify account
     const account = await Account.findOne({
       where: { No: accountNo },
       include: [
@@ -69,6 +71,10 @@ const {
             },
           ],
         },
+        {
+          model: MoneyType,
+          required: true,
+        },
       ],
       transaction: t,
     });
@@ -77,7 +83,7 @@ const {
       return res.status(404).json({ message: 'Account not found' });
     }
 
-    // Verify employee exists
+    // ✅ verify employee
     if (employeeId) {
       const employee = await Employee.findOne({
         where: { id: employeeId },
@@ -94,7 +100,6 @@ const {
             ],
           },
         ],
-
         transaction: t,
       });
       if (!employee) {
@@ -103,7 +108,7 @@ const {
       }
     }
 
-    // Create the transaction record
+    // ✅ create transaction
     const transaction = await DepositWithdraw.create(
       {
         No: nextNo,
@@ -122,7 +127,7 @@ const {
       { transaction: t }
     );
 
-    // Update account balance
+    // ✅ update balance
     const amount = deposit || -withdraw;
     await Account.update(
       { credit: sequelize.literal(`credit + ${amount}`) },
@@ -130,6 +135,39 @@ const {
     );
 
     await t.commit();
+
+    const allowedChannels = ['whatsapp', 'telegram', 'websocket'];
+    const channels = (req.body.channels || []).filter((ch) =>
+      allowedChannels.includes(ch)
+    );
+
+    const notifOptions = {
+      channels: Array.isArray(req.body.channels)
+        ? req.body.channels
+        : undefined,
+      includeWebsocket: false,
+      failSoft: true,
+      save: true,
+    };
+
+    await notificationService.sendNotification(
+      'customer',
+      account.customerId,
+      {
+        type: deposit ? 'deposit' : 'withdrawal',
+        amount: deposit || withdraw,
+        accountNo: account.No,
+        balance: account.credit,
+        moneyType: account.MoneyType.TypeName,
+        data: transaction,
+      },
+      {
+        channels,
+        failSoft: true,
+      },
+      notifOptions
+    );
+
     res.status(201).json({
       message: 'Transaction completed successfully',
       transaction,
@@ -141,78 +179,79 @@ const {
       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
     });
   }
-}),
-  // Get all transactions for an account
-  // (exports.getDepositWithdraws = async (req, res) => {
-  //   try {
-  //     const { accountNo } = req.params;
+};
 
-  //     const transactions = await DepositWithdraw.findAll({
-  //       where: { accountNo, organizationId: req.orgId, deleted: false },
-  //       include: [
-  //         { model: Employee, attributes: ['id', 'name'] },
-  //         { model: Account, attributes: ['No', 'credit'] },
-  //       ],
-  //       order: [['DWDate', 'DESC']],
-  //     });
+// Get all transactions for an account
+// (exports.getDepositWithdraws = async (req, res) => {
+//   try {
+//     const { accountNo } = req.params;
 
-  //     if (!transactions) {
-  //       res.status(404).json('not found ');
-  //     }
+//     const transactions = await DepositWithdraw.findAll({
+//       where: { accountNo, organizationId: req.orgId, deleted: false },
+//       include: [
+//         { model: Employee, attributes: ['id', 'name'] },
+//         { model: Account, attributes: ['No', 'credit'] },
+//       ],
+//       order: [['DWDate', 'DESC']],
+//     });
 
-  //     res.json(transactions);
-  //   } catch (err) {
-  //     res.status(500).json({
-  //       message: err.message,
-  //       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-  //     });
-  //   }
-  // }),
+//     if (!transactions) {
+//       res.status(404).json('not found ');
+//     }
 
-  (exports.getDepositWithdraws = async (req, res) => {
-    try {
-      const transactions = await DepositWithdraw.findAll({
-        where: { organizationId: req.orgId },
-        include: [
-          {
-            model: Account,
-            attributes: ['No', 'credit'],
-            include: [
-              {
-                model: Customer,
-                required: true,
-                include: [
-                  {
-                    model: Stakeholder,
-                    required: true,
-                    include: [
-                      {
-                        model: Person,
-                        required: true,
-                        where: { organizationId: req.orgId },
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-        order: [['DWDate', 'DESC']],
-      });
+//     res.json(transactions);
+//   } catch (err) {
+//     res.status(500).json({
+//       message: err.message,
+//       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+//     });
+//   }
+// }),
 
-      if (!transactions) {
-        res.status(404).json('not found ');
-      }
+(exports.getDepositWithdraws = async (req, res) => {
+  try {
+    const transactions = await DepositWithdraw.findAll({
+      where: { organizationId: req.orgId },
+      include: [
+        {
+          model: Account,
+          attributes: ['No', 'credit'],
+          include: [
+            {
+              model: Customer,
+              required: true,
+              include: [
+                {
+                  model: Stakeholder,
+                  required: true,
+                  include: [
+                    {
+                      model: Person,
+                      required: true,
+                      where: { organizationId: req.orgId },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      order: [['DWDate', 'DESC']],
+    });
 
-      res.json(transactions);
-    } catch (err) {
-      res.status(500).json({
-        message: err.message,
-        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-      });
+    if (!transactions) {
+      res.status(404).json('not found ');
     }
-  }),
+
+    res.json(transactions);
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    });
+  }
+}),
   (exports.updateDepositWithdraw = async (req, res) => {
     const t = await sequelize.transaction();
     try {

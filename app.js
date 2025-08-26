@@ -18,7 +18,6 @@ const expenceRouter = require('./routes/expenceRoutes');
 const rateRouter = require('./routes/rateRoutes');
 const customerAuthRoute = require('./routes/customerAuthRoute');
 const whatsappRouter = require('./routes/whatsapp');
-const WhatsAppMonitor = require('./scripts/whatsappMonitor');
 
 const http = require('http');
 const { initSocket } = require('./services/socketService');
@@ -58,11 +57,6 @@ const errorHandler = (err, req, res, next) => {
   });
 };
 
-// Start WhatsApp monitor
-new WhatsAppMonitor();
-console.log('✅ WhatsApp connection monitor started');
-
-// Use it as the last middleware
 app.use(errorHandler);
 
 module.exports = app;

@@ -4,18 +4,15 @@ const router = express.Router();
 const WhatsAppService = require('../services/whatsappService');
 
 // WhatsApp status with detailed info
-router.get('/status', (req, res) => {
-  const status = WhatsAppService.getStatus();
-  res.json({
-    success: true,
-    ...status,
-    advice: status.connected
-      ? 'Ready to send messages'
-      : status.qrCode
-      ? 'Scan QR code to connect'
-      : 'Initializing...',
-  });
-});
+// router.get('/status', (req, res) => {
+//   res.json({
+//     success: true,
+//       ? 'Ready to send messages'
+
+//       ? 'Scan QR code to connect'
+//       : 'Initializing...',
+//   });
+// });
 
 // Send message with retry
 router.post('/send', async (req, res) => {
@@ -48,14 +45,14 @@ router.post('/reconnect', async (req, res) => {
   }
 });
 
-// Get QR code for display
-router.get('/qr', (req, res) => {
-  const status = WhatsAppService.getStatus();
-  if (status.qrCode) {
-    res.json({ success: true, qrCode: status.qrCode });
-  } else {
-    res.json({ success: false, message: 'No QR code available' });
-  }
-});
+// // Get QR code for display
+// router.get('/qr', (req, res) => {
+//   const status = WhatsAppService.getStatus();
+//   if (status.qrCode) {
+//     res.json({ success: true, qrCode: status.qrCode });
+//   } else {
+//     res.json({ success: false, message: 'No QR code available' });
+//   }
+// });
 
 module.exports = router;

@@ -8,6 +8,7 @@ const {
   Stakeholder,
   SenderReceiver,
   Customer,
+  MoneyType,
 } = require('../models');
 const notificationService = require('../services/notificationService');
 
@@ -107,6 +108,7 @@ exports.createTransfer = async (req, res) => {
     if (customerId) {
       const customerAccount = await Account.findOne({
         where: { customerId, moneyTypeId },
+        include: [{ model: MoneyType }],
         transaction: t,
       });
       if (!customerAccount) {
@@ -129,6 +131,7 @@ exports.createTransfer = async (req, res) => {
 
     const branchAccount = await Account.findOne({
       where: { customerId: branch.customerId, moneyTypeId },
+      include: [{ model: MoneyType }],
       transaction: t,
     });
     if (!branchAccount) {
@@ -163,13 +166,13 @@ exports.createTransfer = async (req, res) => {
       { transaction: t }
     );
 
-    // ✅ COMMIT FIRST — data is safe regardless of notification success
     await t.commit();
 
-    // 🔔 Send notifications (soft-fail, does not affect response)
     const notifOptions = {
-      channels: Array.isArray(channels) ? channels : undefined, // let service decide defaults
-      includeWebsocket: true,
+      channels: Array.isArray(req.body.channels)
+        ? req.body.channels
+        : undefined,
+      includeWebsocket: false,
       failSoft: true,
       save: true,
     };
@@ -181,6 +184,7 @@ exports.createTransfer = async (req, res) => {
         type: 'transfer',
         transferNo: finalTransferNo, // use final number
         transferAmount,
+        moneyType: MoneyType.typeName,
         chargesAmount,
         senderName,
         receiverName,
@@ -192,6 +196,7 @@ exports.createTransfer = async (req, res) => {
     );
 
     // Optional: notify sender customer, if provided
+
     let customerNotification = null;
     if (customerId) {
       customerNotification = await notificationService.sendNotification(
@@ -201,6 +206,7 @@ exports.createTransfer = async (req, res) => {
           type: 'transfer',
           transferNo: finalTransferNo,
           transferAmount,
+          moneyType: MoneyType.typeName,
           chargesAmount,
           receiverName,
           data: newTransfer,

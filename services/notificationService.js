@@ -1,6 +1,6 @@
 // services/notificationService.js
 const TelegramChannel = require('../channels/telegramChannel');
-const WhatsAppService = require('./whatsappService'); // has sendWithRetry
+const WhatsAppService = require('./whatsappService'); // now the wrapper instance above
 const WebSocketChannel = require('../channels/websocketChannel');
 const {
   Notification,
@@ -14,7 +14,7 @@ class NotificationService {
   constructor() {
     this.channels = {
       telegram: new TelegramChannel(),
-      whatsapp: WhatsAppService,
+      whatsapp: WhatsAppService, // expects .sendWithRetry(phone, message, retries)
       websocket: new WebSocketChannel(),
     };
     this.initialized = false;
@@ -26,18 +26,6 @@ class NotificationService {
     console.log('✅ Notification service initialized with WebSocket');
   }
 
-  /**
-   * Send a notification with optional channel control.
-   *
-   * @param {"branch"|"customer"} recipientType
-   * @param {number} recipientId
-   * @param {object} notificationData  // { type, data, ... }
-   * @param {object} options
-   * @param {string[]} [options.channels]   // e.g. ["whatsapp","telegram","websocket"]
-   * @param {boolean}  [options.includeWebsocket=true]
-   * @param {boolean}  [options.failSoft=true]  // never throw if a channel fails
-   * @param {boolean}  [options.save=true]      // save to Notification table
-   */
   async sendNotification(
     recipientType,
     recipientId,
@@ -49,6 +37,7 @@ class NotificationService {
       includeWebsocket = true,
       failSoft = true,
       save = true,
+      overridePreference = false,
     } = options;
 
     let recipient;
@@ -102,20 +91,41 @@ class NotificationService {
     // Build message payloads
     const message = this.formatMessage(notificationData, customerData);
 
-    // 1) Start from channels the customer has enabled
+    // Debug info: show customer channel settings and what was requested
+    console.log('notificationService: recipient:', recipientType, recipientId);
+    console.log(
+      'notificationService: customerData.whatsAppEnabled=',
+      customerData.whatsAppEnabled,
+      'whatsApp=',
+      customerData.whatsApp
+    );
+    console.log('notificationService: requestedChannels=', requestedChannels);
+
+    // 1) Start from channels the customer has enabled (unless overridePreference)
     const enabledByCustomer = new Set();
     if (customerData.telegramEnabled && customerData.telegram)
       enabledByCustomer.add('telegram');
     if (customerData.whatsAppEnabled && customerData.whatsApp)
       enabledByCustomer.add('whatsapp');
 
-    // 2) Intersect with requested channels if provided
-    let effectiveChannels =
-      requestedChannels && requestedChannels.length
-        ? requestedChannels.filter((c) => enabledByCustomer.has(c))
-        : Array.from(enabledByCustomer);
+    // 2) Determine effective channels
+    let effectiveChannels;
+    if (requestedChannels && requestedChannels.length) {
+      if (overridePreference) {
+        // use requested channels directly (but only if we have that channel handler)
+        effectiveChannels = requestedChannels.filter((c) => !!this.channels[c]);
+      } else {
+        // only those requested that the customer has enabled
+        effectiveChannels = requestedChannels.filter((c) =>
+          enabledByCustomer.has(c)
+        );
+      }
+    } else {
+      // no requested channels -> use customer enabled channels
+      effectiveChannels = Array.from(enabledByCustomer);
+    }
 
-    // 3) Optionally include websocket (internal)
+    // 3) include websocket optionally
     if (includeWebsocket && this.initialized) {
       if (!effectiveChannels.includes('websocket'))
         effectiveChannels.push('websocket');
@@ -123,8 +133,10 @@ class NotificationService {
       console.warn('⚠️ WebSocket IO not set; skipping websocket channel');
     }
 
-    // Nothing to send? Return early
-    if (effectiveChannels.length === 0) {
+    console.log('notificationService: effectiveChannels=', effectiveChannels);
+
+    // Nothing to send?
+    if (!effectiveChannels || effectiveChannels.length === 0) {
       const res = {
         notificationId: null,
         results: [],
@@ -154,6 +166,16 @@ class NotificationService {
     const results = [];
     for (const ch of effectiveChannels) {
       try {
+        console.log(`notificationService: sending to channel ${ch}`);
+        if (ch === 'whatsapp') {
+          // debug show phone and message preview
+          console.log(
+            'notificationService: whatsapp phone=',
+            customerData.whatsApp,
+            'messagePreview=',
+            message.whatsapp?.slice?.(0, 200)
+          );
+        }
         const result = await this._sendToChannel(ch, {
           customerData,
           recipientType,
@@ -161,6 +183,8 @@ class NotificationService {
           message,
           rawData: notificationData,
         });
+
+        console.log(`notificationService: ${ch} result=`, result);
         results.push(result);
       } catch (err) {
         console.error(`💥 ${ch} error:`, err.message || err);
@@ -198,21 +222,63 @@ class NotificationService {
   }
 
   async _sendToChannel(channelName, ctx) {
-    const { customerData, recipientType, recipient, message, rawData } = ctx;
+    const { customerData, recipientType, recipient, message } = ctx;
 
     if (channelName === 'telegram') {
       const chatId = customerData.telegram;
+      if (!this.channels.telegram || !this.channels.telegram.send) {
+        throw new Error('Telegram channel not available');
+      }
       return await this.channels.telegram.send(chatId, message.telegram);
     }
 
     if (channelName === 'whatsapp') {
       const phone = customerData.whatsApp;
-      // Uses your existing retry logic inside the service
-      return await this.channels.whatsapp.sendWithRetry(
-        phone,
-        message.whatsapp,
-        3
-      );
+      if (!phone) {
+        return {
+          success: false,
+          error: 'No phone number for WhatsApp',
+          channel: 'whatsapp',
+        };
+      }
+      if (!this.channels.whatsapp || !this.channels.whatsapp.sendWithRetry) {
+        console.error(
+          'notificationService: whatsapp channel not present or missing sendWithRetry'
+        );
+        return {
+          success: false,
+          error: 'WhatsApp channel not configured',
+          channel: 'whatsapp',
+        };
+      }
+
+      // call sendWithRetry (it should return { success, queued, error... })
+      try {
+        const res = await this.channels.whatsapp.sendWithRetry(
+          phone,
+          message.whatsapp,
+          3
+        );
+        // normalize result if necessary
+        if (res && res.queued)
+          return {
+            success: false,
+            queued: true,
+            channel: 'whatsapp',
+            note: res.note || 'queued',
+          };
+        return res;
+      } catch (err) {
+        console.error(
+          'notificationService: exception from whatsapp sendWithRetry',
+          err
+        );
+        return {
+          success: false,
+          error: err.message || String(err),
+          channel: 'whatsapp',
+        };
+      }
     }
 
     if (channelName === 'websocket') {
@@ -298,16 +364,15 @@ class NotificationService {
   }
 
   formatTelegramMessage(data) {
-    return `🔔 *${data.title}*
-${this.getMessageBody(data)}
-⏰ ${data.timestamp}
-#${data.type}`;
+    return `🔔 *${data.title}*\n${this.getMessageBody(data)}\n⏰ ${
+      data.timestamp
+    }\n#${data.type}`;
   }
 
   formatWhatsAppMessage(data) {
-    return `🔔 *${data.title}*
-${this.getMessageBody(data)}
-⏰ ${data.timestamp}`;
+    return `🔔 *${data.title}*\n${this.getMessageBody(data)}\n⏰ ${
+      data.timestamp
+    }`;
   }
 
   getMessageBody(data) {
@@ -316,23 +381,26 @@ ${this.getMessageBody(data)}
         return `💸 Transfer #${data.transferNo}
 From: ${data.senderName}
 To: ${data.receiverName}
-Amount: ${data.transferAmount} AFN
-Charges: ${data.chargesAmount} AFN`;
+Amount: ${data.transferAmount} ${data.moneyType}
+Charges: ${data.chargesAmount} ${data.moneyType}`;
+
       case 'withdrawal':
         return `➖ Withdrawal
-Amount: ${data.amount} AFN
+Amount: ${data.amount} ${data.moneyType}
 Account: ${data.accountNo}
-Balance: ${data.balance} AFN`;
+Balance: ${data.balance} ${data.moneyType}`;
+
       case 'deposit':
-        return `➕ Deposit  
-Amount: ${data.amount} AFN
+        return `➕ Deposit
+Amount: ${data.amount} ${data.moneyType}
 Account: ${data.accountNo}
-Balance: ${data.balance} AFN`;
+Balance: ${data.balance} ${data.moneyType}`;
+
       case 'account_activity':
         return `📊 Account Activity
 Type: ${data.activityType}
-Amount: ${data.amount} AFN
-Balance: ${data.balance} AFN`;
+Amount: ${data.amount} ${data.moneyType}
+Balance: ${data.balance} ${data.moneyType}`;
       default:
         return data.message || 'Notification';
     }
