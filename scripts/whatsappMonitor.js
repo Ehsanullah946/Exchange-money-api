@@ -1,9 +1,8 @@
-// scripts/whatsappMonitor.js
 const WhatsAppService = require('../services/whatsappService');
 
 class WhatsAppMonitor {
   constructor() {
-    this.checkInterval = 30000; // Check every 30 seconds
+    this.checkInterval = 300000; // Check every 30 seconds
     this.startMonitoring();
   }
 
@@ -17,7 +16,7 @@ class WhatsAppMonitor {
     const status = WhatsAppService.getStatus();
 
     if (!status.connected && !status.connecting) {
-      console.log('🔄 WhatsApp disconnected, attempting auto-reconnect...');
+      // console.log('🔄 WhatsApp disconnected, attempting auto-reconnect...');
       await WhatsAppService.reconnect();
     }
   }

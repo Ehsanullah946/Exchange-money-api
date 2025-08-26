@@ -1,4 +1,3 @@
-
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const EventEmitter = require('events');
@@ -10,6 +9,7 @@ class WhatsAppChannel extends EventEmitter {
     this.connected = false;
     this.connecting = false;
     this.qrCode = null;
+    this.reconnectTimeout = null;
     this.initialize();
   }
 
@@ -17,12 +17,11 @@ class WhatsAppChannel extends EventEmitter {
     if (this.connecting) return;
 
     this.connecting = true;
-    console.log('🔄 Initializing WhatsApp client...');
 
     try {
       this.client = new Client({
         authStrategy: new LocalAuth({
-          clientId: 'banking-app-whatsapp', // ✅ Session is saved automatically
+          clientId: 'banking-app-whatsapp',
         }),
         puppeteer: {
           headless: true,
@@ -30,11 +29,10 @@ class WhatsAppChannel extends EventEmitter {
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process',
-            '--disable-gpu',
+            '--disable-extensions',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
           ],
         },
         takeoverOnConflict: true,
@@ -94,17 +92,15 @@ class WhatsAppChannel extends EventEmitter {
 
   async send(phoneNumberOrChatId, message) {
     if (!this.connected) {
-      console.log('⏳ WhatsApp not connected, attempting to reconnect...');
-      await this.initialize();
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      if (!this.connected) {
-        return {
-          success: false,
-          error: 'WhatsApp client not connected',
-          channel: 'whatsapp',
-          requiresReconnect: true,
-        };
-      }
+      console.log('⏳ WhatsApp not connected, message queued for retry...');
+      this.scheduleReconnect();
+
+      return {
+        success: false,
+        error: 'WhatsApp not connected (queued)',
+        channel: 'whatsapp',
+        queued: true,
+      };
     }
 
     try {
@@ -114,10 +110,8 @@ class WhatsAppChannel extends EventEmitter {
         phoneNumberOrChatId.endsWith('@c.us') ||
         phoneNumberOrChatId.endsWith('@g.us')
       ) {
-        // Already a valid chatId
         chatId = phoneNumberOrChatId;
       } else {
-        // Format as a phone number (c.us)
         const formattedNumber = this.formatPhoneNumber(phoneNumberOrChatId);
         if (!formattedNumber) {
           return {
@@ -130,8 +124,6 @@ class WhatsAppChannel extends EventEmitter {
       }
 
       console.log(`📤 Sending WhatsApp to: ${chatId}`);
-
-      // ✅ Send directly (no getChatById needed)
       const result = await this.client.sendMessage(chatId, message);
 
       console.log('✅ WhatsApp message sent successfully');
@@ -166,7 +158,7 @@ class WhatsAppChannel extends EventEmitter {
     this.reconnectTimeout = setTimeout(() => {
       console.log('🔄 Attempting WhatsApp reconnection...');
       this.initialize();
-    }, 10000);
+    }, 10000 * 3600 * 10);
   }
 
   cleanup() {
@@ -183,13 +175,12 @@ class WhatsAppChannel extends EventEmitter {
 
   formatPhoneNumber(phone) {
     if (!phone) return null;
-
     let cleaned = phone.replace(/\D/g, '');
 
     if (cleaned.startsWith('0')) {
       cleaned = '93' + cleaned.substring(1);
     } else if (cleaned.startsWith('93')) {
-      // Already correct
+      // ok
     } else if (cleaned.length === 9) {
       cleaned = '93' + cleaned;
     }

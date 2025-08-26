@@ -1,7 +1,6 @@
 // services/notificationService.js
 const TelegramChannel = require('../channels/telegramChannel');
-const WhatsAppChannel = require('../channels/whatsappChannel');
-const WhatsAppService = require('./whatsappService');
+const WhatsAppService = require('./whatsappService'); // has sendWithRetry
 const WebSocketChannel = require('../channels/websocketChannel');
 const {
   Notification,
@@ -18,6 +17,7 @@ class NotificationService {
       whatsapp: WhatsAppService,
       websocket: new WebSocketChannel(),
     };
+    this.initialized = false;
   }
 
   setWebSocketIO(io) {
@@ -26,163 +26,261 @@ class NotificationService {
     console.log('✅ Notification service initialized with WebSocket');
   }
 
-  async sendNotification(recipientType, recipientId, notificationData) {
+  /**
+   * Send a notification with optional channel control.
+   *
+   * @param {"branch"|"customer"} recipientType
+   * @param {number} recipientId
+   * @param {object} notificationData  // { type, data, ... }
+   * @param {object} options
+   * @param {string[]} [options.channels]   // e.g. ["whatsapp","telegram","websocket"]
+   * @param {boolean}  [options.includeWebsocket=true]
+   * @param {boolean}  [options.failSoft=true]  // never throw if a channel fails
+   * @param {boolean}  [options.save=true]      // save to Notification table
+   */
+  async sendNotification(
+    recipientType,
+    recipientId,
+    notificationData,
+    options = {}
+  ) {
+    const {
+      channels: requestedChannels,
+      includeWebsocket = true,
+      failSoft = true,
+      save = true,
+    } = options;
+
     let recipient;
     let customerData;
 
     if (!this.initialized) {
-      console.warn('⚠️ Notification service not fully initialized');
+      console.warn(
+        '⚠️ Notification service not fully initialized (websocket may be skipped)'
+      );
     }
 
     if (recipientType === 'branch') {
-      // Get branch which has customer relationship
       const branch = await Branch.findByPk(recipientId, {
         include: [
           {
             model: Customer,
-            include: [
-              {
-                model: Stakeholder,
-                include: [Person],
-              },
-            ],
+            include: [{ model: Stakeholder, include: [Person] }],
           },
         ],
       });
-
       if (!branch || !branch.Customer) {
+        if (failSoft)
+          return this._resultForFail(
+            'Recipient not found',
+            [],
+            recipientType,
+            recipientId
+          );
         throw new Error('Branch or associated customer not found');
       }
-
       recipient = branch;
       customerData = branch.Customer;
     } else {
-      // Regular customer
-      recipient = await Customer.findByPk(recipientId, {
-        include: [
-          {
-            model: Stakeholder,
-            include: [Person],
-          },
-        ],
+      const customer = await Customer.findByPk(recipientId, {
+        include: [{ model: Stakeholder, include: [Person] }],
       });
-
-      if (!recipient) {
+      if (!customer) {
+        if (failSoft)
+          return this._resultForFail(
+            'Recipient not found',
+            [],
+            recipientType,
+            recipientId
+          );
         throw new Error('Customer not found');
       }
-      customerData = recipient;
+      recipient = customer;
+      customerData = customer;
     }
 
+    // Build message payloads
     const message = this.formatMessage(notificationData, customerData);
+
+    // 1) Start from channels the customer has enabled
+    const enabledByCustomer = new Set();
+    if (customerData.telegramEnabled && customerData.telegram)
+      enabledByCustomer.add('telegram');
+    if (customerData.whatsAppEnabled && customerData.whatsApp)
+      enabledByCustomer.add('whatsapp');
+
+    // 2) Intersect with requested channels if provided
+    let effectiveChannels =
+      requestedChannels && requestedChannels.length
+        ? requestedChannels.filter((c) => enabledByCustomer.has(c))
+        : Array.from(enabledByCustomer);
+
+    // 3) Optionally include websocket (internal)
+    if (includeWebsocket && this.initialized) {
+      if (!effectiveChannels.includes('websocket'))
+        effectiveChannels.push('websocket');
+    } else if (includeWebsocket && !this.initialized) {
+      console.warn('⚠️ WebSocket IO not set; skipping websocket channel');
+    }
+
+    // Nothing to send? Return early
+    if (effectiveChannels.length === 0) {
+      const res = {
+        notificationId: null,
+        results: [],
+        recipient: this._recipientSummary(
+          recipientType,
+          recipient,
+          customerData
+        ),
+        channels: [],
+        note: 'No eligible channels (either not requested or not enabled on recipient).',
+      };
+      if (save) {
+        const saved = await this._saveNotification(
+          notificationData,
+          recipientType,
+          recipient,
+          customerData,
+          'skipped',
+          []
+        );
+        res.notificationId = saved.id;
+      }
+      return res;
+    }
+
+    // 4) Send to channels (soft-fail)
     const results = [];
-
-    // Use customer's notification settings (since branch inherits from customer)
-    let enabledChannels = [];
-    if (customerData.telegramEnabled && customerData.telegram) {
-      enabledChannels.push('telegram');
-    }
-    if (customerData.whatsAppEnabled && customerData.whatsApp) {
-      enabledChannels.push('whatsapp');
-    }
-    if (customerData.emailEnabled) {
-      // Email can be added later if needed
-    }
-
-    if (customerData.telegramEnabled && customerData.telegram) {
-      enabledChannels.push('telegram');
-      console.log('✅ Telegram enabled:', customerData.telegram);
-    } else {
-      console.log('❌ Telegram disabled or missing chat ID');
-    }
-
-    if (customerData.whatsAppEnabled && customerData.whatsApp) {
-      enabledChannels.push('whatsapp');
-      console.log('✅ WhatsApp enabled:', customerData.whatsApp);
-    } else {
-      console.log('❌ WhatsApp disabled or missing number');
-    }
-
-    // Always enable internal/websocket for real-time updates
-
-    enabledChannels.push('websocket');
-
-    for (const channelName of enabledChannels) {
-      const channel = this.channels[channelName];
-      let channelResult;
-
+    for (const ch of effectiveChannels) {
       try {
-        if (channelName === 'telegram') {
-          channelResult = await channel.send(
-            customerData.telegram,
-            message.telegram
-          );
-        } else if (channelName === 'whatsapp') {
-          channelResult = await this.channels.whatsapp.sendWithRetry(
-            customerData.whatsApp,
-            message.whatsapp,
-            3 // 3 retries
-          );
-        } else if (channelName === 'websocket') {
-          const wsMessage = {
-            ...message.websocket,
-            recipientType,
-            recipientId:
-              recipientType === 'branch' ? recipient.id : customerData.id,
-          };
-          const wsRecipientId =
-            recipientType === 'branch' ? recipient.id : customerData.id;
-          channelResult = await channel.send(
-            wsRecipientId,
-            wsMessage,
-            recipientType
-          );
-        }
-
-        console.log(`📤 ${channelName} result:`, channelResult);
-        results.push(channelResult);
-      } catch (error) {
-        console.error(`💥 ${channelName} error:`, error.message);
-        results.push({
-          success: false,
-          error: error.message,
-          channel: channelName,
+        const result = await this._sendToChannel(ch, {
+          customerData,
+          recipientType,
+          recipient,
+          message,
+          rawData: notificationData,
         });
+        results.push(result);
+      } catch (err) {
+        console.error(`💥 ${ch} error:`, err.message || err);
+        const failure = {
+          success: false,
+          error: err.message || String(err),
+          channel: ch,
+        };
+        results.push(failure);
+        if (!failSoft) throw err;
       }
     }
 
-    if (enabledChannels.includes('websocket') && !this.initialized) {
-      console.warn(
-        '⚠️ WebSocket not available, skipping WebSocket notification'
+    // 5) Persist notification record (optional)
+    const status = results.some((r) => r && r.success) ? 'delivered' : 'failed';
+    let notificationRow = null;
+    if (save) {
+      notificationRow = await this._saveNotification(
+        notificationData,
+        recipientType,
+        recipient,
+        customerData,
+        status,
+        effectiveChannels
       );
-      enabledChannels = enabledChannels.filter((ch) => ch !== 'websocket');
     }
 
-    // Save notification to database
-    const notification = await Notification.create({
+    return {
+      notificationId: notificationRow ? notificationRow.id : null,
+      results,
+      recipient: this._recipientSummary(recipientType, recipient, customerData),
+      channels: effectiveChannels,
+      status,
+    };
+  }
+
+  async _sendToChannel(channelName, ctx) {
+    const { customerData, recipientType, recipient, message, rawData } = ctx;
+
+    if (channelName === 'telegram') {
+      const chatId = customerData.telegram;
+      return await this.channels.telegram.send(chatId, message.telegram);
+    }
+
+    if (channelName === 'whatsapp') {
+      const phone = customerData.whatsApp;
+      // Uses your existing retry logic inside the service
+      return await this.channels.whatsapp.sendWithRetry(
+        phone,
+        message.whatsapp,
+        3
+      );
+    }
+
+    if (channelName === 'websocket') {
+      const wsPayload = {
+        ...message.websocket,
+        recipientType,
+        recipientId:
+          recipientType === 'branch' ? recipient.id : customerData.id,
+      };
+      const wsRecipientId =
+        recipientType === 'branch' ? recipient.id : customerData.id;
+      return await this.channels.websocket.send(
+        wsRecipientId,
+        wsPayload,
+        recipientType
+      );
+    }
+
+    throw new Error(`Unknown channel: ${channelName}`);
+  }
+
+  async _saveNotification(
+    notificationData,
+    recipientType,
+    recipient,
+    customerData,
+    status,
+    channels
+  ) {
+    const titleMessage = this.getTitle(notificationData.type);
+    return await Notification.create({
       type: notificationData.type,
       recipientType,
-      recipientBranchId: recipientType === 'branch' ? recipientId : null,
+      recipientBranchId: recipientType === 'branch' ? recipient.id : null,
       recipientCustomerId:
-        recipientType === 'customer' ? recipientId : customerData.id,
-      title: message.title,
-      message: JSON.stringify(message),
+        recipientType === 'customer' ? recipient.id : customerData.id,
+      title: titleMessage,
+      message: JSON.stringify(
+        this.formatMessage(notificationData, customerData)
+      ),
       data: notificationData.data,
-      status: results.some((r) => r.success) ? 'delivered' : 'failed',
-      channels: enabledChannels,
+      status,
+      channels,
       priority: notificationData.priority || 'normal',
     });
+  }
 
+  _recipientSummary(recipientType, recipient, customerData) {
     return {
-      notificationId: notification.id,
+      type: recipientType,
+      id: recipientType === 'branch' ? recipient.id : customerData.id,
+      name:
+        recipientType === 'branch'
+          ? `Branch ${recipient.id}`
+          : `${customerData.Stakeholder?.Person?.firstName ?? ''} ${
+              customerData.Stakeholder?.Person?.lastName ?? ''
+            }`.trim(),
+    };
+  }
+
+  _resultForFail(msg, results, recipientType, recipientId) {
+    return {
+      notificationId: null,
       results,
-      recipient: {
-        type: recipientType,
-        id: recipientType === 'branch' ? recipient.id : customerData.id,
-        name:
-          recipientType === 'branch'
-            ? `Branch ${recipient.id}`
-            : `${customerData.Stakeholder.Person.firstName} ${customerData.Stakeholder.Person.lastName}`,
-      },
+      recipient: { type: recipientType, id: recipientId },
+      channels: [],
+      status: 'failed',
+      error: msg,
     };
   }
 
@@ -192,7 +290,6 @@ class NotificationService {
       timestamp: new Date().toLocaleString('en-AF'),
       ...data,
     };
-
     return {
       telegram: this.formatTelegramMessage(baseMessage),
       whatsapp: this.formatWhatsAppMessage(baseMessage),
@@ -221,25 +318,21 @@ From: ${data.senderName}
 To: ${data.receiverName}
 Amount: ${data.transferAmount} AFN
 Charges: ${data.chargesAmount} AFN`;
-
       case 'withdrawal':
         return `➖ Withdrawal
 Amount: ${data.amount} AFN
 Account: ${data.accountNo}
 Balance: ${data.balance} AFN`;
-
       case 'deposit':
         return `➕ Deposit  
 Amount: ${data.amount} AFN
 Account: ${data.accountNo}
 Balance: ${data.balance} AFN`;
-
       case 'account_activity':
         return `📊 Account Activity
 Type: ${data.activityType}
 Amount: ${data.amount} AFN
 Balance: ${data.balance} AFN`;
-
       default:
         return data.message || 'Notification';
     }

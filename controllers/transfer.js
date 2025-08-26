@@ -65,6 +65,7 @@ async function reverseTransferAccounts(transfer, t) {
   }
 }
 
+// controllers/transfer.js
 exports.createTransfer = async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -83,22 +84,23 @@ exports.createTransfer = async (req, res) => {
       senderName,
       receiverName,
       moneyTypeId,
+
+      // NEW: optional channel selection from client
+      channels, // e.g. ["whatsapp","telegram","websocket"]
     } = req.body;
 
     const orgId = req.orgId;
 
-    // 1️⃣ Validate required fields
     if (!transferAmount || !toWhere || !moneyTypeId) {
       await t.rollback();
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    // 2️⃣ Generate transfer number (org-wide sequential)
     const finalTransferNo = await generateNextNo({
       model: Transfer,
       noField: 'transferNo',
       orgId,
-      manualNo: transferNo, // If null, it will auto-generate
+      manualNo: transferNo,
       transaction: t,
     });
 
@@ -107,23 +109,19 @@ exports.createTransfer = async (req, res) => {
         where: { customerId, moneyTypeId },
         transaction: t,
       });
-
       if (!customerAccount) {
         await t.rollback();
         return res.status(400).json({ message: 'Customer account not found' });
       }
-
       const totalDeduction = Number(transferAmount) + Number(chargesAmount);
       customerAccount.credit = Number(customerAccount.credit) - totalDeduction;
       await customerAccount.save({ transaction: t });
     }
 
-    // 6️⃣ Validate and process branch account
     const branch = await Branch.findOne({
       where: { id: toWhere },
       transaction: t,
     });
-
     if (!branch) {
       await t.rollback();
       return res.status(400).json({ message: 'Invalid branch' });
@@ -133,7 +131,6 @@ exports.createTransfer = async (req, res) => {
       where: { customerId: branch.customerId, moneyTypeId },
       transaction: t,
     });
-
     if (!branchAccount) {
       await t.rollback();
       return res.status(400).json({ message: 'Branch account not found' });
@@ -143,7 +140,6 @@ exports.createTransfer = async (req, res) => {
     branchAccount.credit = Number(branchAccount.credit) + totalAddition;
     await branchAccount.save({ transaction: t });
 
-    // 7️⃣ Create transfer record
     const newTransfer = await Transfer.create(
       {
         transferNo: finalTransferNo,
@@ -167,44 +163,64 @@ exports.createTransfer = async (req, res) => {
       { transaction: t }
     );
 
+    // ✅ COMMIT FIRST — data is safe regardless of notification success
+    await t.commit();
+
+    // 🔔 Send notifications (soft-fail, does not affect response)
+    const notifOptions = {
+      channels: Array.isArray(channels) ? channels : undefined, // let service decide defaults
+      includeWebsocket: true,
+      failSoft: true,
+      save: true,
+    };
+
     const branchNotification = await notificationService.sendNotification(
       'branch',
       branch.id,
       {
         type: 'transfer',
-        transferNo: transferNo,
-        transferAmount: transferAmount,
-        chargesAmount: chargesAmount,
-        senderName: senderName,
-        receiverName: receiverName,
-        branchCharges: branchCharges,
+        transferNo: finalTransferNo, // use final number
+        transferAmount,
+        chargesAmount,
+        senderName,
+        receiverName,
+        branchCharges,
         data: newTransfer,
         priority: transferAmount > 10000 ? 'high' : 'normal',
-      }
+      },
+      notifOptions
     );
 
-    // Also notify the sender customer if needed
+    // Optional: notify sender customer, if provided
+    let customerNotification = null;
     if (customerId) {
-      await notificationService.sendNotification('customer', customerId, {
-        type: 'transfer',
-        transferNo: transferNo,
-        transferAmount: transferAmount,
-        chargesAmount: chargesAmount,
-        receiverName: receiverName,
-        data: newTransfer,
-      });
+      customerNotification = await notificationService.sendNotification(
+        'customer',
+        customerId,
+        {
+          type: 'transfer',
+          transferNo: finalTransferNo,
+          transferAmount,
+          chargesAmount,
+          receiverName,
+          data: newTransfer,
+        },
+        notifOptions
+      );
     }
 
-    await t.commit();
-    res.status(201).json({
+    return res.status(201).json({
       message: 'Transfer created successfully',
       transfer: newTransfer,
       branchNotification,
+      customerNotification,
     });
   } catch (err) {
-    await t.rollback();
+    try {
+      await t.rollback();
+    } catch (_) {}
     console.error('Transfer creation error:', err);
-    res.status(500).json({
+    return res.status(500).json({
       message: 'Failed to create transfer',
       error: process.env.NODE_ENV === 'development' ? err.message : undefined,
     });
