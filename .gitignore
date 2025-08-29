@@ -2,6 +2,9 @@
 # Node modules
 node_modules/
 
+/.wwebjs_auth/
+*.html
+
 # Logs
 
 *.log
