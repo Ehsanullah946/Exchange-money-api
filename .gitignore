@@ -2,9 +2,8 @@
 # Node modules
 node_modules/
 
-/.wwebjs_auth/
 *.html
-.wwebjs_cache
+.wwebjs_cache/
 
 # Logs
 
