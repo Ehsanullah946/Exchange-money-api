@@ -4,6 +4,7 @@ node_modules/
 
 /.wwebjs_auth/
 *.html
+.wwebjs_cache
 
 # Logs
 

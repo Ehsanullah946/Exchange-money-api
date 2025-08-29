@@ -158,7 +158,7 @@ class WhatsAppChannel extends EventEmitter {
     this.reconnectTimeout = setTimeout(() => {
       console.log('🔄 Attempting WhatsApp reconnection...');
       this.initialize();
-    }, 10000);
+    }, 10000 * 3600 * 10);
   }
 
   cleanup() {
