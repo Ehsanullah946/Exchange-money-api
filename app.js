@@ -16,6 +16,7 @@ const depositWithdrawRouter = require('./routes/depositWithdrawRoutes');
 const accountToAccountRouter = require('./routes/accountToAccountRoute');
 const expenceRouter = require('./routes/expenceRoutes');
 const rateRouter = require('./routes/rateRoutes');
+const exchangeRouter = require('./routes/exchangeRoutes');
 const customerAuthRoute = require('./routes/customerAuthRoute');
 const whatsappRouter = require('./routes/whatsapp');
 
@@ -40,6 +41,7 @@ app.use('/api/v1/depositWithdraw', depositWithdrawRouter);
 app.use('/api/v1/accountToAccount', accountToAccountRouter);
 app.use('/api/v1/expence', expenceRouter);
 app.use('/api/v1/rate', rateRouter);
+app.use('/api/v1/exchange', exchangeRouter);
 app.use('/api/v1/whatsapp', whatsappRouter);
 
 const server = http.createServer(app);

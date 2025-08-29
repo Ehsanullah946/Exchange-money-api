@@ -24,7 +24,6 @@ module.exports = (sequelize, DataTypes) => {
       exchangerId: { type: DataTypes.INTEGER },
       employeeId: {
         type: DataTypes.INTEGER,
-        allowNull: false,
       },
       customerId: {
         type: DataTypes.INTEGER,
@@ -41,7 +40,7 @@ module.exports = (sequelize, DataTypes) => {
       },
     },
     {
-      tableName: 'excanges',
+      tableName: 'exchanges',
       timestamps: false,
     }
   );

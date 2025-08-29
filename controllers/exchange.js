@@ -32,13 +32,7 @@ exports.createExchange = async (req, res) => {
     const orgId = req.orgId;
 
     // Validate required fields
-    if (
-      !rate ||
-      !saleMoneyType ||
-      !purchaseMoneyType ||
-      !employeeId ||
-      !customerId
-    ) {
+    if (!rate || !saleMoneyType || !purchaseMoneyType || !customerId) {
       await t.rollback();
       return res.status(400).json({ message: 'Missing required fields' });
     }
@@ -52,19 +46,20 @@ exports.createExchange = async (req, res) => {
     }
 
     // Validate money types belong to organization
-    const saleMoneyTypeValid = await MoneyType.findOne({
-      where: { id: saleMoneyType, organizationId: orgId },
-      transaction: t,
-    });
-    const purchaseMoneyTypeValid = await MoneyType.findOne({
-      where: { id: purchaseMoneyType, organizationId: orgId },
-      transaction: t,
-    });
+    // const saleMoneyTypeValid = await MoneyType.findOne({
+    //   where: { id: saleMoneyType, organizationId: orgId },
+    //   transaction: t,
+    // });
 
-    if (!saleMoneyTypeValid || !purchaseMoneyTypeValid) {
-      await t.rollback();
-      return res.status(400).json({ message: 'Invalid currency types' });
-    }
+    // const purchaseMoneyTypeValid = await MoneyType.findOne({
+    //   where: { id: purchaseMoneyType, organizationId: orgId },
+    //   transaction: t,
+    // });
+
+    // if (!saleMoneyTypeValid || !purchaseMoneyTypeValid) {
+    //   await t.rollback();
+    //   return res.status(400).json({ message: 'Invalid currency types' });
+    // }
 
     // Calculate missing amount if calculate flag is true
     let finalSaleAmount = saleAmount;
@@ -74,7 +69,7 @@ exports.createExchange = async (req, res) => {
       if (saleAmount && !purchaseAmount) {
         finalPurchaseAmount = saleAmount * rate;
       } else if (purchaseAmount && !saleAmount) {
-        finalSaleAmount = purchaseAmount / rate;
+        finalSaleAmount = purchaseAmount * rate;
       }
       // If both provided, use as-is (no calculation)
     }
@@ -92,6 +87,7 @@ exports.createExchange = async (req, res) => {
       where: { customerId, moneyTypeId: saleMoneyType },
       transaction: t,
     });
+
     const purchaseAccount = await Account.findOne({
       where: { customerId, moneyTypeId: purchaseMoneyType },
       transaction: t,
@@ -108,20 +104,20 @@ exports.createExchange = async (req, res) => {
     if (swap) {
       await Account.update(
         { credit: sequelize.literal(`credit - ${finalPurchaseAmount}`) },
-        { where: { id: purchaseAccount.id }, transaction: t }
+        { where: { No: purchaseAccount.No }, transaction: t }
       );
       await Account.update(
         { credit: sequelize.literal(`credit + ${finalSaleAmount}`) },
-        { where: { id: saleAccount.id }, transaction: t }
+        { where: { No: saleAccount.No }, transaction: t }
       );
     } else {
       await Account.update(
         { credit: sequelize.literal(`credit - ${finalSaleAmount}`) },
-        { where: { id: saleAccount.id }, transaction: t }
+        { where: { No: saleAccount.No }, transaction: t }
       );
       await Account.update(
         { credit: sequelize.literal(`credit + ${finalPurchaseAmount}`) },
-        { where: { id: purchaseAccount.id }, transaction: t }
+        { where: { No: purchaseAccount.No }, transaction: t }
       );
     }
 
@@ -172,7 +168,6 @@ exports.createExchange = async (req, res) => {
     await t.rollback();
     res.status(500).json({
       message: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
     });
   }
 };
@@ -196,7 +191,7 @@ exports.createExchange = async (req, res) => {
   }
 }),
   // Get single exchange
-  (exports.getExchange = async (req, res) => {
+  (exports.getExchangeById = async (req, res) => {
     try {
       const exchange = await Exchange.findOne({
         where: { id: req.params.id, organizationId: req.orgId },
