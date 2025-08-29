@@ -2,9 +2,6 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config({ path: '.env' });
 
-<<<<<<< HEAD
-// services/emailService.js
-=======
 class EmailService {
   constructor() {
     this.transporter = nodemailer.createTransport({
@@ -15,7 +12,7 @@ class EmailService {
       },
     });
   }
->>>>>>> 65eaed8e20b47ede1eb60d55cba9a0cc126a8280
+}
 
 const createTransporter = () => {
   return nodemailer.createTransport({

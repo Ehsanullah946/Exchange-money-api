@@ -13,15 +13,8 @@
     "nodemon": "^3.1.10",
     "qrcode-terminal": "^0.12.0",
     "sequelize": "^6.37.7",
-<<<<<<< HEAD
-    "socket.io": "^4.8.1",
-    "twilio": "^5.8.0",
-    "validator": "^13.15.15",
-    "whatsapp-web.js": "^1.32.0"
-=======
     "twilio": "^5.8.0",
     "validator": "^13.15.15"
->>>>>>> 65eaed8e20b47ede1eb60d55cba9a0cc126a8280
   },
   "name": "exchange-money-api",
   "version": "1.0.0",
