@@ -45,23 +45,6 @@ exports.createExchange = async (req, res) => {
       });
     }
 
-    // Validate money types belong to organization
-    // const saleMoneyTypeValid = await MoneyType.findOne({
-    //   where: { id: saleMoneyType, organizationId: orgId },
-    //   transaction: t,
-    // });
-
-    // const purchaseMoneyTypeValid = await MoneyType.findOne({
-    //   where: { id: purchaseMoneyType, organizationId: orgId },
-    //   transaction: t,
-    // });
-
-    // if (!saleMoneyTypeValid || !purchaseMoneyTypeValid) {
-    //   await t.rollback();
-    //   return res.status(400).json({ message: 'Invalid currency types' });
-    // }
-
-    // Calculate missing amount if calculate flag is true
     let finalSaleAmount = saleAmount;
     let finalPurchaseAmount = purchaseAmount;
 
@@ -241,20 +224,20 @@ exports.createExchange = async (req, res) => {
       if (exchange.swap) {
         await Account.update(
           { credit: sequelize.literal(`credit + ${exchange.purchaseAmount}`) },
-          { where: { id: purchaseAccount.id }, transaction: t }
+          { where: { No: purchaseAccount.No }, transaction: t }
         );
         await Account.update(
           { credit: sequelize.literal(`credit - ${exchange.saleAmount}`) },
-          { where: { id: saleAccount.id }, transaction: t }
+          { where: { No: saleAccount.No }, transaction: t }
         );
       } else {
         await Account.update(
           { credit: sequelize.literal(`credit + ${exchange.saleAmount}`) },
-          { where: { id: saleAccount.id }, transaction: t }
+          { where: { No: saleAccount.No }, transaction: t }
         );
         await Account.update(
           { credit: sequelize.literal(`credit - ${exchange.purchaseAmount}`) },
-          { where: { id: purchaseAccount.id }, transaction: t }
+          { where: { No: purchaseAccount.No }, transaction: t }
         );
       }
 
@@ -266,3 +249,258 @@ exports.createExchange = async (req, res) => {
       res.status(500).json({ message: err.message });
     }
   });
+
+// Update exchange transaction
+exports.updateExchange = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const {
+      rate,
+      saleAmount,
+      purchaseAmount,
+      description,
+      fingerprint,
+      photo,
+      swap,
+      calculate,
+      saleMoneyType,
+      purchaseMoneyType,
+      exchangerId,
+      employeeId,
+      customerId,
+      transferId,
+      receiveId,
+    } = req.body;
+
+    const orgId = req.orgId;
+
+    // Find the existing exchange
+    const exchange = await Exchange.findOne({
+      where: { id, organizationId: orgId, deleted: false },
+      transaction: t,
+    });
+
+    if (!exchange) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Exchange not found' });
+    }
+
+    // Reverse the original transaction effects first
+    const originalSaleAccount = await Account.findOne({
+      where: {
+        customerId: exchange.customerId,
+        moneyTypeId: exchange.saleMoneyType,
+      },
+      transaction: t,
+    });
+    const originalPurchaseAccount = await Account.findOne({
+      where: {
+        customerId: exchange.customerId,
+        moneyTypeId: exchange.purchaseMoneyType,
+      },
+      transaction: t,
+    });
+
+    if (!originalSaleAccount || !originalPurchaseAccount) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Original accounts not found' });
+    }
+
+    // Reverse original transaction
+    if (exchange.swap) {
+      await Account.update(
+        { credit: sequelize.literal(`credit + ${exchange.purchaseAmount}`) },
+        { where: { id: originalPurchaseAccount.id }, transaction: t }
+      );
+      await Account.update(
+        { credit: sequelize.literal(`credit - ${exchange.saleAmount}`) },
+        { where: { id: originalSaleAccount.id }, transaction: t }
+      );
+    } else {
+      await Account.update(
+        { credit: sequelize.literal(`credit + ${exchange.saleAmount}`) },
+        { where: { id: originalSaleAccount.id }, transaction: t }
+      );
+      await Account.update(
+        { credit: sequelize.literal(`credit - ${exchange.purchaseAmount}`) },
+        { where: { id: originalPurchaseAccount.id }, transaction: t }
+      );
+    }
+
+    // Prepare update data
+    const updateData = {};
+    const fieldsToUpdate = [
+      'rate',
+      'description',
+      'fingerprint',
+      'photo',
+      'swap',
+      'calculate',
+      'saleMoneyType',
+      'purchaseMoneyType',
+      'exchangerId',
+      'employeeId',
+      'customerId',
+      'transferId',
+      'receiveId',
+    ];
+
+    fieldsToUpdate.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    // Handle amount calculations if needed
+    let finalSaleAmount =
+      saleAmount !== undefined ? saleAmount : exchange.saleAmount;
+    let finalPurchaseAmount =
+      purchaseAmount !== undefined ? purchaseAmount : exchange.purchaseAmount;
+    const finalRate = rate !== undefined ? rate : exchange.rate;
+
+    // Recalculate amounts if calculate flag is true or amounts changed
+    const shouldRecalculate =
+      calculate !== false &&
+      (saleAmount !== undefined ||
+        purchaseAmount !== undefined ||
+        rate !== undefined);
+
+    if (shouldRecalculate) {
+      if (saleAmount !== undefined && purchaseAmount === undefined) {
+        finalPurchaseAmount = saleAmount * finalRate;
+      } else if (purchaseAmount !== undefined && saleAmount === undefined) {
+        finalSaleAmount = purchaseAmount / finalRate;
+      } else if (rate !== undefined) {
+        // If rate changed but amounts didn't, recalculate based on original direction
+        if (saleAmount === undefined && purchaseAmount === undefined) {
+          finalPurchaseAmount = exchange.saleAmount * finalRate;
+          finalSaleAmount = exchange.saleAmount; // Keep original sale amount
+        }
+      }
+    }
+
+    // Add amounts to update data
+    updateData.saleAmount = finalSaleAmount;
+    updateData.purchaseAmount = finalPurchaseAmount;
+    if (rate !== undefined) updateData.rate = finalRate;
+
+    // Validate money types if changed
+    if (saleMoneyType !== undefined || purchaseMoneyType !== undefined) {
+      const finalSaleMoneyType =
+        saleMoneyType !== undefined ? saleMoneyType : exchange.saleMoneyType;
+      const finalPurchaseMoneyType =
+        purchaseMoneyType !== undefined
+          ? purchaseMoneyType
+          : exchange.purchaseMoneyType;
+
+      const saleMoneyTypeValid = await MoneyType.findOne({
+        where: { id: finalSaleMoneyType, organizationId: orgId },
+        transaction: t,
+      });
+      const purchaseMoneyTypeValid = await MoneyType.findOne({
+        where: { id: finalPurchaseMoneyType, organizationId: orgId },
+        transaction: t,
+      });
+
+      if (!saleMoneyTypeValid || !purchaseMoneyTypeValid) {
+        await t.rollback();
+        return res.status(400).json({ message: 'Invalid currency types' });
+      }
+    }
+
+    // Find new accounts if customer or money types changed
+    const finalCustomerId =
+      customerId !== undefined ? customerId : exchange.customerId;
+    const finalSaleMoneyType =
+      saleMoneyType !== undefined ? saleMoneyType : exchange.saleMoneyType;
+    const finalPurchaseMoneyType =
+      purchaseMoneyType !== undefined
+        ? purchaseMoneyType
+        : exchange.purchaseMoneyType;
+    const finalSwap = swap !== undefined ? swap : exchange.swap;
+
+    const newSaleAccount = await Account.findOne({
+      where: { customerId: finalCustomerId, moneyTypeId: finalSaleMoneyType },
+      transaction: t,
+    });
+    const newPurchaseAccount = await Account.findOne({
+      where: {
+        customerId: finalCustomerId,
+        moneyTypeId: finalPurchaseMoneyType,
+      },
+      transaction: t,
+    });
+
+    if (!newSaleAccount || !newPurchaseAccount) {
+      await t.rollback();
+      return res
+        .status(404)
+        .json({
+          message: 'Customer accounts not found for specified currencies',
+        });
+    }
+
+    // Apply new transaction effects
+    if (finalSwap) {
+      await Account.update(
+        { credit: sequelize.literal(`credit - ${finalPurchaseAmount}`) },
+        { where: { id: newPurchaseAccount.id }, transaction: t }
+      );
+      await Account.update(
+        { credit: sequelize.literal(`credit + ${finalSaleAmount}`) },
+        { where: { id: newSaleAccount.id }, transaction: t }
+      );
+    } else {
+      await Account.update(
+        { credit: sequelize.literal(`credit - ${finalSaleAmount}`) },
+        { where: { id: newSaleAccount.id }, transaction: t }
+      );
+      await Account.update(
+        { credit: sequelize.literal(`credit + ${finalPurchaseAmount}`) },
+        { where: { id: newPurchaseAccount.id }, transaction: t }
+      );
+    }
+
+    // Update exchange record
+    await exchange.update(updateData, { transaction: t });
+
+    // Update exchange remaining record if it exists
+    const exchangeRemaining = await ExchangeRemaining.findOne({
+      where: {
+        /* You might want to add exchangeId field to link them */
+      },
+      transaction: t,
+    });
+
+    if (exchangeRemaining) {
+      await exchangeRemaining.update(
+        {
+          purchaseRemaining: finalPurchaseAmount,
+          purchaseRemainingCurrency: finalPurchaseMoneyType,
+          costedAmount: finalSaleAmount,
+          costedAmountCurrency: finalSaleMoneyType,
+          eDate: new Date(),
+        },
+        { transaction: t }
+      );
+    }
+
+    await t.commit();
+    res.status(200).json({
+      message: 'Exchange updated successfully',
+      exchange: await Exchange.findByPk(id, {
+        include: [
+          { model: MoneyType, as: 'SaleType' },
+          { model: MoneyType, as: 'PurchaseType' },
+        ],
+      }),
+    });
+  } catch (err) {
+    await t.rollback();
+    res.status(500).json({
+      message: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    });
+  }
+};
