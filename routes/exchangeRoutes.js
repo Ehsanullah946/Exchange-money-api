@@ -28,13 +28,13 @@ router.post(
   orgScope(Exchange),
   exchangeController.createExchange
 );
-// router.patch(
-//   '/:id',
-//   protect,
-//   allowRoles(2, 3),
-//   orgScope(Exchange),
-//   exchangeController.updateExchange
-// );
+router.patch(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Exchange),
+  exchangeController.updateExchange
+);
 router.delete(
   '/:id',
   protect,

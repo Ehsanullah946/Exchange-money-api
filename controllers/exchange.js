@@ -311,20 +311,20 @@ exports.updateExchange = async (req, res) => {
     if (exchange.swap) {
       await Account.update(
         { credit: sequelize.literal(`credit + ${exchange.purchaseAmount}`) },
-        { where: { id: originalPurchaseAccount.id }, transaction: t }
+        { where: { No: originalPurchaseAccount.No }, transaction: t }
       );
       await Account.update(
         { credit: sequelize.literal(`credit - ${exchange.saleAmount}`) },
-        { where: { id: originalSaleAccount.id }, transaction: t }
+        { where: { No: originalSaleAccount.No }, transaction: t }
       );
     } else {
       await Account.update(
         { credit: sequelize.literal(`credit + ${exchange.saleAmount}`) },
-        { where: { id: originalSaleAccount.id }, transaction: t }
+        { where: { No: originalSaleAccount.No }, transaction: t }
       );
       await Account.update(
         { credit: sequelize.literal(`credit - ${exchange.purchaseAmount}`) },
-        { where: { id: originalPurchaseAccount.id }, transaction: t }
+        { where: { No: originalPurchaseAccount.No }, transaction: t }
       );
     }
 
@@ -434,31 +434,29 @@ exports.updateExchange = async (req, res) => {
 
     if (!newSaleAccount || !newPurchaseAccount) {
       await t.rollback();
-      return res
-        .status(404)
-        .json({
-          message: 'Customer accounts not found for specified currencies',
-        });
+      return res.status(404).json({
+        message: 'Customer accounts not found for specified currencies',
+      });
     }
 
     // Apply new transaction effects
     if (finalSwap) {
       await Account.update(
         { credit: sequelize.literal(`credit - ${finalPurchaseAmount}`) },
-        { where: { id: newPurchaseAccount.id }, transaction: t }
+        { where: { No: newPurchaseAccount.No }, transaction: t }
       );
       await Account.update(
         { credit: sequelize.literal(`credit + ${finalSaleAmount}`) },
-        { where: { id: newSaleAccount.id }, transaction: t }
+        { where: { No: newSaleAccount.No }, transaction: t }
       );
     } else {
       await Account.update(
         { credit: sequelize.literal(`credit - ${finalSaleAmount}`) },
-        { where: { id: newSaleAccount.id }, transaction: t }
+        { where: { No: newSaleAccount.No }, transaction: t }
       );
       await Account.update(
         { credit: sequelize.literal(`credit + ${finalPurchaseAmount}`) },
-        { where: { id: newPurchaseAccount.id }, transaction: t }
+        { where: { No: newPurchaseAccount.No }, transaction: t }
       );
     }
 
@@ -500,7 +498,6 @@ exports.updateExchange = async (req, res) => {
     await t.rollback();
     res.status(500).json({
       message: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
     });
   }
 };
