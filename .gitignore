@@ -4,6 +4,7 @@ node_modules/
 
 *.html
 .wwebjs_cache/
+session-banking-app-whatsapp/
 
 # Logs
 

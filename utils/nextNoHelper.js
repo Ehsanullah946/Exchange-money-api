@@ -1,4 +1,3 @@
-// helpers/generateNextNo.js
 async function generateNextNo({
   model,
   noField,
@@ -10,10 +9,8 @@ async function generateNextNo({
   const whereCondition = { organizationId: orgId };
   if (fromWhere !== null) whereCondition.fromWhere = fromWhere;
 
-  // 1. Manual number mode with duplicate check
   if (manualNo) {
     whereCondition[noField] = manualNo.toString();
-
     const exists = await model.findOne({
       where: whereCondition,
       transaction,
@@ -29,7 +26,6 @@ async function generateNextNo({
     return manualNo.toString();
   }
 
-  // 2. Auto-generate mode — always find the MAX number
   const maxRecord = await model.findOne({
     attributes: [
       [model.sequelize.fn('MAX', model.sequelize.col(noField)), 'maxNo'],

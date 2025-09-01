@@ -79,9 +79,6 @@ exports.createReceive = async (req, res) => {
         .json({ message: 'Origin branch account not found for this currency' });
     }
 
-    // 4️⃣ Deduct from origin branch account
-    // Charges logic based on passTo and customerId:
-
     if (!passTo && !customerId) {
       // Case 1: No passTo, no customer - deduct receiveAmount + chargesAmount from originBranch only
       const totalDededuction = Number(receiveAmount) + Number(chargesAmount);
@@ -128,7 +125,7 @@ exports.createReceive = async (req, res) => {
 
       nextTransferNo = lastTransfer ? parseInt(lastTransfer.transferNo) + 1 : 1;
 
-      transfer = await Transfer.create(
+      await Transfer.create(
         {
           transferNo: nextTransferNo,
           transferAmount: receiveAmount,
