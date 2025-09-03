@@ -1,6 +1,6 @@
 // services/notificationService.js
 const TelegramChannel = require('../channels/telegramChannel');
-const WhatsAppCloudService = require('./whatsappCloudService'); // now the wrapper instance above
+const MultiWhatsAppService = require('./multiWhatsAppService'); // now the wrapper instance above
 const WebSocketChannel = require('../channels/websocketChannel');
 const {
   Notification,
@@ -8,13 +8,14 @@ const {
   Branch,
   Stakeholder,
   Person,
+  Organization,
 } = require('../models');
 
 class NotificationService {
   constructor() {
     this.channels = {
       telegram: new TelegramChannel(),
-      whatsapp: WhatsAppCloudService,
+      whatsapp: MultiWhatsAppService, // Now using multi-tenant service
       websocket: new WebSocketChannel(),
     };
     this.initialized = false;
@@ -54,7 +55,15 @@ class NotificationService {
         include: [
           {
             model: Customer,
-            include: [{ model: Stakeholder, include: [Person] }],
+            include: [
+              {
+                model: Stakeholder,
+                include: [Person],
+              },
+              {
+                model: Organization, // Include organization
+              },
+            ],
           },
         ],
       });
@@ -72,7 +81,15 @@ class NotificationService {
       customerData = branch.Customer;
     } else {
       const customer = await Customer.findByPk(recipientId, {
-        include: [{ model: Stakeholder, include: [Person] }],
+        include: [
+          {
+            model: Stakeholder,
+            include: [Person],
+          },
+          {
+            model: Organization, // Include organization
+          },
+        ],
       });
       if (!customer) {
         if (failSoft)
@@ -88,20 +105,22 @@ class NotificationService {
       customerData = customer;
     }
 
+    // Get organization ID from customer
+    const orgId = customerData.Organization?.id || 'default_org';
+
     // Build message payloads
     const message = this.formatMessage(notificationData, customerData);
 
-    // Debug info: show customer channel settings and what was requested
     console.log('notificationService: recipient:', recipientType, recipientId);
+    console.log('notificationService: organization:', orgId);
     console.log(
       'notificationService: customerData.whatsAppEnabled=',
       customerData.whatsAppEnabled,
       'whatsApp=',
       customerData.whatsApp
     );
-    console.log('notificationService: requestedChannels=', requestedChannels);
 
-    // 1) Start from channels the customer has enabled (unless overridePreference)
+    // 1) Start from channels the customer has enabled
     const enabledByCustomer = new Set();
     if (customerData.telegramEnabled && customerData.telegram)
       enabledByCustomer.add('telegram');
@@ -112,16 +131,13 @@ class NotificationService {
     let effectiveChannels;
     if (requestedChannels && requestedChannels.length) {
       if (overridePreference) {
-        // use requested channels directly (but only if we have that channel handler)
         effectiveChannels = requestedChannels.filter((c) => !!this.channels[c]);
       } else {
-        // only those requested that the customer has enabled
         effectiveChannels = requestedChannels.filter((c) =>
           enabledByCustomer.has(c)
         );
       }
     } else {
-      // no requested channels -> use customer enabled channels
       effectiveChannels = Array.from(enabledByCustomer);
     }
 
@@ -168,20 +184,23 @@ class NotificationService {
       try {
         console.log(`notificationService: sending to channel ${ch}`);
         if (ch === 'whatsapp') {
-          // debug show phone and message preview
           console.log(
             'notificationService: whatsapp phone=',
             customerData.whatsApp,
+            'orgId=',
+            orgId,
             'messagePreview=',
             message.whatsapp?.slice?.(0, 200)
           );
         }
+
         const result = await this._sendToChannel(ch, {
           customerData,
           recipientType,
           recipient,
           message,
           rawData: notificationData,
+          orgId, // Pass organization ID
         });
 
         console.log(`notificationService: ${ch} result=`, result);
@@ -198,7 +217,7 @@ class NotificationService {
       }
     }
 
-    // 5) Persist notification record (optional)
+    // 5) Persist notification record
     const status = results.some((r) => r && r.success) ? 'delivered' : 'failed';
     let notificationRow = null;
     if (save) {
@@ -222,7 +241,7 @@ class NotificationService {
   }
 
   async _sendToChannel(channelName, ctx) {
-    const { customerData, recipientType, recipient, message } = ctx;
+    const { customerData, recipientType, recipient, message, orgId } = ctx;
 
     if (channelName === 'telegram') {
       const chatId = customerData.telegram;
@@ -241,32 +260,35 @@ class NotificationService {
           channel: 'whatsapp',
         };
       }
-      if (!this.channels.whatsapp || !this.channels.whatsapp.sendWithRetry) {
-        console.error(
-          'notificationService: whatsapp channel not present or missing sendWithRetry'
-        );
+
+      // Check if WhatsApp is initialized for this organization
+      const whatsappStatus =
+        this.channels.whatsapp.getOrganizationStatus(orgId);
+      if (!whatsappStatus.ready) {
         return {
           success: false,
-          error: 'WhatsApp channel not configured',
+          error: `WhatsApp not ready for organization ${orgId}`,
           channel: 'whatsapp',
+          queued: true,
         };
       }
 
-      // call sendWithRetry (it should return { success, queued, error... })
       try {
         const res = await this.channels.whatsapp.sendWithRetry(
+          orgId,
           phone,
           message.whatsapp,
           3
         );
-        // normalize result if necessary
-        if (res && res.queued)
+
+        if (res && res.queued) {
           return {
             success: false,
             queued: true,
             channel: 'whatsapp',
             note: res.note || 'queued',
           };
+        }
         return res;
       } catch (err) {
         console.error(

@@ -17,11 +17,11 @@ async function generateNextNo({
       lock: transaction.LOCK.UPDATE,
     });
 
-    if (exists) {
-      throw new Error(
-        `${noField} '${manualNo}' already exists for this organization`
-      );
-    }
+    // if (exists) {
+    //   throw new Error(
+    //     `${noField} '${manualNo}' already exists for this organization`
+    //   );
+    // }
 
     return manualNo.toString();
   }
