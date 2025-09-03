@@ -1,6 +1,6 @@
 // services/notificationService.js
 const TelegramChannel = require('../channels/telegramChannel');
-const WhatsAppService = require('./whatsappService'); // now the wrapper instance above
+const WhatsAppCloudService = require('./whatsappCloudService'); // now the wrapper instance above
 const WebSocketChannel = require('../channels/websocketChannel');
 const {
   Notification,
@@ -14,7 +14,7 @@ class NotificationService {
   constructor() {
     this.channels = {
       telegram: new TelegramChannel(),
-      whatsapp: WhatsAppService, // expects .sendWithRetry(phone, message, retries)
+      whatsapp: WhatsAppCloudService,
       websocket: new WebSocketChannel(),
     };
     this.initialized = false;
