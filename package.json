@@ -14,7 +14,8 @@
     "qrcode-terminal": "^0.12.0",
     "sequelize": "^6.37.7",
     "socket.io": "^4.8.1",
-    "validator": "^13.15.15"
+    "validator": "^13.15.15",
+    "whatsapp-web.js": "^1.34.0"
   },
   "name": "exchange-money-api",
   "version": "1.0.0",

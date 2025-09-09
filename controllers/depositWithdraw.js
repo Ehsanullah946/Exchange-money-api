@@ -134,8 +134,6 @@ exports.createDepositWithdraw = async (req, res) => {
       { where: { No: accountNo }, transaction: t }
     );
 
-    await t.commit();
-
     const allowedChannels = ['whatsapp', 'telegram', 'websocket'];
     const channels = (req.body.channels || []).filter((ch) =>
       allowedChannels.includes(ch)
@@ -167,6 +165,8 @@ exports.createDepositWithdraw = async (req, res) => {
       },
       notifOptions
     );
+
+    await t.commit();
 
     res.status(201).json({
       message: 'Transaction completed successfully',

@@ -1,6 +1,5 @@
-// services/notificationService.js
 const TelegramChannel = require('../channels/telegramChannel');
-const MultiWhatsAppService = require('./multiWhatsAppService'); // now the wrapper instance above
+const MultiWhatsAppService = require('./multiWhatsAppService');
 const WebSocketChannel = require('../channels/websocketChannel');
 const {
   Notification,
@@ -15,7 +14,7 @@ class NotificationService {
   constructor() {
     this.channels = {
       telegram: new TelegramChannel(),
-      whatsapp: MultiWhatsAppService, // Now using multi-tenant service
+      whatsapp: MultiWhatsAppService,
       websocket: new WebSocketChannel(),
     };
     this.initialized = false;
@@ -58,10 +57,12 @@ class NotificationService {
             include: [
               {
                 model: Stakeholder,
-                include: [Person],
-              },
-              {
-                model: Organization, // Include organization
+                include: [
+                  {
+                    model: Person,
+                    include: [Organization], // 👈 Include Organization here
+                  },
+                ],
               },
             ],
           },
@@ -84,10 +85,12 @@ class NotificationService {
         include: [
           {
             model: Stakeholder,
-            include: [Person],
-          },
-          {
-            model: Organization, // Include organization
+            include: [
+              {
+                model: Person,
+                include: [Organization], // 👈 Include Organization here
+              },
+            ],
           },
         ],
       });
@@ -105,8 +108,8 @@ class NotificationService {
       customerData = customer;
     }
 
-    // Get organization ID from customer
-    const orgId = customerData.Organization?.id || 'default_org';
+    const orgId =
+      customerData.Stakeholder?.Person?.Organization?.id || 'default_org';
 
     // Build message payloads
     const message = this.formatMessage(notificationData, customerData);

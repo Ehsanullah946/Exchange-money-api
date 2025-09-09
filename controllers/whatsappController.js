@@ -1,4 +1,3 @@
-// controllers/whatsappController.js
 const multiWhatsApp = require('../services/multiWhatsAppService');
 
 exports.initializeWhatsApp = async (req, res) => {

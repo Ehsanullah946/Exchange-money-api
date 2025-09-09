@@ -5,8 +5,8 @@ const mysql = require('mysql2/promise');
   const connection = await mysql.createConnection({
     host: 'localhost',
     user: 'root', // change to your DB user
-    password: '946763149', // change to your DB password
-    database: 'exchangesystem'
+    password: process.env.DB_PASSWORD, // change to your DB password
+    database: process.env.DB_NAME,
   });
 
   try {
@@ -26,7 +26,13 @@ const mysql = require('mysql2/promise');
     console.log('🚀 Inserting super admin...');
     await connection.execute(
       'INSERT INTO useraccounts (username, password, email, usertypeId, organizationId) VALUES (?, ?, ?, ?, ?)',
-      ['superadmin', hashedPassword, 'Ehsanullahakbari53@gmail.com', 1, organizationId]
+      [
+        'superadmin',
+        hashedPassword,
+        'Ehsanullahakbari53@gmail.com',
+        1,
+        organizationId,
+      ]
     );
 
     console.log('🚀 Recreating trigger...');
