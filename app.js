@@ -1,6 +1,10 @@
 const express = require('express');
-
+const cors = require('cors');
 const app = express();
+const cookieParser = require('cookie-parser');
+
+app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+
 const sequelize = require('./config/database');
 const authRouter = require('./routes/authRoutes');
 const customerRouter = require('./routes/customerRoute');
@@ -25,6 +29,7 @@ const { initSocket } = require('./services/socketService');
 const notificationService = require('./services/notificationService');
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/customer', customerRouter);

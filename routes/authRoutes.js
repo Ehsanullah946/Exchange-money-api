@@ -6,6 +6,7 @@ const {
   createOrganization,
   addUserToOrganization,
   login,
+  logout,
 } = require('../controllers/authController');
 
 // Super Admin creates organization + first admin
@@ -27,5 +28,6 @@ router.post('/add-user', protect, allowRoles(2), addUserToOrganization);
 
 // Login
 router.post('/login', login);
+router.post('/logout', logout);
 
 module.exports = router;

@@ -130,7 +130,6 @@ exports.addUserToOrganization = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-
     if (!email || !password) {
       return res
         .status(400)
@@ -138,12 +137,10 @@ exports.login = async (req, res) => {
     }
 
     const user = await UserAccount.findOne({ where: { email } });
-    // In login function
     if (!user) {
-      return res.status(401).json({
-        message: 'Invalid credentials',
-        code: 'INVALID_CREDENTIALS', // Standard error code
-      });
+      return res
+        .status(401)
+        .json({ message: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -151,16 +148,38 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
+    const token = generateToken(user.id, user.organizationId, user.usertypeId);
+
+    // If you still want cookie (optional):
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
     res.json({
       message: 'Login successful',
-      data: {
-        data: user,
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.usertypeId,
+        organizationId: user.organizationId,
       },
-      token: generateToken(user.id, user.organizationId, user.usertypeId),
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
+};
+
+exports.logout = (req, res) => {
+  res.cookie('token', 'loggedOut', {
+    expires: new Date(Date.now() + 10 * 1000),
+    httpOnly: true,
+  });
+  res.status(200).json({ status: 'successfully' });
 };
 
 // controllers/authController.js
