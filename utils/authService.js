@@ -7,9 +7,10 @@ require('dotenv').config({ path: '.env' });
 // services/authService.js
 
 const { sendVerificationEmail } = require('./emailService');
+const { where } = require('sequelize');
 
 class AuthService {
-  static async initiateVerification(email) {
+  static async initiateVerification(email, organizationId) {
     try {
       console.log('🔍 Looking for person with email:', email);
 
@@ -21,16 +22,14 @@ class AuthService {
 
       // NEW QUERY: Find customer directly by email and include the full chain
       const customer = await Customer.findOne({
-        where: {
-          active: true,
-        },
+        where: { active: true, email },
         include: [
           {
             model: Stakeholder,
             include: [
               {
                 model: Person,
-                where: { email: email }, // Double check email matches
+                where: { email, organizationId },
               },
             ],
           },
@@ -59,7 +58,9 @@ class AuthService {
       console.log(JSON.stringify(customer, null, 2));
 
       // Get the person from the stakeholder
-      const person = customer.Stakeholder?.Person;
+      const stakeholder = customer.Stakeholder;
+      const person = stakeholder?.Person || stakeholder?.People?.[0]; // If hasMany
+
       if (!person) {
         throw new Error(
           'Account not properly configured. Missing person information.'
@@ -76,7 +77,7 @@ class AuthService {
       });
 
       console.log('📧 Sending verification email to:', email);
-      await sendVerificationEmail(email, code);
+      await sendVerificationEmail(email, code, organizationId);
 
       return {
         success: true,
@@ -90,7 +91,7 @@ class AuthService {
     }
   }
 
-  static async verifyCode(email, code) {
+  static async verifyCode(email, code, organizationId) {
     try {
       console.log('🔍 Verifying code for email:', email);
 
@@ -100,7 +101,12 @@ class AuthService {
         include: [
           {
             model: Stakeholder,
-            include: [Person],
+            include: [
+              {
+                model: Person,
+                where: { email, organizationId },
+              },
+            ],
           },
         ],
       });
@@ -109,9 +115,13 @@ class AuthService {
         throw new Error('Invalid email address');
       }
 
-      const person = customer.Stakeholder?.Person;
+      const stakeholder = customer.Stakeholder;
+      const person = stakeholder?.Person || stakeholder?.People?.[0]; // If hasMany
+
       if (!person) {
-        throw new Error('Account not properly configured.');
+        throw new Error(
+          'Account not properly configured. Missing person information.'
+        );
       }
 
       // Check if code exists and isn't expired
@@ -146,6 +156,7 @@ class AuthService {
           customerId: customer.id,
           personId: person.id,
           email: person.email,
+          organizationId: person.organizationId,
           scope: ['read:accounts'],
         },
         process.env.JWT_SECRET,

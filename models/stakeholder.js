@@ -6,6 +6,10 @@ module.exports = (sequelize, DataTypes) => {
       maritalStatus: { type: DataTypes.STRING(32) },
       job: { type: DataTypes.STRING(64) },
       permanentAddress: { type: DataTypes.TEXT },
+      personId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
     },
     {
       tableName: 'stakeholders',

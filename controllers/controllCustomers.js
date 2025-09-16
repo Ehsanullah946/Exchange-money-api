@@ -17,7 +17,7 @@ exports.customerAccount = async (req, res) => {
     const mainCurrency = await MoneyType.findOne({
       where: {
         typeName: 'USA',
-        organizationId: orgId,
+        // organizationId: orgId,
       },
       transaction: t,
     });

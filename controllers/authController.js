@@ -178,7 +178,7 @@ exports.initiateVerification = [
   // emailRateLimiter,
   async (req, res) => {
     try {
-      const { email } = req.body;
+      const { email, organizationId } = req.body;
 
       if (!email) {
         return res.status(400).json({
@@ -186,8 +186,17 @@ exports.initiateVerification = [
           message: 'Email address is required',
         });
       }
+      if (!organizationId) {
+        return res.status(400).json({
+          success: false,
+          message: 'organization is required',
+        });
+      }
 
-      const result = await AuthService.initiateVerification(email);
+      const result = await AuthService.initiateVerification(
+        email,
+        organizationId
+      );
       res.json(result);
     } catch (err) {
       res.status(400).json({
@@ -202,16 +211,16 @@ exports.verifyCode = [
   emailRateLimiter,
   async (req, res) => {
     try {
-      const { email, code } = req.body;
+      const { email, code, organizationId } = req.body;
 
-      if (!email || !code) {
+      if (!email || !code || !organizationId) {
         return res.status(400).json({
           success: false,
           message: 'Email and verification code are required',
         });
       }
 
-      const result = await AuthService.verifyCode(email, code);
+      const result = await AuthService.verifyCode(email, code, organizationId);
       res.json(result);
     } catch (err) {
       res.status(400).json({
