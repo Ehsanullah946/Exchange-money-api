@@ -7,8 +7,47 @@ const {
   Account,
   sequelize,
 } = require('../models');
+// exports.getCustomers = async (req, res) => {
+//   try {
+//     const data = await Customer.findAll({
+//       include: [
+//         {
+//           model: Stakeholder,
+//           required: true,
+//           include: [
+//             {
+//               model: Person,
+//               required: true,
+//               where: { organizationId: req.orgId },
+//             },
+//           ],
+//         },
+//       ],
+//     });
+//     res.json(data);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
+const { Op } = require('sequelize');
+
 exports.getCustomers = async (req, res) => {
   try {
+    const { search } = req.query;
+
+    const wherePerson = { organizationId: req.orgId };
+
+    // If search text exists, add OR conditions
+    if (search) {
+      wherePerson[Op.or] = [
+        { firstName: { [Op.like]: `%${search}%` } },
+        { lastName: { [Op.like]: `%${search}%` } },
+        { phone: { [Op.like]: `%${search}%` } },
+        { nationalCode: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
     const data = await Customer.findAll({
       include: [
         {
@@ -18,12 +57,13 @@ exports.getCustomers = async (req, res) => {
             {
               model: Person,
               required: true,
-              where: { organizationId: req.orgId },
+              where: wherePerson,
             },
           ],
         },
       ],
     });
+
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -23,7 +23,6 @@ class AuthService {
       const customer = await Customer.findOne({
         where: {
           active: true,
-          email,
         },
         include: [
           {
@@ -142,7 +141,6 @@ class AuthService {
         lastLogin: new Date(),
       });
 
-      // Generate JWT token
       const token = jwt.sign(
         {
           customerId: customer.id,

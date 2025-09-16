@@ -186,7 +186,7 @@ exports.createReceive = async (req, res) => {
         branchCharges: passTo ? branchCharges : null,
         branchChargesType: passTo ? branchChargesType : null,
         fromWhere,
-        passTo: passTo || null,
+        passTo: passTo,
         customerId: customerId || null,
         organizationId: orgId,
         senderName,
