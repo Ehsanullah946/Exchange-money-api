@@ -1,3 +1,4 @@
+const { Op } = require('sequelize');
 const { Person, Stakeholder, Customer, Branch } = require('../models');
 
 exports.createBranch = async (req, res) => {
@@ -10,17 +11,20 @@ exports.createBranch = async (req, res) => {
       nationalCode,
       currentAddress,
       phone,
-      gender,
       maritalStatus,
+      gender,
       job,
       language,
       loanLimit,
       whatsApp,
       email,
       telegram,
-      contractType,
       faxNo,
       direct,
+      whatsAppEnabled,
+      telegramEnabled,
+      emailEnabled,
+      phoneEnabled,
     } = req.body;
 
     // 1. Person (Org is here only)
@@ -57,6 +61,10 @@ exports.createBranch = async (req, res) => {
         whatsApp,
         email,
         telegram,
+        whatsAppEnabled,
+        telegramEnabled,
+        emailEnabled,
+        phoneEnabled,
       },
       { transaction: t }
     );
@@ -65,7 +73,6 @@ exports.createBranch = async (req, res) => {
     const branch = await Branch.create(
       {
         customerId: customer.id,
-        contractType,
         faxNo,
         direct,
       },
@@ -82,7 +89,26 @@ exports.createBranch = async (req, res) => {
 
 exports.getBranches = async (req, res) => {
   try {
-    const branches = await Branch.findAll({
+    const { search, phone, limit = 10, page = 1 } = req.query;
+
+    const wherePerson = { organizationId: req.orgId };
+    const whereBranch = {};
+
+    if (search) {
+      wherePerson[Op.or] = [
+        { firstName: { [Op.like]: `%${search}%` } },
+        { lastName: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
+    if (phone) {
+      wherePerson.phone = { [Op.like]: `%${phone}%` };
+    }
+
+    const offset = (page - 1) * limit;
+
+    const { rows, count } = await Branch.findAndCountAll({
+      where: whereBranch,
       include: [
         {
           model: Customer,
@@ -95,20 +121,29 @@ exports.getBranches = async (req, res) => {
                 {
                   model: Person,
                   required: true,
-                  where: { organizationId: req.orgId }, // Filter here
+                  where: wherePerson,
                 },
               ],
             },
           ],
         },
       ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
     });
-    if (!branches) {
-      return res.status(404).json({ message: 'Branch not found' });
-    }
 
-    res.status(200).json(branches);
+    // if (!row || row.length === 0) {
+    //   return res.status(404).json({ message: 'No branches found' });
+    // }
+
+    res.status(200).json({
+      data: rows,
+      total: count,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
   } catch (err) {
+    console.error('Error fetching branches:', err);
     res.status(500).json({ message: err.message });
   }
 };

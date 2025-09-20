@@ -14,6 +14,7 @@ module.exports = (sequelize, DataTypes) => {
       whatsAppEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
       telegramEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
       emailEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
+      phoneEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
       notificationPreferences: {
         type: DataTypes.JSON,
         defaultValue: {

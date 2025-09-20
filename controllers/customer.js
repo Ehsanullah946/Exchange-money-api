@@ -34,21 +34,27 @@ const { Op } = require('sequelize');
 
 exports.getCustomers = async (req, res) => {
   try {
-    const { search } = req.query;
+    const { search, phone, page = 1, limit = 10 } = req.query;
 
     const wherePerson = { organizationId: req.orgId };
 
-    // If search text exists, add OR conditions
     if (search) {
       wherePerson[Op.or] = [
         { firstName: { [Op.like]: `%${search}%` } },
         { lastName: { [Op.like]: `%${search}%` } },
-        { phone: { [Op.like]: `%${search}%` } },
-        { nationalCode: { [Op.like]: `%${search}%` } },
       ];
     }
 
-    const data = await Customer.findAll({
+    if (phone) {
+      wherePerson.phone = { [Op.like]: `%${phone}%` };
+    }
+
+    const whereCustomer = {};
+
+    const offset = (page - 1) * limit;
+
+    const { rows, count } = await Customer.findAndCountAll({
+      where: whereCustomer,
       include: [
         {
           model: Stakeholder,
@@ -62,9 +68,20 @@ exports.getCustomers = async (req, res) => {
           ],
         },
       ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
     });
 
-    res.json(data);
+    // if (!rows || rows.length === 0) {
+    //   return res.status(404).json({ message: 'No customers found' });
+    // }
+
+    res.json({
+      data: rows,
+      total: count,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -94,7 +111,10 @@ exports.createCustomer = async (req, res) => {
       whatsAppEnabled,
       telegramEnabled,
       emailEnabled,
+      phoneEnabled,
     } = req.body;
+
+    console.log('REQ BODY:', req.body);
 
     const person = await Person.create(
       {
@@ -136,6 +156,7 @@ exports.createCustomer = async (req, res) => {
         whatsAppEnabled: Boolean(whatsAppEnabled),
         telegramEnabled: Boolean(telegramEnabled),
         emailEnabled: Boolean(emailEnabled),
+        phoneEnabled: Boolean(phoneEnabled),
       },
       { transaction: t, orgId: req.orgId }
     );

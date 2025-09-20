@@ -1,8 +1,29 @@
+const { Op } = require('sequelize');
 const { Person, Stakeholder, Employee } = require('../models');
 
 exports.getEmployees = async (req, res) => {
   try {
-    const data = await req.model.findAll({
+    const { search, phone, limit = 10, page = 1 } = req.query;
+
+    const wherePerson = { organizationId: req.orgId };
+
+    if (search) {
+      wherePerson[Op.or] = [
+        { firstName: { [Op.like]: `%${search}%` } },
+        { lastName: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
+    if (phone) {
+      wherePerson.phone = { [Op.like]: `%${phone}%` };
+    }
+
+    const whereEmployee = {};
+
+    const offset = (page - 1) * limit;
+
+    const { rows, count } = await Employee.findAndCountAll({
+      where: whereEmployee,
       include: [
         {
           model: Stakeholder,
@@ -11,13 +32,25 @@ exports.getEmployees = async (req, res) => {
             {
               model: Person,
               required: true,
-              where: { organizationId: req.orgId },
+              where: wherePerson,
             },
           ],
         },
       ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
     });
-    res.json(data);
+
+    // if (!rows || rows.length === 0) {
+    //   return res.status(404).json({ message: 'No employee found' });
+    // }
+
+    res.json({
+      data: rows,
+      total: count,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

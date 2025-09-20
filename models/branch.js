@@ -3,10 +3,6 @@ module.exports = (sequelize, DataTypes) => {
     'Branch',
     {
       id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-      contractType: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
       deleted: {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
