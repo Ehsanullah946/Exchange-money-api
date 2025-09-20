@@ -1,17 +1,50 @@
+const { Op } = require('sequelize');
 const { Person, Exchanger } = require('../models');
 
 exports.getExchangers = async (req, res) => {
   try {
-    const data = await req.model.findAll({
+    const { search, phone, limit = 10, page = 1 } = req.query;
+
+    const wherePerson = { organizationId: req.orgId };
+
+    if (search) {
+      wherePerson[Op.or] = [
+        { firstName: { [Op.like]: `%${search}%` } },
+        { lastName: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
+    if (phone) {
+      wherePerson.phone = { [Op.like]: `%${phone}%` };
+    }
+
+    const whereExchanger = {};
+
+    const offset = (page - 1) * limit;
+
+    const { rows, count } = await Exchanger.findAndCountAll({
+      where: whereExchanger,
       include: [
         {
           model: Person,
           required: true,
-          where: { organizationId: req.orgId },
+          where: wherePerson,
         },
       ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
     });
-    res.json(data);
+
+    // if (!rows || rows.length === 0) {
+    //   return res.status(404).json({ message: 'No employee found' });
+    // }
+
+    res.json({
+      data: rows,
+      total: count,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -67,9 +67,11 @@ exports.createEmployee = async (req, res) => {
       nationalCode,
       phone,
       currentAddress,
+      permanentAddress,
       gender,
       maritalStatus,
       job,
+      position,
     } = req.body;
 
     // 1. Create Person
@@ -93,6 +95,7 @@ exports.createEmployee = async (req, res) => {
         gender,
         maritalStatus,
         job,
+        permanentAddress,
         personId: person.id,
       },
       { transaction: t }
@@ -102,6 +105,7 @@ exports.createEmployee = async (req, res) => {
     const employee = await Employee.create(
       {
         stakeholderId: stakeholder.id,
+        position,
       },
       { transaction: t }
     );
