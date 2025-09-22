@@ -1,9 +1,30 @@
+const { Op } = require('sequelize');
 const { MoneyType, Sequelize } = require('../models');
 
 exports.getMoneyTypes = async (req, res) => {
   try {
-    const data = await req.model.findAll(req.orgQuery);
-    res.json(data);
+    const { search, limit = 10, page = 1 } = req.query;
+
+    const whereMoneyType = { organizationId: req.orgId };
+
+    if (search) {
+      whereMoneyType[Op.or] = [{ typeName: { [Op.like]: `%${search}%` } }];
+    }
+
+    const offset = (page - 1) * limit;
+    const { rows, count } = await MoneyType.findAndCountAll({
+      where: whereMoneyType,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+    });
+    res.json(
+      res.status(200).json({
+        data: rows,
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+      })
+    );
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -13,10 +34,10 @@ exports.getMoneyTypeById = async (req, res) => {
   try {
     const data = await req.model.findOne({
       ...req.orgQuery,
-      where: { 
-        ...req.orgQuery.where, 
-        id: req.params.id 
-      }
+      where: {
+        ...req.orgQuery.where,
+        id: req.params.id,
+      },
     });
 
     if (!data) {
@@ -24,26 +45,27 @@ exports.getMoneyTypeById = async (req, res) => {
     }
 
     res.status(200).json({
-      status: "success",
-      data
+      status: 'success',
+      data,
     });
-    
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-
 exports.createMoneyType = async (req, res) => {
   const t = await MoneyType.sequelize.transaction();
   try {
-    const record = await MoneyType.create({
-      typeName: req.body.typeName,
-      organizationId: req.orgId
-    }, { transaction: t, orgId: req.orgId });
-     await t.commit();
-res.status(201).json(record);
-   } catch (err) {
+    const record = await MoneyType.create(
+      {
+        typeName: req.body.typeName,
+        organizationId: req.orgId,
+      },
+      { transaction: t, orgId: req.orgId }
+    );
+    await t.commit();
+    res.status(201).json(record);
+  } catch (err) {
     await t.rollback();
     res.status(500).json({ message: err.message });
   }
@@ -53,9 +75,10 @@ exports.updateMoneyType = async (req, res) => {
   try {
     const record = await req.model.findOne({
       ...req.orgQuery,
-      where: { ...req.orgQuery.where, id: req.params.id }
+      where: { ...req.orgQuery.where, id: req.params.id },
     });
-    if (!record) return res.status(404).json({ message: 'Money type not found' });
+    if (!record)
+      return res.status(404).json({ message: 'Money type not found' });
 
     await record.update(req.body);
     res.json({ message: 'Money type updated', record });
@@ -67,9 +90,10 @@ exports.updateMoneyType = async (req, res) => {
 exports.deleteMoneyType = async (req, res) => {
   try {
     const deletedCount = await req.model.destroy({
-      where: { ...req.orgQuery.where, id: req.params.id }
+      where: { ...req.orgQuery.where, id: req.params.id },
     });
-    if (!deletedCount) return res.status(404).json({ message: 'Money type not found' });
+    if (!deletedCount)
+      return res.status(404).json({ message: 'Money type not found' });
 
     res.json({ message: 'Deleted successfully' });
   } catch (err) {

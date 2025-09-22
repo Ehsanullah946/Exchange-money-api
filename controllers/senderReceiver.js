@@ -1,8 +1,29 @@
+const { Op } = require('sequelize');
 const { Person, Stakeholder, SenderReceiver } = require('../models');
 
 exports.getSenderReceivers = async (req, res) => {
   try {
-    const data = await req.model.findAll({
+    const { search, phone, limit = 10, page = 1 } = req.query;
+
+    const wherePerson = { organizationId: req.orgId };
+
+    if (search) {
+      wherePerson[Op.or] = [
+        { firstName: { [Op.like]: `%${search}%` } },
+        { lastName: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
+    if (phone) {
+      wherePerson.phone = { [Op.like]: `%${phone}%` };
+    }
+
+    const whereSenderReceiver = {};
+
+    const offset = (page - 1) * limit;
+
+    const { rows, count } = await SenderReceiver.findAndCountAll({
+      where: whereSenderReceiver,
       include: [
         {
           model: Stakeholder,
@@ -10,13 +31,26 @@ exports.getSenderReceivers = async (req, res) => {
           include: [
             {
               model: Person,
-              where: { organizationId: req.orgId },
+              required: true,
+              where: wherePerson,
             },
           ],
         },
       ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
     });
-    res.json(data);
+
+    // if (!rows || rows.length === 0) {
+    //   return res.status(404).json({ message: 'No employee found' });
+    // }
+
+    res.json({
+      data: rows,
+      total: count,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -33,6 +67,7 @@ exports.createSenderReceiver = async (req, res) => {
       nationalCode,
       phone,
       currentAddress,
+      permanentAddress,
       gender,
       maritalStatus,
       job,
@@ -59,6 +94,7 @@ exports.createSenderReceiver = async (req, res) => {
         gender,
         maritalStatus,
         job,
+        permanentAddress,
         personId: person.id,
       },
       { transaction: t }

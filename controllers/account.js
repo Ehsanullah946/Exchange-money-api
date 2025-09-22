@@ -1,3 +1,4 @@
+const { Op } = require('sequelize');
 const {
   Account,
   Customer,
@@ -74,7 +75,25 @@ exports.createAccount = async (req, res) => {
 // GET all accounts (filtered by org)
 exports.getAccounts = async (req, res) => {
   try {
-    const accounts = await Account.findAll({
+    const { search, phone, limit = 10, page = 1 } = req.query;
+
+    const wherePerson = { organizationId: req.orgId };
+    const whereAccount = {};
+
+    if (search) {
+      wherePerson[Op.or] = [
+        { firstName: { [Op.like]: `%${search}%` } },
+        { lastName: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
+    if (phone) {
+      wherePerson.phone = { [Op.like]: `%${phone}%` };
+    }
+
+    const offset = (page - 1) * limit;
+    const { rows, count } = await Account.findAndCountAll({
+      where: whereAccount,
       include: [
         {
           model: Customer,
@@ -95,8 +114,17 @@ exports.getAccounts = async (req, res) => {
         },
         { model: MoneyType },
       ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
     });
-    res.json(accounts);
+    res.json(
+      res.status(200).json({
+        data: rows,
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+      })
+    );
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
