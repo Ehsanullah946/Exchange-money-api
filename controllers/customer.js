@@ -7,28 +7,6 @@ const {
   Account,
   sequelize,
 } = require('../models');
-// exports.getCustomers = async (req, res) => {
-//   try {
-//     const data = await Customer.findAll({
-//       include: [
-//         {
-//           model: Stakeholder,
-//           required: true,
-//           include: [
-//             {
-//               model: Person,
-//               required: true,
-//               where: { organizationId: req.orgId },
-//             },
-//           ],
-//         },
-//       ],
-//     });
-//     res.json(data);
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
 
 const { Op } = require('sequelize');
 

@@ -6,6 +6,9 @@ const {
   MoneyType,
   Customer,
   Employee,
+  Stakeholder,
+  Person,
+  Exchanger,
 } = require('../models');
 
 exports.createExchange = async (req, res) => {
@@ -30,6 +33,8 @@ exports.createExchange = async (req, res) => {
     } = req.body;
 
     const orgId = req.orgId;
+
+    console.log(req.body);
 
     // Validate required fields
     if (!rate || !saleMoneyType || !purchaseMoneyType || !customerId) {
@@ -83,7 +88,6 @@ exports.createExchange = async (req, res) => {
       });
     }
 
-    // Update account balances
     if (swap) {
       await Account.update(
         { credit: sequelize.literal(`credit - ${finalPurchaseAmount}`) },
@@ -163,7 +167,23 @@ exports.createExchange = async (req, res) => {
       include: [
         { model: MoneyType, as: 'SaleType' },
         { model: MoneyType, as: 'PurchaseType' },
-        { model: Customer },
+        {
+          model: Customer,
+          include: [
+            {
+              model: Stakeholder,
+              required: true,
+              include: [
+                {
+                  model: Person,
+                  required: true,
+                  where: { organizationId: req.orgId },
+                },
+              ],
+            },
+          ],
+        },
+        { model: Exchanger },
         { model: Employee },
       ],
       order: [['eDate', 'DESC']],

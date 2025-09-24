@@ -53,6 +53,7 @@ module.exports = (sequelize, DataTypes) => {
     Exchange.belongsTo(models.Receive, { foreignKey: 'receiveId' });
     Exchange.belongsTo(models.Transfer, { foreignKey: 'transferId' });
     Exchange.belongsTo(models.Employee, { foreignKey: 'employeeId' });
+    Exchange.belongsTo(models.Exchanger, { foreignKey: 'exchangerId' });
     Exchange.belongsTo(models.MoneyType, {
       as: 'PurchaseType',
       foreignKey: 'purchaseMoneyType',

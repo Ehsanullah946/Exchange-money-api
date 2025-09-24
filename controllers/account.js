@@ -75,7 +75,7 @@ exports.createAccount = async (req, res) => {
 // GET all accounts (filtered by org)
 exports.getAccounts = async (req, res) => {
   try {
-    const { search, phone, limit = 10, page = 1 } = req.query;
+    const { search, limit = 10, page = 1 } = req.query;
 
     const wherePerson = { organizationId: req.orgId };
     const whereAccount = {};
@@ -87,11 +87,8 @@ exports.getAccounts = async (req, res) => {
       ];
     }
 
-    if (phone) {
-      wherePerson.phone = { [Op.like]: `%${phone}%` };
-    }
-
     const offset = (page - 1) * limit;
+
     const { rows, count } = await Account.findAndCountAll({
       where: whereAccount,
       include: [
@@ -106,7 +103,7 @@ exports.getAccounts = async (req, res) => {
                 {
                   model: Person,
                   required: true,
-                  where: { organizationId: req.orgId },
+                  where: wherePerson,
                 },
               ],
             },
@@ -117,14 +114,12 @@ exports.getAccounts = async (req, res) => {
       limit: parseInt(limit),
       offset: parseInt(offset),
     });
-    res.json(
-      res.status(200).json({
-        data: rows,
-        total: count,
-        page: parseInt(page),
-        limit: parseInt(limit),
-      })
-    );
+    res.status(200).json({
+      data: rows,
+      total: count,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

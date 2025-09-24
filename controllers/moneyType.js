@@ -17,14 +17,13 @@ exports.getMoneyTypes = async (req, res) => {
       limit: parseInt(limit),
       offset: parseInt(offset),
     });
-    res.json(
-      res.status(200).json({
-        data: rows,
-        total: count,
-        page: parseInt(page),
-        limit: parseInt(limit),
-      })
-    );
+
+    res.status(200).json({
+      data: rows,
+      total: count,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
