@@ -44,8 +44,14 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
   AccountToAccount.associate = (models) => {
-    AccountToAccount.belongsTo(models.Account, { foreignKey: 'fromAccount' });
-    AccountToAccount.belongsTo(models.Account, { foreignKey: 'toAccount' });
+    AccountToAccount.belongsTo(models.Account, {
+      as: 'FromAccount',
+      foreignKey: 'fromAccount',
+    });
+    AccountToAccount.belongsTo(models.Account, {
+      as: 'ToAccount',
+      foreignKey: 'toAccount',
+    });
     AccountToAccount.belongsTo(models.Employee, { foreignKey: 'employeeId' });
     AccountToAccount.belongsTo(models.Organization, {
       foreignKey: 'organizationId',

@@ -7,21 +7,13 @@ const { AccountToAccount } = require('../models');
 
 const router = express.Router();
 
-// router.get(
-//   '/',
-//   protect,
-//   allowRoles(2, 3, 4),
-//   orgScope(AccountToAccount),
-//   accountToaccountController.getAccountToAccounts
-// );
-// // router.get(
-// //   '/:id',
-// //   protect,
-// //   allowRoles(2, 3, 4),
-// //   orgScope(AccountToAccount),
-// //   accountToaccountController.getAccountToAccounts
-// // );
-
+router.get(
+  '/',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(AccountToAccount),
+  accountToaccountController.getTransferToAccount
+);
 router.post(
   '/',
   protect,
