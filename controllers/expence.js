@@ -1,4 +1,5 @@
-const { Expence } = require('../models');
+const { Op } = require('sequelize');
+const { Expence, MoneyType } = require('../models');
 
 exports.createExpence = async (req, res) => {
   const t = await Expence.sequelize.transaction();
@@ -90,17 +91,40 @@ exports.deleteExpence = async (req, res) => {
 
 exports.getAllExpence = async (req, res) => {
   try {
-    const expence = Expence.findAll({
-      where: { organizationId: req.orgId },
-    });
-    if (!expence) {
-      res.status(404).json('expences not found');
+    const { search, limit = 10, page = 1 } = req.query;
+
+    // Build WHERE condition
+    const where = { organizationId: req.orgId };
+    if (search) {
+      where.expenceType = { [Op.like]: `%${search}%` };
     }
-    res.status(200).json({ stutus: 'success', data: expence });
+
+    const offset = (page - 1) * limit;
+
+    const { rows, count } = await Expence.findAndCountAll({
+      where,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [['eDate', 'DESC']],
+      include: [{ model: MoneyType }],
+    });
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'No expenses found' });
+    }
+
+    res.status(200).json({
+      data: rows,
+      total: count,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: err.message });
   }
 };
+
 exports.getExpenceById = async (req, res) => {
   try {
     const expence = Expence.findOne({

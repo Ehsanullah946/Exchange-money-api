@@ -8,11 +8,18 @@ const { DepositWithdraw } = require('../models');
 const router = express.Router();
 
 router.get(
-  '/',
+  '/deposits',
   protect,
   allowRoles(2, 3, 4),
   orgScope(DepositWithdraw),
-  depositWithdrawController.getDepositWithdraws
+  depositWithdrawController.getDeposits
+);
+router.get(
+  '/withdraws',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(DepositWithdraw),
+  depositWithdrawController.getWithdraws
 );
 // router.get(
 //   '/:id',

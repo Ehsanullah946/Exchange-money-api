@@ -72,20 +72,24 @@ exports.createAccount = async (req, res) => {
   }
 };
 
-// GET all accounts (filtered by org)
 exports.getAccounts = async (req, res) => {
   try {
     const { search, limit = 10, page = 1 } = req.query;
 
-    const wherePerson = { organizationId: req.orgId };
+    const wherePerson = {
+      [Op.and]: [
+        { organizationId: req.orgId },
+        search
+          ? {
+              [Op.or]: [
+                { firstName: { [Op.like]: `%${search}%` } },
+                { lastName: { [Op.like]: `%${search}%` } },
+              ],
+            }
+          : {},
+      ],
+    };
     const whereAccount = {};
-
-    if (search) {
-      wherePerson[Op.or] = [
-        { firstName: { [Op.like]: `%${search}%` } },
-        { lastName: { [Op.like]: `%${search}%` } },
-      ];
-    }
 
     const offset = (page - 1) * limit;
 
@@ -114,6 +118,7 @@ exports.getAccounts = async (req, res) => {
       limit: parseInt(limit),
       offset: parseInt(offset),
     });
+
     res.status(200).json({
       data: rows,
       total: count,

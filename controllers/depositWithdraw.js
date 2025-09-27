@@ -9,6 +9,8 @@ const {
   MoneyType,
 } = require('../models');
 
+const { Op } = require('sequelize');
+
 const notificationService = require('../services/notificationService');
 
 exports.createDepositWithdraw = async (req, res) => {
@@ -208,13 +210,32 @@ exports.createDepositWithdraw = async (req, res) => {
 //   }
 // }),
 
-(exports.getDepositWithdraws = async (req, res) => {
+(exports.getDeposits = async (req, res) => {
   try {
-    const transactions = await DepositWithdraw.findAll({
-      where: { organizationId: req.orgId },
+    const { search, limit = 10, page = 1 } = req.query;
+
+    const wherePerson = {
+      [Op.and]: [
+        { organizationId: req.orgId },
+        search
+          ? {
+              [Op.or]: [
+                { firstName: { [Op.like]: `%${search}%` } },
+                { lastName: { [Op.like]: `%${search}%` } },
+              ],
+            }
+          : {},
+      ],
+    };
+
+    const offset = (page - 1) * limit;
+
+    const { rows, count } = await DepositWithdraw.findAndCountAll({
+      where: { organizationId: req.orgId, deposit: { [Op.gt]: 0 } },
       include: [
         {
           model: Account,
+          required: true,
           attributes: ['No', 'credit'],
           include: [
             {
@@ -228,23 +249,31 @@ exports.createDepositWithdraw = async (req, res) => {
                     {
                       model: Person,
                       required: true,
-                      where: { organizationId: req.orgId },
+                      where: wherePerson,
                     },
                   ],
                 },
               ],
             },
+            { model: MoneyType },
           ],
         },
       ],
       order: [['DWDate', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
     });
 
-    if (!transactions) {
-      res.status(404).json('not found ');
+    if (!rows) {
+      return res.status(404).json('not found ');
     }
 
-    res.json(transactions);
+    res.json({
+      data: rows,
+      total: count,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
   } catch (err) {
     res.status(500).json({
       message: err.message,
@@ -252,6 +281,77 @@ exports.createDepositWithdraw = async (req, res) => {
     });
   }
 }),
+  (exports.getWithdraws = async (req, res) => {
+    try {
+      const { search, limit = 10, page = 1 } = req.query;
+
+      const wherePerson = {
+        [Op.and]: [
+          { organizationId: req.orgId },
+          search
+            ? {
+                [Op.or]: [
+                  { firstName: { [Op.like]: `%${search}%` } },
+                  { lastName: { [Op.like]: `%${search}%` } },
+                ],
+              }
+            : {},
+        ],
+      };
+
+      const offset = (page - 1) * limit;
+
+      const { rows, count } = await DepositWithdraw.findAndCountAll({
+        where: { organizationId: req.orgId, withdraw: { [Op.gt]: 0 } },
+        include: [
+          {
+            model: Account,
+            required: true,
+            attributes: ['No', 'credit'],
+            include: [
+              {
+                model: Customer,
+                required: true,
+                include: [
+                  {
+                    model: Stakeholder,
+                    required: true,
+                    include: [
+                      {
+                        model: Person,
+                        required: true,
+                        where: wherePerson,
+                      },
+                    ],
+                  },
+                ],
+              },
+              { model: MoneyType },
+            ],
+          },
+        ],
+        order: [['DWDate', 'DESC']],
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+      });
+
+      if (!rows) {
+        return res.status(404).json('not found ');
+      }
+
+      res.json({
+        data: rows,
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+      });
+    } catch (err) {
+      res.status(500).json({
+        message: err.message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      });
+    }
+  }),
   (exports.updateDepositWithdraw = async (req, res) => {
     const t = await sequelize.transaction();
     try {
