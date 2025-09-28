@@ -102,9 +102,18 @@ module.exports = (sequelize, DataTypes) => {
     Receive.belongsTo(models.Branch, { foreignKey: 'fromWhere' });
     Receive.belongsTo(models.Branch, { foreignKey: 'passTo' });
     Receive.belongsTo(models.Exchange, { foreignKey: 'exchangeId' });
-    Receive.belongsTo(models.MoneyType, { foreignKey: 'moneyTypeId' });
-    Receive.belongsTo(models.MoneyType, { foreignKey: 'branchChargesType' });
-    Receive.belongsTo(models.MoneyType, { foreignKey: 'chargesType' });
+    Receive.belongsTo(models.MoneyType, {
+      foreignKey: 'moneyTypeId',
+      as: 'MainMoneyType',
+    });
+    Receive.belongsTo(models.MoneyType, {
+      foreignKey: 'branchChargesType',
+      as: 'BranchChargesMoneyType',
+    });
+    Receive.belongsTo(models.MoneyType, {
+      foreignKey: 'chargesType',
+      as: 'ChargesMoneyType',
+    });
   };
 
   return Receive;

@@ -173,7 +173,7 @@ class NotificationService {
           recipientType,
           recipient,
           customerData,
-          'skipped',
+          'pending',
           []
         );
         res.notificationId = saved.id;
@@ -181,7 +181,6 @@ class NotificationService {
       return res;
     }
 
-    // 4) Send to channels (soft-fail)
     const results = [];
     for (const ch of effectiveChannels) {
       try {
@@ -203,7 +202,7 @@ class NotificationService {
           recipient,
           message,
           rawData: notificationData,
-          orgId, // Pass organization ID
+          orgId,
         });
 
         console.log(`notificationService: ${ch} result=`, result);

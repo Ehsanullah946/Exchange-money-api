@@ -11,6 +11,7 @@ const {
   MoneyType,
 } = require('../models');
 const notificationService = require('../services/notificationService');
+const { Op } = require('sequelize');
 
 //  Helper: Reverse balances for a transfer
 async function reverseTransferAccounts(transfer, t) {
@@ -66,6 +67,64 @@ async function reverseTransferAccounts(transfer, t) {
   }
 }
 
+exports.getAllTransfer = async (req, res) => {
+  try {
+    const { search = '', limit = 10, page = 1 } = req.query;
+
+    const parsedLimit = parseInt(limit) || 10;
+    const parsedPage = parseInt(page) || 1;
+    const offset = (parsedPage - 1) * parsedLimit;
+
+    const whereTransfer = {
+      organizationId: req.orgId,
+      deleted: false,
+      ...(search && {
+        [Op.or]: [
+          { transferNo: { [Op.like]: `%${search}%` } },
+          { senderName: { [Op.like]: `%${search}%` } },
+          { receiverName: { [Op.like]: `%${search}%` } },
+        ],
+      }),
+    };
+
+    const { rows, count } = await Transfer.findAndCountAll({
+      where: whereTransfer,
+      include: [
+        { model: Branch, as: 'Branch' },
+        {
+          model: MoneyType,
+          as: 'MainMoneyType',
+          attributes: ['id', 'typeName'],
+        },
+        {
+          model: MoneyType,
+          as: 'ChargesMoneyType',
+          attributes: ['id', 'typeName'],
+        },
+        {
+          model: MoneyType,
+          as: 'BranchChargesMoneyType',
+          attributes: ['id', 'typeName'],
+        },
+        { model: Customer },
+      ],
+      limit: parsedLimit,
+      offset,
+      order: [['tDate', 'DESC']],
+    });
+
+    res.status(200).json({
+      data: rows,
+      total: count,
+      page: parsedPage,
+      limit: parsedLimit,
+    });
+  } catch (err) {
+    console.error('getAllTransfer error:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // controllers/transfer.js
 exports.createTransfer = async (req, res) => {
   const t = await sequelize.transaction();
@@ -85,9 +144,7 @@ exports.createTransfer = async (req, res) => {
       senderName,
       receiverName,
       moneyTypeId,
-
-      // NEW: optional channel selection from client
-      channels, // e.g. ["whatsapp","telegram","websocket"]
+      channels,
     } = req.body;
 
     const orgId = req.orgId;

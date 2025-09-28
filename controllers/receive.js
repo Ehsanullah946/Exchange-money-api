@@ -13,6 +13,8 @@ const {
   SenderReceiver,
   Account,
   sequelize,
+  Customer,
+  MoneyType,
 } = require('../models');
 const { Op } = require('sequelize');
 
@@ -205,6 +207,64 @@ exports.createReceive = async (req, res) => {
       .json({ message: 'Receive created successfully', receive: newReceive });
   } catch (err) {
     await t.rollback();
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getAllReceive = async (req, res) => {
+  try {
+    const { search = '', limit = 10, page = 1 } = req.query;
+
+    const parsedLimit = parseInt(limit) || 10;
+    const parsedPage = parseInt(page) || 1;
+    const offset = (parsedPage - 1) * parsedLimit;
+
+    const whereReceive = {
+      organizationId: req.orgId,
+      deleted: false,
+      ...(search && {
+        [Op.or]: [
+          { receiveNo: { [Op.like]: `%${search}%` } },
+          { senderName: { [Op.like]: `%${search}%` } },
+          { receiverName: { [Op.like]: `%${search}%` } },
+        ],
+      }),
+    };
+
+    const { rows, count } = await Receive.findAndCountAll({
+      where: whereReceive,
+      include: [
+        { model: Branch, as: 'Branch' },
+        {
+          model: MoneyType,
+          as: 'MainMoneyType',
+          attributes: ['id', 'typeName'],
+        },
+        {
+          model: MoneyType,
+          as: 'ChargesMoneyType',
+          attributes: ['id', 'typeName'],
+        },
+        {
+          model: MoneyType,
+          as: 'BranchChargesMoneyType',
+          attributes: ['id', 'typeName'],
+        },
+        { model: Customer },
+      ],
+      limit: parsedLimit,
+      offset,
+      order: [['rDate', 'DESC']],
+    });
+
+    res.status(200).json({
+      data: rows,
+      total: count,
+      page: parsedPage,
+      limit: parsedLimit,
+    });
+  } catch (err) {
+    console.error('get All Receive error:', err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -658,12 +718,13 @@ exports.rejectReceive = async (req, res) => {
 
 // // ===== Helper: Reverse Old Balances =====
 // async function reverseOldBalances(receiveRecord, t) {
-//   const { branchId, passNo, passTo, amount, commission, customerId } = receiveRecord;
+//   const { branchId, passNo, passTo, amount, commission, customerId } =
+//     receiveRecord;
 
 //   // Case 1: Branch-only
 //   if (!passTo) {
 //     const branch = await Branch.findByPk(branchId, { transaction: t });
-//     branch.balance -= (amount - commission);
+//     branch.balance -= amount - commission;
 //     await branch.save({ transaction: t });
 //   }
 //   // Case 2: Branch → Branch
@@ -672,7 +733,7 @@ exports.rejectReceive = async (req, res) => {
 //     const passToBranch = await Branch.findByPk(passTo, { transaction: t });
 
 //     originBranch.balance += amount;
-//     passToBranch.balance -= (amount - commission);
+//     passToBranch.balance -= amount - commission;
 
 //     await originBranch.save({ transaction: t });
 //     await passToBranch.save({ transaction: t });
@@ -683,7 +744,7 @@ exports.rejectReceive = async (req, res) => {
 //     const customer = await Customer.findByPk(customerId, { transaction: t });
 
 //     originBranch.balance += amount;
-//     customer.balance -= (amount - commission);
+//     customer.balance -= amount - commission;
 
 //     await originBranch.save({ transaction: t });
 //     await customer.save({ transaction: t });
@@ -733,28 +794,28 @@ exports.rejectReceive = async (req, res) => {
 // };
 
 //  Delete Receive
-exports.deleteReceive = async (req, res) => {
-  const t = await sequelize.transaction();
-  try {
-    const receive = await Receive.findByPk(req.params.id, { transaction: t });
-    if (!receive) throw new Error('Receive not found');
+// exports.deleteReceive = async (req, res) => {
+//   const t = await sequelize.transaction();
+//   try {
+//     const receive = await Receive.findByPk(req.params.id, { transaction: t });
+//     if (!receive) throw new Error('Receive not found');
 
-    // Reverse balances
-    await reverseOldBalances(receive, t);
+//     // Reverse balances
+//     await reverseOldBalances(receive, t);
 
-    // Delete linked transfer
-    await Transfer.destroy({
-      where: { receiveId: receive.id },
-      transaction: t,
-    });
+//     // Delete linked transfer
+//     await Transfer.destroy({
+//       where: { receiveId: receive.id },
+//       transaction: t,
+//     });
 
-    // Delete receive
-    await receive.destroy({ transaction: t });
+//     // Delete receive
+//     await receive.destroy({ transaction: t });
 
-    await t.commit();
-    res.json({ message: 'Receive deleted successfully' });
-  } catch (err) {
-    await t.rollback();
-    res.status(500).json({ error: err.message });
-  }
-};
+//     await t.commit();
+//     res.json({ message: 'Receive deleted successfully' });
+//   } catch (err) {
+//     await t.rollback();
+//     res.status(500).json({ error: err.message });
+//   }
+// };

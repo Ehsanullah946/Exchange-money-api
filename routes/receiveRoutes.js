@@ -7,13 +7,43 @@ const { allowRoles } = require('../middlewares/roleMiddleware');
 
 const router = express.Router();
 
-// router.get('/', protect, allowRoles(2, 3, 4), orgScope(Receive), receiveController.getReceives);
-router.post('/', protect, allowRoles(2, 3), orgScope(Receive), receiveController.createReceive);
+router.get(
+  '/',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(Receive),
+  receiveController.getAllReceive
+);
+router.post(
+  '/',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Receive),
+  receiveController.createReceive
+);
 
-router.post('/:id/sender', protect, allowRoles(2, 3), orgScope(Receive), receiveController.updateReceiveSender);
-router.post('/:id/receiver', protect, allowRoles(2, 3), orgScope(Receive), receiveController.updateReceiveReceiver);
+router.post(
+  '/:id/sender',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Receive),
+  receiveController.updateReceiveSender
+);
+router.post(
+  '/:id/receiver',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Receive),
+  receiveController.updateReceiveReceiver
+);
 
-router.patch('/:id', protect, allowRoles(2, 3), orgScope(Receive), receiveController.updateReceive);
+router.patch(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Receive),
+  receiveController.updateReceive
+);
 // router.delete('/:id', protect, allowRoles(2, 3), orgScope(Receive), receiveController.deleteReceive);
 // router.patch('/:id/reject', protect, allowRoles(2, 3), orgScope(Receive), receiveController.rejectReceive);
 // router.get('/:id', protect, allowRoles(2, 3), orgScope(Receive), receiveController.getReceiveByid);
