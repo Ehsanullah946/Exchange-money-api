@@ -44,8 +44,28 @@ router.patch(
   orgScope(Receive),
   receiveController.updateReceive
 );
-// router.delete('/:id', protect, allowRoles(2, 3), orgScope(Receive), receiveController.deleteReceive);
-// router.patch('/:id/reject', protect, allowRoles(2, 3), orgScope(Receive), receiveController.rejectReceive);
-// router.get('/:id', protect, allowRoles(2, 3), orgScope(Receive), receiveController.getReceiveByid);
+
+router.delete(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Receive),
+  receiveController.deleteReceive
+);
+router.patch(
+  '/:id/reject',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Receive),
+  receiveController.rejectReceive
+);
+
+router.get(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Receive),
+  receiveController.getReceiveById
+);
 
 module.exports = router;

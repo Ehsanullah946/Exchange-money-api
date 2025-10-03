@@ -30,14 +30,14 @@ exports.createReceive = async (req, res) => {
       branchChargesType,
       rDate,
       description,
-      guarantorRelation,
-      fromWhere, // Origin branch ID
+      fromWhere,
       passTo,
       passNo,
       senderName,
-      receiverName, // Optional passTo branch ID
-      customerId, // Optional customer ID
+      receiverName,
+      customerId,
       moneyTypeId,
+      receiveStatus,
     } = req.body;
 
     const orgId = req.orgId;
@@ -135,7 +135,6 @@ exports.createReceive = async (req, res) => {
           chargesType,
           tDate: rDate,
           description,
-          guarantorRelation,
           branchCharges,
           branchChargesType,
           toWhere: passTo,
@@ -184,7 +183,6 @@ exports.createReceive = async (req, res) => {
         chargesType,
         rDate,
         description,
-        guarantorRelation,
         branchCharges: passTo ? branchCharges : null,
         branchChargesType: passTo ? branchChargesType : null,
         fromWhere,
@@ -197,6 +195,7 @@ exports.createReceive = async (req, res) => {
         receiverId: null,
         passNo: nextTransferNo,
         moneyTypeId,
+        receiveStatus: Boolean(receiveStatus),
       },
       { transaction: t }
     );
@@ -522,6 +521,7 @@ exports.updateReceive = async (req, res) => {
       moneyTypeId: payload.moneyTypeId ?? receive.moneyTypeId,
       receiverId: payload.receiverId ?? receive.receiverId,
       senderId: payload.senderId ?? receive.senderId,
+      receiveStatus: payload.receiveStatus ?? receive.receiveStatus,
       // organizationId stays same
     };
 
@@ -672,6 +672,52 @@ exports.rejectReceive = async (req, res) => {
     res.status(200).json({ message: 'Receive rejected successfully' });
   } catch (err) {
     await t.rollback();
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getReceiveById = async (req, res) => {
+  try {
+    const receive = await Receive.findOne({
+      where: {
+        id: req.params.id,
+        organizationId: req.orgId,
+        deleted: false,
+      },
+      include: [
+        { model: Branch, as: 'Branch' },
+        {
+          model: MoneyType,
+          as: 'MainMoneyType',
+          attributes: ['id', 'typeName'],
+        },
+        {
+          model: MoneyType,
+          as: 'ChargesMoneyType',
+          attributes: ['id', 'typeName'],
+        },
+        {
+          model: MoneyType,
+          as: 'BranchChargesMoneyType',
+          attributes: ['id', 'typeName'],
+        },
+        { model: Customer },
+      ],
+    });
+
+    if (!receive) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'receive not found',
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: receive,
+    });
+  } catch (err) {
+    console.error('get single Receive error:', err);
     res.status(500).json({ message: err.message });
   }
 };

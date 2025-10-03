@@ -63,7 +63,6 @@ module.exports = (sequelize, DataTypes) => {
       },
       receiveStatus: {
         type: DataTypes.BOOLEAN,
-        allowNull: false,
         defaultValue: false,
       },
       exchangeId: {

@@ -186,7 +186,10 @@ exports.getBranchById = async (req, res) => {
       return res.status(404).json({ message: 'Branch not found' });
     }
 
-    res.status(200).json(branch);
+    res.status(200).json({
+      status: 'success',
+      data: branch,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -321,10 +324,10 @@ exports.deleteBranch = async (req, res) => {
     const person = stakeholder.Person;
 
     // Delete in correct order
-    await branch.destroy({ transaction: t });
-    await customer.destroy({ transaction: t });
-    await stakeholder.destroy({ transaction: t });
     await person.destroy({ transaction: t });
+    await stakeholder.destroy({ transaction: t });
+    await customer.destroy({ transaction: t });
+    await branch.destroy({ transaction: t });
 
     await t.commit();
     res.json({ message: 'Branch deleted successfully' });

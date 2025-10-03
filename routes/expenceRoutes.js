@@ -15,13 +15,13 @@ router.get(
   expenceController.getAllExpence
 );
 
-// // router.get(
-// //   '/:id',
-// //   protect,
-// //   allowRoles(2, 3, 4),
-// //   orgScope(Expence),
-// //   expenceController.getExpences
-// // );
+router.get(
+  '/:id',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(Expence),
+  expenceController.getExpenceById
+);
 
 router.post(
   '/',

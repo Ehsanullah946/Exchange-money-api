@@ -141,13 +141,12 @@ exports.updateEmployee = async (req, res) => {
 
     if (!employee)
       return res.status(404).json({ message: 'Employee not found' });
-
     const stakeholder = employee.Stakeholder;
     const person = stakeholder.Person;
 
-    await employee.updete(req.body, { transaction: t });
-    await stakeholder.updete(req.body, { transaction: t });
-    await person.updete(req.body, { transaction: t });
+    await person.update(req.body, { transaction: t });
+    await stakeholder.update(req.body, { transaction: t });
+    await employee.update(req.body, { transaction: t });
 
     await t.commit();
     res.json({ message: 'Employee updated successfully', employee });
@@ -183,9 +182,9 @@ exports.deleteEmployee = async (req, res) => {
     const stakeholder = employee.Stakeholder;
     const person = stakeholder.Person;
 
-    await employee.destroy({ transaction: t });
-    await stakeholder.destroy({ transaction: t });
     await person.destroy({ transaction: t });
+    await stakeholder.destroy({ transaction: t });
+    await employee.destroy({ transaction: t });
 
     await t.commit();
     res.json({ message: 'Employee deleted successfully' });
@@ -218,9 +217,7 @@ exports.getEmployeeById = async (req, res) => {
       return res.status(404).json({ message: 'employee not found' });
     res.status(200).json({
       status: 'success',
-      data: {
-        data: employee,
-      },
+      data: employee,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -231,7 +231,11 @@ exports.createDepositWithdraw = async (req, res) => {
     const offset = (page - 1) * limit;
 
     const { rows, count } = await DepositWithdraw.findAndCountAll({
-      where: { organizationId: req.orgId, deposit: { [Op.gt]: 0 } },
+      where: {
+        deleted: false,
+        organizationId: req.orgId,
+        deposit: { [Op.gt]: 0 },
+      },
       include: [
         {
           model: Account,
@@ -302,7 +306,11 @@ exports.createDepositWithdraw = async (req, res) => {
       const offset = (page - 1) * limit;
 
       const { rows, count } = await DepositWithdraw.findAndCountAll({
-        where: { organizationId: req.orgId, withdraw: { [Op.gt]: 0 } },
+        where: {
+          deleted: false,
+          organizationId: req.orgId,
+          withdraw: { [Op.gt]: 0 },
+        },
         include: [
           {
             model: Account,
@@ -378,12 +386,12 @@ exports.createDepositWithdraw = async (req, res) => {
       const hasDeposit = deposit !== undefined && deposit !== null;
       const hasWithdraw = withdraw !== undefined && withdraw !== null;
 
-      // Validate amount intent (allow metadata-only updates: neither deposit nor withdraw provided)
+      // ValNoate amount intent (allow metadata-only updates: neither deposit nor withdraw provNoed)
       if (hasDeposit && hasWithdraw) {
         await t.rollback();
         return res
           .status(400)
-          .json({ message: 'Provide either deposit OR withdraw, not both.' });
+          .json({ message: 'ProvNoe either deposit OR withdraw, not both.' });
       }
       if (hasDeposit && Number(deposit) <= 0) {
         await t.rollback();
@@ -416,7 +424,7 @@ exports.createDepositWithdraw = async (req, res) => {
       const oldEffect = round3(oldDeposit - oldWithdraw); // + increases credit, - decreases credit
       const oldAccountNo = existing.accountNo;
 
-      // New values/effect (if amount not provided, keep old)
+      // New values/effect (if amount not provNoed, keep old)
       const newDeposit = hasDeposit ? toNum(deposit) : oldDeposit;
       const newWithdraw = hasWithdraw ? toNum(withdraw) : oldWithdraw;
       const newEffect = round3(newDeposit - newWithdraw);
@@ -554,6 +562,56 @@ exports.deleteDepositWithdraw = async (req, res) => {
     try {
       await t.rollback();
     } catch (_) {}
+    res.status(500).json({
+      message: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    });
+  }
+};
+
+exports.getDepositWitdrawById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const depositWithdraw = await DepositWithdraw.findOne({
+      where: { No: id, organizationId: req.orgId },
+      include: [
+        {
+          model: Account,
+          required: true,
+          attributes: ['No', 'credit'],
+          include: [
+            {
+              model: Customer,
+              required: true,
+              include: [
+                {
+                  model: Stakeholder,
+                  required: true,
+                  include: [
+                    {
+                      model: Person,
+                      required: true,
+                      where: { organizationId: req.orgId },
+                    },
+                  ],
+                },
+              ],
+            },
+            { model: MoneyType },
+          ],
+        },
+      ],
+    });
+
+    if (!depositWithdraw) {
+      return res.status(404).json('not found');
+    }
+
+    res.json({
+      status: 'success',
+      data: depositWithdraw,
+    });
+  } catch (err) {
     res.status(500).json({
       message: err.message,
       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,

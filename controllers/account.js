@@ -89,12 +89,11 @@ exports.getAccounts = async (req, res) => {
           : {},
       ],
     };
-    const whereAccount = {};
 
     const offset = (page - 1) * limit;
 
     const { rows, count } = await Account.findAndCountAll({
-      where: whereAccount,
+      where: { deleted: false },
       include: [
         {
           model: Customer,
@@ -133,8 +132,9 @@ exports.getAccounts = async (req, res) => {
 // GET account by ID (filtered by org)
 exports.getAccountById = async (req, res) => {
   try {
+    const { id } = req.params;
     const account = await Account.findOne({
-      where: { no: req.params.id },
+      where: { No: id },
       include: [
         {
           model: Customer,
@@ -157,7 +157,7 @@ exports.getAccountById = async (req, res) => {
       ],
     });
     if (!account) return res.status(404).json({ message: 'Account not found' });
-    res.json(account);
+    res.json({ status: 'success', data: account });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -167,8 +167,9 @@ exports.getAccountById = async (req, res) => {
 exports.updateAccount = async (req, res) => {
   const t = await Account.sequelize.transaction();
   try {
+    const { id } = req.params;
     const account = await Account.findOne({
-      where: { no: req.params.id },
+      where: { No: id },
       include: [
         {
           model: Customer,

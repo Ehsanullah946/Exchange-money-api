@@ -14,6 +14,7 @@ exports.createExpence = async (req, res) => {
         moneyTypeId,
         description,
         employeeId,
+        eDate: new Date(),
         expenceType,
         organizationId: orgId,
       },
@@ -94,7 +95,7 @@ exports.getAllExpence = async (req, res) => {
     const { search, limit = 10, page = 1 } = req.query;
 
     // Build WHERE condition
-    const where = { organizationId: req.orgId };
+    const where = { deleted: false, organizationId: req.orgId };
     if (search) {
       where.expenceType = { [Op.like]: `%${search}%` };
     }
@@ -127,8 +128,10 @@ exports.getAllExpence = async (req, res) => {
 
 exports.getExpenceById = async (req, res) => {
   try {
-    const expence = Expence.findOne({
-      where: { No: req.params.id, organizationId: req.orgId },
+    const { id } = req.params;
+
+    const expence = await Expence.findOne({
+      where: { No: id, organizationId: req.orgId },
     });
     if (!expence) {
       res.status(404).json('expence not found');

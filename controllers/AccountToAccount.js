@@ -399,3 +399,88 @@ exports.deleteAccountToAccount = async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 };
+
+exports.getTransferToAccountById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const whereFromPerson = {
+      organizationId: req.orgId,
+    };
+
+    const whereToPerson = {
+      organizationId: req.orgId,
+    };
+
+    const whereAccountToAccount = {
+      No: id,
+      organizationId: req.orgId,
+      deleted: false,
+    };
+
+    const transferToAccount = await AccountToAccount.findOne({
+      where: whereAccountToAccount,
+      include: [
+        {
+          model: Account,
+          as: 'FromAccount',
+          required: true,
+          include: [
+            {
+              model: Customer,
+              required: true,
+              include: [
+                {
+                  model: Stakeholder,
+                  required: true,
+                  include: [
+                    {
+                      model: Person,
+                      required: true,
+                      where: whereFromPerson,
+                    },
+                  ],
+                },
+              ],
+            },
+            { model: MoneyType },
+          ],
+        },
+        {
+          model: Account,
+          as: 'ToAccount',
+          required: true,
+          include: [
+            {
+              model: Customer,
+              required: true,
+              include: [
+                {
+                  model: Stakeholder,
+                  required: true,
+                  include: [
+                    {
+                      model: Person,
+                      required: true,
+                      where: whereToPerson,
+                    },
+                  ],
+                },
+              ],
+            },
+            { model: MoneyType },
+          ],
+        },
+      ],
+      order: [['tDate', 'DESC']],
+    });
+
+    res.status(200).json({
+      status: 'success',
+      data: transferToAccount,
+    });
+  } catch (err) {
+    console.error('getTransferToAccount error:', err);
+    res.status(500).json({ message: err.message });
+  }
+};

@@ -304,7 +304,6 @@ exports.updateTransferSender = async (req, res) => {
       return res.status(404).json({ message: 'transfer not found' });
     }
 
-    // Use nationalCode as unique identifier if provided
     const whereClause = nationalCode
       ? { nationalCode, organizationId: orgId }
       : {
@@ -342,7 +341,6 @@ exports.updateTransferSender = async (req, res) => {
       transaction: t,
     });
 
-    // Link to receive record
     await transfer.update({ senderId: sender.id }, { transaction: t });
     await t.commit();
     res.json({
@@ -460,13 +458,32 @@ exports.updateTransfer = async (req, res) => {
 
     // 2️⃣ Reverse original transaction amounts
     // Handle customer account reversal if exists
+
     if (transfer.customerId) {
       const customerAccount = await Account.findOne({
         where: {
           customerId: transfer.customerId,
           moneyTypeId: transfer.moneyTypeId,
-          organizationId: orgId,
         },
+        include: [
+          {
+            model: Customer,
+            required: true,
+            include: [
+              {
+                model: Stakeholder,
+                required: true,
+                include: [
+                  {
+                    model: Person,
+                    required: true,
+                    where: { organizationId: orgId },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
         transaction: t,
       });
 
@@ -480,7 +497,26 @@ exports.updateTransfer = async (req, res) => {
 
     // Handle branch account reversal
     const originalBranch = await Branch.findOne({
-      where: { id: transfer.toWhere, organizationId: orgId },
+      where: { id: transfer.toWhere },
+      include: [
+        {
+          model: Customer,
+          required: true,
+          include: [
+            {
+              model: Stakeholder,
+              required: true,
+              include: [
+                {
+                  model: Person,
+                  required: true,
+                  where: { organizationId: orgId },
+                },
+              ],
+            },
+          ],
+        },
+      ],
       transaction: t,
     });
 
@@ -489,8 +525,26 @@ exports.updateTransfer = async (req, res) => {
         where: {
           customerId: originalBranch.customerId,
           moneyTypeId: transfer.moneyTypeId,
-          organizationId: orgId,
         },
+        include: [
+          {
+            model: Customer,
+            required: true,
+            include: [
+              {
+                model: Stakeholder,
+                required: true,
+                include: [
+                  {
+                    model: Person,
+                    required: true,
+                    where: { organizationId: orgId },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
         transaction: t,
       });
 
@@ -568,8 +622,26 @@ exports.updateTransfer = async (req, res) => {
         where: {
           customerId,
           moneyTypeId,
-          organizationId: orgId,
         },
+        include: [
+          {
+            model: Customer,
+            required: true,
+            include: [
+              {
+                model: Stakeholder,
+                required: true,
+                include: [
+                  {
+                    model: Person,
+                    required: true,
+                    where: { organizationId: orgId },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
         transaction: t,
       });
 
@@ -585,7 +657,26 @@ exports.updateTransfer = async (req, res) => {
 
     // Process branch account
     const newBranch = await Branch.findOne({
-      where: { id: toWhere, organizationId: orgId },
+      where: { id: toWhere },
+      include: [
+        {
+          model: Customer,
+          required: true,
+          include: [
+            {
+              model: Stakeholder,
+              required: true,
+              include: [
+                {
+                  model: Person,
+                  required: true,
+                  where: { organizationId: orgId },
+                },
+              ],
+            },
+          ],
+        },
+      ],
       transaction: t,
     });
 
@@ -598,8 +689,26 @@ exports.updateTransfer = async (req, res) => {
       where: {
         customerId: newBranch.customerId,
         moneyTypeId,
-        organizationId: orgId,
       },
+      include: [
+        {
+          model: Customer,
+          required: true,
+          include: [
+            {
+              model: Stakeholder,
+              required: true,
+              include: [
+                {
+                  model: Person,
+                  required: true,
+                  where: { organizationId: orgId },
+                },
+              ],
+            },
+          ],
+        },
+      ],
       transaction: t,
     });
 
@@ -692,6 +801,52 @@ exports.rejectTransfer = async (req, res) => {
     res.status(200).json({ message: 'Transfer rejected successfully' });
   } catch (err) {
     await t.rollback();
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getTransferById = async (req, res) => {
+  try {
+    const transfer = await Transfer.findOne({
+      where: {
+        id: req.params.id,
+        organizationId: req.orgId,
+        deleted: false,
+      },
+      include: [
+        { model: Branch, as: 'Branch' },
+        {
+          model: MoneyType,
+          as: 'MainMoneyType',
+          attributes: ['id', 'typeName'],
+        },
+        {
+          model: MoneyType,
+          as: 'ChargesMoneyType',
+          attributes: ['id', 'typeName'],
+        },
+        {
+          model: MoneyType,
+          as: 'BranchChargesMoneyType',
+          attributes: ['id', 'typeName'],
+        },
+        { model: Customer },
+      ],
+    });
+
+    if (!transfer) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Transfer not found',
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: transfer,
+    });
+  } catch (err) {
+    console.error('getTransferById error:', err);
     res.status(500).json({ message: err.message });
   }
 };

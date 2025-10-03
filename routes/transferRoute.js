@@ -42,6 +42,12 @@ router.patch(
   orgScope(Transfer),
   transferController.rejectTransfer
 );
-// router.get('/:id', protect, allowRoles(2, 3), orgScope(Transfer), transferController.getTransferByid);
+router.get(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Transfer),
+  transferController.getTransferById
+);
 
 module.exports = router;

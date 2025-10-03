@@ -21,13 +21,14 @@ router.get(
   orgScope(DepositWithdraw),
   depositWithdrawController.getWithdraws
 );
-// router.get(
-//   '/:id',
-//   protect,
-//   allowRoles(2, 3, 4),
-//   orgScope(DepositWithdraw),
-//   depositWithdrawController.getDepositWithdraws
-// );
+
+router.get(
+  '/:id',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(DepositWithdraw),
+  depositWithdrawController.getDepositWitdrawById
+);
 
 router.post(
   '/',
@@ -36,7 +37,8 @@ router.post(
   orgScope(DepositWithdraw),
   depositWithdrawController.createDepositWithdraw
 );
-router.put(
+
+router.patch(
   '/:id',
   protect,
   allowRoles(2, 3),

@@ -170,6 +170,7 @@ exports.updateCustomer = async (req, res) => {
       ],
       transaction: t,
     });
+
     if (!customer)
       return res.status(404).json({ message: 'Customer not found not' });
 
@@ -215,9 +216,9 @@ exports.deleteCustomer = async (req, res) => {
     const stakeholder = customer.Stakeholder;
     const person = stakeholder.Person;
 
-    await customer.destroy({ transaction: t });
-    await stakeholder.destroy({ transaction: t });
     await person.destroy({ transaction: t });
+    await stakeholder.destroy({ transaction: t });
+    await customer.destroy({ transaction: t });
 
     await t.commit();
     res.json({ message: 'Customer deleted successfully' });
@@ -230,16 +231,16 @@ exports.deleteCustomer = async (req, res) => {
 exports.getCustomerById = async (req, res) => {
   try {
     const customer = await Customer.findOne({
-      where: { id: req.params.id }, // make sure we only look for the requested ID
+      where: { id: req.params.id },
       include: [
         {
           model: Stakeholder,
-          required: true, // must have a Stakeholder
+          required: true,
           include: [
             {
               model: Person,
-              required: true, // must have a Person
-              where: { organizationId: req.orgId }, // scope to logged-in org
+              required: true,
+              where: { organizationId: req.orgId },
             },
           ],
         },

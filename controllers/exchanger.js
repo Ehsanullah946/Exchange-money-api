@@ -97,7 +97,7 @@ exports.createExchanger = async (req, res) => {
 exports.updateExchanger = async (req, res) => {
   const t = await Exchanger.sequelize.transaction();
   try {
-    const exchanger = await req.model.findOne({
+    const exchanger = await Exchanger.findOne({
       where: { id: req.params.id },
       include: [
         {
@@ -114,11 +114,13 @@ exports.updateExchanger = async (req, res) => {
 
     const person = exchanger.Person;
 
-    await exchanger.update(req.body, { transaction: t });
     await person.update(req.body, { transaction: t });
+    await exchanger.update(req.body, { transaction: t });
 
+    await t.commit();
     res.json({ message: 'Exchanger updated successfully', exchanger });
   } catch (err) {
+    await t.rollback();
     res.status(500).json({ message: err.message });
   }
 };
@@ -156,7 +158,7 @@ exports.deleteExchanger = async (req, res) => {
 
 exports.getExchangerById = async (req, res) => {
   try {
-    const exchanger = await req.model.findOne({
+    const exchanger = await Exchanger.findOne({
       where: { id: req.params.id },
       include: [
         {
@@ -172,9 +174,7 @@ exports.getExchangerById = async (req, res) => {
 
     res.status(200).json({
       status: 'success',
-      data: {
-        data: exchanger,
-      },
+      data: exchanger,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

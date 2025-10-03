@@ -14,6 +14,15 @@ router.get(
   orgScope(AccountToAccount),
   accountToaccountController.getTransferToAccount
 );
+
+router.get(
+  '/:id',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(AccountToAccount),
+  accountToaccountController.getTransferToAccountById
+);
+
 router.post(
   '/',
   protect,
