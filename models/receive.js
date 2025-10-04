@@ -98,8 +98,11 @@ module.exports = (sequelize, DataTypes) => {
       as: 'receiver',
       foreignKey: 'receiverId',
     });
-    Receive.belongsTo(models.Branch, { foreignKey: 'fromWhere' });
-    Receive.belongsTo(models.Branch, { foreignKey: 'passTo' });
+    Receive.belongsTo(models.Branch, {
+      foreignKey: 'fromWhere',
+      as: 'FromBranch',
+    });
+    Receive.belongsTo(models.Branch, { foreignKey: 'passTo', as: 'ToBranch' });
     Receive.belongsTo(models.Exchange, { foreignKey: 'exchangeId' });
     Receive.belongsTo(models.MoneyType, {
       foreignKey: 'moneyTypeId',

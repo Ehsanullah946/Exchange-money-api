@@ -6,6 +6,10 @@ const {
   MoneyType,
   Account,
   sequelize,
+  DepositWithdraw,
+  Transfer,
+  Branch,
+  Receive,
 } = require('../models');
 
 const { Op } = require('sequelize');
@@ -426,5 +430,165 @@ exports.getCustomerAccounts = async (req, res) => {
       success: false,
       message: 'Failed to get customer accounts: ' + err.message,
     });
+  }
+};
+
+// controllers/customer.js
+exports.getCustomerTransactions = async (req, res) => {
+  try {
+    const customerId = parseInt(req.params.id, 10);
+    const orgId = req.orgId;
+    const { limit = 10, page = 1 } = req.query;
+
+    const parsedLimit = parseInt(limit) || 10;
+    const parsedPage = parseInt(page) || 1;
+    const offset = (parsedPage - 1) * parsedLimit;
+
+    // 1️⃣ Query all transaction types
+    const [deposits, withdraws, receives, transfers] = await Promise.all([
+      DepositWithdraw.findAll({
+        where: { organizationId: orgId, deleted: false },
+        include: [
+          {
+            model: Account,
+            required: true,
+            where: { customerId }, // filter through Account
+            include: [{ model: MoneyType }],
+          },
+        ],
+      }),
+      DepositWithdraw.findAll({
+        where: {
+          organizationId: orgId,
+          deleted: false,
+          withdraw: { [Op.gt]: 0 },
+        },
+        include: [
+          {
+            model: Account,
+            required: true,
+            where: { customerId }, // filter through Account
+            include: [{ model: MoneyType }],
+          },
+        ],
+      }),
+
+      Receive.findAll({
+        where: { customerId, organizationId: orgId },
+        include: [
+          {
+            model: MoneyType,
+            as: 'MainMoneyType',
+            attributes: ['id', 'typeName'],
+          },
+          {
+            model: Branch,
+            as: 'FromBranch',
+            include: [
+              {
+                model: Customer,
+                include: [
+                  {
+                    model: Stakeholder,
+                    include: [
+                      {
+                        model: Person,
+                        where: { organizationId: req.orgId },
+                        attributes: ['id', 'firstName'],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            model: Branch,
+            as: 'ToBranch',
+            include: [
+              {
+                model: Customer,
+                include: [
+                  {
+                    model: Stakeholder,
+                    include: [
+                      {
+                        model: Person,
+                        where: { organizationId: req.orgId },
+                        attributes: ['id', 'firstName'],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+
+      Transfer.findAll({
+        where: { customerId, organizationId: orgId },
+        include: [
+          {
+            model: MoneyType,
+            as: 'MainMoneyType',
+            attributes: ['id', 'typeName'],
+          },
+          {
+            model: Branch,
+            as: 'Branch',
+            include: [
+              {
+                model: Customer,
+                include: [
+                  {
+                    model: Stakeholder,
+                    include: [
+                      {
+                        model: Person,
+                        where: { organizationId: req.orgId },
+                        attributes: ['id', 'firstName'],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    ]);
+
+    // 2️⃣ Normalize & tag type
+    const normalize = (records, type) =>
+      records.map((r) => ({
+        ...r.toJSON(),
+        type,
+        date: r.DWDate || r.rDate || r.tDate || r.createdAt, // unify date
+      }));
+
+    const allTransactions = [
+      ...normalize(deposits, 'deposit'),
+      ...normalize(withdraws, 'withdraw'),
+      ...normalize(receives, 'receive'),
+      ...normalize(transfers, 'transfer'),
+    ];
+
+    // 3️⃣ Sort by date (latest first)
+    allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // 4️⃣ Pagination
+    const paged = allTransactions.slice(offset, offset + parsedLimit);
+
+    res.status(200).json({
+      status: 'success',
+      total: allTransactions.length,
+      page: parsedPage,
+      limit: parsedLimit,
+      data: paged,
+    });
+  } catch (err) {
+    console.error('getCustomerTransactions error:', err);
+    res.status(500).json({ message: err.message });
   }
 };

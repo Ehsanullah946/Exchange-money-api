@@ -450,6 +450,7 @@ exports.updateReceive = async (req, res) => {
         await sender.Stakeholder.Person.update(
           {
             firstName: payload.senderName,
+
             // Add other fields as needed
           },
           { transaction: t }

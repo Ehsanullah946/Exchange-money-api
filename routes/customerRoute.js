@@ -50,4 +50,12 @@ router.get(
   customerController.getCustomerById
 );
 
+router.get(
+  '/:id/transactions',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Customer),
+  customerController.getCustomerTransactions
+);
+
 module.exports = router;
