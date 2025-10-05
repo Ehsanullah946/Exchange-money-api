@@ -29,9 +29,12 @@ module.exports = (sequelize, DataTypes) => {
   Branch.associate = (models) => {
     Branch.belongsTo(models.Customer, { foreignKey: 'customerId' });
     Branch.hasMany(models.ExtraTransferNo, { foreignKey: 'branchId' });
-    Branch.hasMany(models.Receive, { foreignKey: 'fromWhere' });
-    Branch.hasMany(models.Transfer, { foreignKey: 'toWhere' });
-    Branch.hasMany(models.Receive, { foreignKey: 'passTo' });
+    Branch.hasMany(models.Receive, {
+      foreignKey: 'fromWhere',
+      as: 'FromBranch',
+    });
+    Branch.hasMany(models.Transfer, { as: 'ToBranch', foreignKey: 'toWhere' });
+    Branch.hasMany(models.Receive, { as: 'ToPass', foreignKey: 'passTo' });
     Branch.hasMany(models.Notification, { foreignKey: 'recipientBranchId' });
   };
 

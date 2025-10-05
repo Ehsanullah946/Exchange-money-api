@@ -233,7 +233,7 @@ exports.getAllReceive = async (req, res) => {
     const { rows, count } = await Receive.findAndCountAll({
       where: whereReceive,
       include: [
-        { model: Branch, as: 'Branch' },
+        { model: Branch, as: 'FromBranch' },
         {
           model: MoneyType,
           as: 'MainMoneyType',

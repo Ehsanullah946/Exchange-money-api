@@ -92,7 +92,10 @@ module.exports = (sequelize, DataTypes) => {
 
     Transfer.belongsTo(models.SenderReceiver, { foreignKey: 'senderId' });
     Transfer.belongsTo(models.SenderReceiver, { foreignKey: 'receiverId' });
-    Transfer.belongsTo(models.Branch, { foreignKey: 'toWhere' });
+    Transfer.belongsTo(models.Branch, {
+      as: 'ToBranch',
+      foreignKey: 'toWhere',
+    });
     Transfer.belongsTo(models.Exchange, { foreignKey: 'exchangeId' });
     Transfer.belongsTo(models.MoneyType, {
       foreignKey: 'moneyTypeId',
