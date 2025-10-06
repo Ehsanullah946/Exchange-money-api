@@ -90,7 +90,7 @@ exports.getAllTransfer = async (req, res) => {
     const { rows, count } = await Transfer.findAndCountAll({
       where: whereTransfer,
       include: [
-        { model: Branch, as: 'Branch' },
+        { model: Branch, as: 'ToBranch' },
         {
           model: MoneyType,
           as: 'MainMoneyType',
@@ -814,7 +814,7 @@ exports.getTransferById = async (req, res) => {
         deleted: false,
       },
       include: [
-        { model: Branch, as: 'Branch' },
+        { model: Branch, as: 'ToBranch' },
         {
           model: MoneyType,
           as: 'MainMoneyType',

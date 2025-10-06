@@ -287,7 +287,6 @@ exports.getCustomerAccounts = async (req, res) => {
       });
     }
 
-    // 2. Get all customer accounts with additional details
     const accounts = await Account.findAll({
       where: {
         customerId,
@@ -433,18 +432,23 @@ exports.getCustomerAccounts = async (req, res) => {
   }
 };
 
-// controllers/customer.js
 // exports.getCustomerTransactions = async (req, res) => {
 //   try {
 //     const customerId = parseInt(req.params.id, 10);
 //     const orgId = req.orgId;
 //     const { limit = 10, page = 1 } = req.query;
 
+//     console.log(
+//       '🔍 Querying transactions for customer:',
+//       customerId,
+//       'org:',
+//       orgId
+//     );
+
 //     const parsedLimit = parseInt(limit) || 10;
 //     const parsedPage = parseInt(page) || 1;
 //     const offset = (parsedPage - 1) * parsedLimit;
 
-//     // 1️⃣ Query all transaction types
 //     const [deposits, withdraws, receives, transfers] = await Promise.all([
 //       DepositWithdraw.findAll({
 //         where: {
@@ -456,11 +460,12 @@ exports.getCustomerAccounts = async (req, res) => {
 //           {
 //             model: Account,
 //             required: true,
-//             where: { customerId }, // filter through Account
+//             where: { customerId },
 //             include: [{ model: MoneyType }],
 //           },
 //         ],
 //       }),
+
 //       DepositWithdraw.findAll({
 //         where: {
 //           organizationId: orgId,
@@ -471,67 +476,44 @@ exports.getCustomerAccounts = async (req, res) => {
 //           {
 //             model: Account,
 //             required: true,
-//             where: { customerId }, // filter through Account
+//             where: { customerId },
 //             include: [{ model: MoneyType }],
 //           },
 //         ],
 //       }),
 
 //       Receive.findAll({
-//         where: { customerId, organizationId: orgId },
+//         where: {
+//           customerId,
+//           organizationId: orgId,
+//           deleted: false,
+//         },
 //         include: [
 //           {
 //             model: MoneyType,
 //             as: 'MainMoneyType',
 //             attributes: ['id', 'typeName'],
 //           },
+
 //           {
 //             model: Branch,
 //             as: 'FromBranch',
-//             include: [
-//               {
-//                 model: Customer,
-//                 include: [
-//                   {
-//                     model: Stakeholder,
-//                     include: [
-//                       {
-//                         model: Person,
-//                         where: { organizationId: req.orgId },
-//                         attributes: ['id', 'firstName'],
-//                       },
-//                     ],
-//                   },
-//                 ],
-//               },
-//             ],
+//             attributes: ['id'],
 //           },
 //           {
 //             model: Branch,
 //             as: 'ToPass',
-//             include: [
-//               {
-//                 model: Customer,
-//                 include: [
-//                   {
-//                     model: Stakeholder,
-//                     include: [
-//                       {
-//                         model: Person,
-//                         where: { organizationId: req.orgId },
-//                         attributes: ['id', 'firstName'],
-//                       },
-//                     ],
-//                   },
-//                 ],
-//               },
-//             ],
+//             attributes: ['id'],
 //           },
 //         ],
 //       }),
 
 //       Transfer.findAll({
-//         where: { customerId, organizationId: orgId },
+//         where: {
+//           customerId,
+//           organizationId: orgId,
+//           deleted: false, // Add this if you have soft delete
+//         },
 //         include: [
 //           {
 //             model: MoneyType,
@@ -541,34 +523,25 @@ exports.getCustomerAccounts = async (req, res) => {
 //           {
 //             model: Branch,
 //             as: 'ToBranch',
-//             include: [
-//               {
-//                 model: Customer,
-//                 include: [
-//                   {
-//                     model: Stakeholder,
-//                     include: [
-//                       {
-//                         model: Person,
-//                         where: { organizationId: req.orgId },
-//                         attributes: ['id', 'firstName'],
-//                       },
-//                     ],
-//                   },
-//                 ],
-//               },
-//             ],
+//             attributes: ['id'],
 //           },
 //         ],
 //       }),
 //     ]);
+
+//     // Add logging to see what each query returns
+//     console.log('📊 Query Results:');
+//     console.log('Deposits:', deposits.length);
+//     console.log('Withdraws:', withdraws.length);
+//     console.log('Receives:', receives.length);
+//     console.log('Transfers:', transfers.length);
 
 //     // 2️⃣ Normalize & tag type
 //     const normalize = (records, type) =>
 //       records.map((r) => ({
 //         ...r.toJSON(),
 //         type,
-//         date: r.DWDate || r.rDate || r.tDate || r.createdAt, // unify date
+//         date: r.DWDate || r.rDate || r.tDate || r.createdAt,
 //       }));
 
 //     const allTransactions = [
@@ -577,6 +550,11 @@ exports.getCustomerAccounts = async (req, res) => {
 //       ...normalize(receives, 'receive'),
 //       ...normalize(transfers, 'transfer'),
 //     ];
+
+//     console.log(
+//       '📈 Total transactions before pagination:',
+//       allTransactions.length
+//     );
 
 //     // 3️⃣ Sort by date (latest first)
 //     allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -592,8 +570,11 @@ exports.getCustomerAccounts = async (req, res) => {
 //       data: paged,
 //     });
 //   } catch (err) {
-//     console.error('getCustomerTransactions error:', err);
-//     res.status(500).json({ message: err.message });
+//     console.error('❌ getCustomerTransactions error:', err);
+//     res.status(500).json({
+//       message: err.message,
+//       stack: err.stack,
+//     });
 //   }
 // };
 
@@ -614,8 +595,10 @@ exports.getCustomerTransactions = async (req, res) => {
     const parsedPage = parseInt(page) || 1;
     const offset = (parsedPage - 1) * parsedLimit;
 
-    // 1️⃣ Query all transaction types with simplified includes
-    const [deposits, withdraws, receives, transfers] = await Promise.all([
+    // ---------------------------
+    // 1️⃣ Fetch all transaction types
+    // ---------------------------
+    const [deposits, withdraws, receives, allTransfers] = await Promise.all([
       // Deposits
       DepositWithdraw.findAll({
         where: {
@@ -650,12 +633,11 @@ exports.getCustomerTransactions = async (req, res) => {
         ],
       }),
 
-      // Receives - SIMPLIFIED
+      // Receives (receiver and sender branches)
       Receive.findAll({
         where: {
-          customerId,
           organizationId: orgId,
-          deleted: false, // Add this if you have soft delete
+          deleted: false,
         },
         include: [
           {
@@ -663,26 +645,16 @@ exports.getCustomerTransactions = async (req, res) => {
             as: 'MainMoneyType',
             attributes: ['id', 'typeName'],
           },
-
-          {
-            model: Branch,
-            as: 'FromBranch',
-            attributes: ['id'], // Simplify first
-          },
-          {
-            model: Branch,
-            as: 'ToPass', // FIXED: Changed from 'ToBranch' to 'ToPass'
-            attributes: ['id'],
-          },
+          { model: Branch, as: 'FromBranch', attributes: ['id', 'customerId'] },
+          { model: Branch, as: 'ToPass', attributes: ['id', 'customerId'] },
         ],
       }),
 
-      // Transfers - SIMPLIFIED
+      // Transfers (sender + receiver)
       Transfer.findAll({
         where: {
-          customerId,
           organizationId: orgId,
-          deleted: false, // Add this if you have soft delete
+          deleted: false,
         },
         include: [
           {
@@ -690,23 +662,37 @@ exports.getCustomerTransactions = async (req, res) => {
             as: 'MainMoneyType',
             attributes: ['id', 'typeName'],
           },
-          {
-            model: Branch,
-            as: 'ToBranch',
-            attributes: ['id'],
-          },
+          { model: Branch, as: 'ToBranch', attributes: ['id', 'customerId'] },
         ],
       }),
     ]);
 
-    // Add logging to see what each query returns
+    // ---------------------------
+    // 2️⃣ Filter receives & transfers by customer involvement
+    // ---------------------------
+
+    const filteredReceives = receives.filter(
+      (r) =>
+        r.customerId === customerId ||
+        r.FromBranch?.customerId === customerId ||
+        r.ToPass?.customerId === customerId
+    );
+
+    const filteredTransfers = allTransfers.filter(
+      (t) =>
+        t.customerId === customerId || // sender
+        t.ToBranch?.customerId === customerId // receiver
+    );
+
     console.log('📊 Query Results:');
     console.log('Deposits:', deposits.length);
     console.log('Withdraws:', withdraws.length);
-    console.log('Receives:', receives.length);
-    console.log('Transfers:', transfers.length);
+    console.log('Receives (filtered):', filteredReceives.length);
+    console.log('Transfers (filtered):', filteredTransfers.length);
 
-    // 2️⃣ Normalize & tag type
+    // ---------------------------
+    // 3️⃣ Normalize all data
+    // ---------------------------
     const normalize = (records, type) =>
       records.map((r) => ({
         ...r.toJSON(),
@@ -717,8 +703,8 @@ exports.getCustomerTransactions = async (req, res) => {
     const allTransactions = [
       ...normalize(deposits, 'deposit'),
       ...normalize(withdraws, 'withdraw'),
-      ...normalize(receives, 'receive'),
-      ...normalize(transfers, 'transfer'),
+      ...normalize(filteredReceives, 'receive'),
+      ...normalize(filteredTransfers, 'transfer'),
     ];
 
     console.log(
@@ -726,12 +712,15 @@ exports.getCustomerTransactions = async (req, res) => {
       allTransactions.length
     );
 
-    // 3️⃣ Sort by date (latest first)
+    // ---------------------------
+    // 4️⃣ Sort & Paginate
+    // ---------------------------
     allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    // 4️⃣ Pagination
     const paged = allTransactions.slice(offset, offset + parsedLimit);
 
+    // ---------------------------
+    // 5️⃣ Send response
+    // ---------------------------
     res.status(200).json({
       status: 'success',
       total: allTransactions.length,

@@ -5,6 +5,10 @@ const {
   Stakeholder,
   Person,
   MoneyType,
+  Transfer,
+  DepositWithdraw,
+  Receive,
+  Branch,
 } = require('../models');
 
 // CREATE Account
@@ -245,5 +249,210 @@ exports.deleteAccount = async (req, res) => {
   } catch (err) {
     await t.rollback();
     res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getAccountTransactions = async (req, res) => {
+  try {
+    const accountId = parseInt(req.params.id, 10);
+    const orgId = req.orgId;
+    const { limit = 10, page = 1 } = req.query;
+
+    console.log(
+      '🔍 Querying transactions for account:',
+      accountId,
+      'org:',
+      orgId
+    );
+
+    const parsedLimit = parseInt(limit) || 10;
+    const parsedPage = parseInt(page) || 1;
+    const offset = (parsedPage - 1) * parsedLimit;
+
+    // ---------------------------
+    // 1️⃣ Fetch all transaction types
+    // ---------------------------
+    const [deposits, withdraws, receives, transfers] = await Promise.all([
+      // Deposit
+      DepositWithdraw.findAll({
+        where: {
+          organizationId: orgId,
+          deleted: false,
+          deposit: { [Op.gt]: 0 },
+        },
+        include: [
+          {
+            model: Account,
+            required: true,
+            where: { No: accountId },
+            include: [{ model: MoneyType }],
+          },
+        ],
+      }),
+
+      // Withdraw
+      DepositWithdraw.findAll({
+        where: {
+          organizationId: orgId,
+          deleted: false,
+          withdraw: { [Op.gt]: 0 },
+        },
+        include: [
+          {
+            model: Account,
+            required: true,
+            where: { No: accountId },
+            include: [{ model: MoneyType }],
+          },
+        ],
+      }),
+
+      // Receive (through customer → stakeholder → person)
+      Receive.findAll({
+        where: {
+          organizationId: orgId,
+          deleted: false,
+        },
+        include: [
+          {
+            model: MoneyType,
+            as: 'MainMoneyType',
+            attributes: ['id', 'typeName'],
+          },
+          {
+            model: Branch,
+            as: 'FromBranch',
+            include: [
+              {
+                model: Customer,
+                include: [
+                  {
+                    model: Account,
+                    where: { No: accountId },
+                    required: false,
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            model: Branch,
+            as: 'ToPass',
+            include: [
+              {
+                model: Customer,
+                include: [
+                  {
+                    model: Account,
+                    where: { No: accountId },
+                    required: false,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+
+      // Transfer (through branch → customer → account)
+      Transfer.findAll({
+        where: {
+          organizationId: orgId,
+          deleted: false,
+        },
+        include: [
+          {
+            model: MoneyType,
+            as: 'MainMoneyType',
+            attributes: ['id', 'typeName'],
+          },
+          {
+            model: Branch,
+            as: 'ToBranch',
+            include: [
+              {
+                model: Customer,
+                include: [
+                  {
+                    model: Account,
+                    where: { No: accountId },
+                    required: false,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    ]);
+
+    // ---------------------------
+    // 2️⃣ Filter transactions that involve this account
+    // ---------------------------
+
+    const filteredReceives = receives.filter((r) => {
+      const fromAccounts =
+        r.FromBranch?.Customer?.Accounts?.map((a) => a.id) || [];
+      const toAccounts = r.ToPass?.Customer?.Accounts?.map((a) => a.id) || [];
+      return fromAccounts.includes(accountId) || toAccounts.includes(accountId);
+    });
+
+    const filteredTransfers = transfers.filter((t) => {
+      const fromAccounts =
+        t.FromBranch?.Customer?.Accounts?.map((a) => a.id) || [];
+      const toAccounts = t.ToBranch?.Customer?.Accounts?.map((a) => a.id) || [];
+      return fromAccounts.includes(accountId) || toAccounts.includes(accountId);
+    });
+
+    console.log('📊 Query Results:');
+    console.log('Deposits:', deposits.length);
+    console.log('Withdraws:', withdraws.length);
+    console.log('Receives (filtered):', filteredReceives.length);
+    console.log('Transfers (filtered):', filteredTransfers.length);
+
+    // ---------------------------
+    // 3️⃣ Normalize all data
+    // ---------------------------
+    const normalize = (records, type) =>
+      records.map((r) => ({
+        ...r.toJSON(),
+        type,
+        date: r.DWDate || r.rDate || r.tDate || r.createdAt,
+      }));
+
+    const allTransactions = [
+      ...normalize(deposits, 'deposit'),
+      ...normalize(withdraws, 'withdraw'),
+      ...normalize(filteredReceives, 'receive'),
+      ...normalize(filteredTransfers, 'transfer'),
+    ];
+
+    console.log(
+      '📈 Total transactions before pagination:',
+      allTransactions.length
+    );
+
+    // ---------------------------
+    // 4️⃣ Sort & Paginate
+    // ---------------------------
+    allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const paged = allTransactions.slice(offset, offset + parsedLimit);
+
+    // ---------------------------
+    // 5️⃣ Send response
+    // ---------------------------
+    res.status(200).json({
+      status: 'success',
+      total: allTransactions.length,
+      page: parsedPage,
+      limit: parsedLimit,
+      data: paged,
+    });
+  } catch (err) {
+    console.error('❌ getAccountTransactions error:', err);
+    res.status(500).json({
+      message: err.message,
+      stack: err.stack,
+    });
   }
 };

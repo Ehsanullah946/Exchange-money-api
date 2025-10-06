@@ -7,10 +7,47 @@ const { Account } = require('../models');
 
 const router = express.Router();
 
-router.get('/', protect, allowRoles(2,3,4), orgScope(Account), accountController.getAccounts);
-router.get('/:id', protect, allowRoles(2, 3, 4), orgScope(Account), accountController.getAccountById);
-router.post('/', protect, allowRoles(2, 3), orgScope(Account), accountController.createAccount);
-router.patch('/:id', protect, allowRoles(2, 3), orgScope(Account), accountController.updateAccount);
-router.delete('/:id', protect, allowRoles(2, 3), orgScope(Account), accountController.deleteAccount);
+router.get(
+  '/',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(Account),
+  accountController.getAccounts
+);
+router.get(
+  '/:id',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(Account),
+  accountController.getAccountById
+);
+router.get(
+  '/:id/transactions',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(Account),
+  accountController.getAccountTransactions
+);
+router.post(
+  '/',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Account),
+  accountController.createAccount
+);
+router.patch(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Account),
+  accountController.updateAccount
+);
+router.delete(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Account),
+  accountController.deleteAccount
+);
 
 module.exports = router;

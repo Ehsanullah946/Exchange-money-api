@@ -686,7 +686,7 @@ exports.getReceiveById = async (req, res) => {
         deleted: false,
       },
       include: [
-        { model: Branch, as: 'Branch' },
+        { model: Branch, as: 'FromBranch' },
         {
           model: MoneyType,
           as: 'MainMoneyType',
