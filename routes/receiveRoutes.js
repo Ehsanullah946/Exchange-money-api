@@ -52,6 +52,7 @@ router.delete(
   orgScope(Receive),
   receiveController.deleteReceive
 );
+
 router.patch(
   '/:id/reject',
   protect,

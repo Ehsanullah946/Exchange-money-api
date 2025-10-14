@@ -28,6 +28,15 @@ router.get(
   orgScope(Account),
   accountController.getAccountTransactions
 );
+
+router.get(
+  '/:id/accountSummary',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(Account),
+  accountController.getAccountSummary
+);
+
 router.post(
   '/',
   protect,
