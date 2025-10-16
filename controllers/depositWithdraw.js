@@ -13,6 +13,179 @@ const { Op } = require('sequelize');
 
 const notificationService = require('../services/notificationService');
 
+// exports.createDepositWithdraw = async (req, res) => {
+//   const t = await sequelize.transaction();
+//   try {
+//     const {
+//       deposit,
+//       withdraw,
+//       description,
+//       employeeId,
+//       accountNo,
+//       fingerprint,
+//       photo,
+//       DWDate,
+//       WithdrawReturnDate,
+//     } = req.body;
+
+//     const orgId = req.orgId;
+
+//     console.log('REQ BODY of deposit:', req.body);
+
+//     // ✅ validation
+//     if (!deposit && !withdraw) {
+//       await t.rollback();
+//       return res.status(400).json({
+//         message: 'Must provide either deposit or withdraw amount, not both',
+//       });
+//     }
+
+//     if ((deposit && deposit <= 0) || (withdraw && withdraw <= 0)) {
+//       await t.rollback();
+//       return res.status(400).json({
+//         message: 'Amount must be greater than zero',
+//       });
+//     }
+
+//     // ✅ get next No
+//     const lastTransaction = await DepositWithdraw.findOne({
+//       where: { organizationId: orgId },
+//       order: [['No', 'DESC']],
+//       transaction: t,
+//     });
+//     const nextNo = lastTransaction ? lastTransaction.No + 1 : 1;
+
+//     // ✅ verify account
+//     const account = await Account.findOne({
+//       where: { No: accountNo },
+//       include: [
+//         {
+//           model: Customer,
+//           required: true,
+//           include: [
+//             {
+//               model: Stakeholder,
+//               required: true,
+//               include: [
+//                 {
+//                   model: Person,
+//                   required: true,
+//                   where: { organizationId: orgId },
+//                 },
+//               ],
+//             },
+//           ],
+//         },
+//         {
+//           model: MoneyType,
+//           required: true,
+//         },
+//       ],
+//       transaction: t,
+//     });
+//     if (!account) {
+//       await t.rollback();
+//       return res.status(404).json({ message: 'Account not found' });
+//     }
+
+//     // ✅ verify employee
+//     if (employeeId) {
+//       const employee = await Employee.findOne({
+//         where: { id: employeeId },
+//         include: [
+//           {
+//             model: Stakeholder,
+//             required: true,
+//             include: [
+//               {
+//                 model: Person,
+//                 required: true,
+//                 where: { organizationId: orgId },
+//               },
+//             ],
+//           },
+//         ],
+//         transaction: t,
+//       });
+//       if (!employee) {
+//         await t.rollback();
+//         return res.status(404).json({ message: 'Employee not found' });
+//       }
+//     }
+
+//     // ✅ create transaction
+//     const transaction = await DepositWithdraw.create(
+//       {
+//         No: nextNo,
+//         deposit: deposit || 0,
+//         withdraw: withdraw || 0,
+//         DWDate,
+//         description,
+//         employeeId,
+//         accountNo,
+//         organizationId: orgId,
+//         fingerprint,
+//         photo,
+//         WithdrawReturnDate,
+//         deleted: false,
+//       },
+//       { transaction: t }
+//     );
+
+//     // ✅ update balance
+//     const amount = deposit || -withdraw;
+//     await Account.update(
+//       { credit: sequelize.literal(`credit + ${amount}`) },
+//       { where: { No: accountNo }, transaction: t }
+//     );
+
+//     const allowedChannels = ['whatsapp', 'telegram', 'websocket'];
+//     const channels = (req.body.channels || []).filter((ch) =>
+//       allowedChannels.includes(ch)
+//     );
+
+//     const notifOptions = {
+//       channels: Array.isArray(req.body.channels)
+//         ? req.body.channels
+//         : undefined,
+//       includeWebsocket: false,
+//       failSoft: true,
+//       save: true,
+//     };
+
+//     await notificationService.sendNotification(
+//       'customer',
+//       account.customerId,
+//       {
+//         type: deposit ? 'deposit' : 'withdrawal',
+//         amount: deposit || withdraw,
+//         accountNo: account.No,
+//         balance: account.credit,
+//         moneyType: account.MoneyType.TypeName,
+//         data: transaction,
+//       },
+//       {
+//         channels,
+//         failSoft: true,
+//       },
+//       notifOptions
+//     );
+
+//     await t.commit();
+
+//     res.status(201).json({
+//       message: 'Transaction completed successfully',
+//       transaction,
+//     });
+//   } catch (err) {
+//     await t.rollback();
+//     res.status(500).json({
+//       message: err.message,
+//       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+//     });
+//   }
+// };
+
 exports.createDepositWithdraw = async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -24,12 +197,35 @@ exports.createDepositWithdraw = async (req, res) => {
       accountNo,
       fingerprint,
       photo,
+      DWDate, // This comes as YYYY-MM-DD from frontend
       WithdrawReturnDate,
     } = req.body;
 
     const orgId = req.orgId;
 
-    // ✅ validation
+    // ✅ DATE VALIDATION AND PROCESSING
+    let processedDWDate = DWDate;
+
+    if (DWDate) {
+      if (DWDate.length === 10) {
+        processedDWDate = new Date(DWDate + 'T00:00:00.000Z');
+      } else {
+        processedDWDate = new Date(DWDate);
+      }
+
+      // Validate the date
+      if (isNaN(processedDWDate.getTime())) {
+        await t.rollback();
+        return res.status(400).json({
+          message: 'Invalid date format provided',
+        });
+      }
+
+      console.log('Processed DWDate:', processedDWDate);
+    } else {
+      processedDWDate = new Date();
+    }
+
     if (!deposit && !withdraw) {
       await t.rollback();
       return res.status(400).json({
@@ -44,7 +240,7 @@ exports.createDepositWithdraw = async (req, res) => {
       });
     }
 
-    // ✅ get next No
+    // ✅ get next No (your existing code)
     const lastTransaction = await DepositWithdraw.findOne({
       where: { organizationId: orgId },
       order: [['No', 'DESC']],
@@ -52,7 +248,7 @@ exports.createDepositWithdraw = async (req, res) => {
     });
     const nextNo = lastTransaction ? lastTransaction.No + 1 : 1;
 
-    // ✅ verify account
+    // ✅ verify account (your existing code)
     const account = await Account.findOne({
       where: { No: accountNo },
       include: [
@@ -85,7 +281,7 @@ exports.createDepositWithdraw = async (req, res) => {
       return res.status(404).json({ message: 'Account not found' });
     }
 
-    // ✅ verify employee
+    // ✅ verify employee (your existing code)
     if (employeeId) {
       const employee = await Employee.findOne({
         where: { id: employeeId },
@@ -110,32 +306,35 @@ exports.createDepositWithdraw = async (req, res) => {
       }
     }
 
-    // ✅ create transaction
+    // ✅ create transaction - USE PROCESSED DATE
     const transaction = await DepositWithdraw.create(
       {
         No: nextNo,
         deposit: deposit || 0,
         withdraw: withdraw || 0,
-        DWDate: new Date(),
+        DWDate: processedDWDate, // Use the processed date
         description,
         employeeId,
         accountNo,
         organizationId: orgId,
         fingerprint,
         photo,
-        WithdrawReturnDate,
+        WithdrawReturnDate: WithdrawReturnDate
+          ? new Date(WithdrawReturnDate + 'T00:00:00.000Z')
+          : null,
         deleted: false,
       },
       { transaction: t }
     );
 
-    // ✅ update balance
+    // ✅ update balance (your existing code)
     const amount = deposit || -withdraw;
     await Account.update(
       { credit: sequelize.literal(`credit + ${amount}`) },
       { where: { No: accountNo }, transaction: t }
     );
 
+    // ✅ notification (your existing code)
     const allowedChannels = ['whatsapp', 'telegram', 'websocket'];
     const channels = (req.body.channels || []).filter((ch) =>
       allowedChannels.includes(ch)
@@ -176,40 +375,13 @@ exports.createDepositWithdraw = async (req, res) => {
     });
   } catch (err) {
     await t.rollback();
+    console.error('Error in createDepositWithdraw:', err);
     res.status(500).json({
       message: err.message,
       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
     });
   }
 };
-
-
-// Get all transactions for an account
-// (exports.getDepositWithdraws = async (req, res) => {
-//   try {
-//     const { accountNo } = req.params;
-
-//     const transactions = await DepositWithdraw.findAll({
-//       where: { accountNo, organizationId: req.orgId, deleted: false },
-//       include: [
-//         { model: Employee, attributes: ['id', 'name'] },
-//         { model: Account, attributes: ['No', 'credit'] },
-//       ],
-//       order: [['DWDate', 'DESC']],
-//     });
-
-//     if (!transactions) {
-//       res.status(404).json('not found ');
-//     }
-
-//     res.json(transactions);
-//   } catch (err) {
-//     res.status(500).json({
-//       message: err.message,
-//       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-//     });
-//   }
-// }),
 
 (exports.getDeposits = async (req, res) => {
   try {

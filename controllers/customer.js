@@ -882,3 +882,265 @@ function getCustomerRole(transaction, customerId, type) {
       return 'unknown';
   }
 }
+
+// controllers/customerController.js
+
+exports.liquidateCustomer = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const customerId = parseInt(req.params.id, 10);
+    const orgId = req.orgId;
+    const { startDate, endDate, closeAccounts = false, description } = req.body;
+
+    console.log(
+      '💧 Liquidating customer:',
+      customerId,
+      'from',
+      startDate,
+      'to',
+      endDate
+    );
+
+    // Validate dates
+    if (!startDate || !endDate) {
+      await t.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Start date and end date are required',
+      });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (start > end) {
+      await t.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Start date cannot be after end date',
+      });
+    }
+
+    // Get customer accounts
+    const customerAccounts = await Account.findAll({
+      where: { customerId, organizationId: orgId, deleted: false },
+      include: [{ model: MoneyType }],
+      transaction: t,
+    });
+
+    if (!customerAccounts.length) {
+      await t.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'No accounts found for this customer',
+      });
+    }
+
+    // Get transactions within date range
+    const [deposits, withdraws, receives, transfers, exchanges] =
+      await Promise.all([
+        // Deposits
+        DepositWithdraw.findAll({
+          where: {
+            organizationId: orgId,
+            deleted: false,
+            DWDate: { [Op.between]: [start, end] },
+          },
+          include: [
+            {
+              model: Account,
+              required: true,
+              where: { customerId },
+              include: [{ model: MoneyType }],
+            },
+          ],
+          transaction: t,
+        }),
+
+        // Withdraws
+        DepositWithdraw.findAll({
+          where: {
+            organizationId: orgId,
+            deleted: false,
+            DWDate: { [Op.between]: [start, end] },
+          },
+          include: [
+            {
+              model: Account,
+              required: true,
+              where: { customerId },
+              include: [{ model: MoneyType }],
+            },
+          ],
+          transaction: t,
+        }),
+
+        // Receives
+        Receive.findAll({
+          where: {
+            organizationId: orgId,
+            deleted: false,
+            rDate: { [Op.between]: [start, end] },
+          },
+          include: [
+            {
+              model: MoneyType,
+              as: 'MainMoneyType',
+            },
+            { model: Branch, as: 'FromBranch' },
+            { model: Branch, as: 'ToPass' },
+          ],
+          transaction: t,
+        }),
+
+        // Transfers
+        Transfer.findAll({
+          where: {
+            organizationId: orgId,
+            deleted: false,
+            tDate: { [Op.between]: [start, end] },
+          },
+          include: [
+            {
+              model: MoneyType,
+              as: 'MainMoneyType',
+            },
+            { model: Branch, as: 'ToBranch' },
+          ],
+          transaction: t,
+        }),
+
+        // Exchanges
+        Exchange.findAll({
+          where: {
+            organizationId: orgId,
+            deleted: false,
+            customerId: customerId,
+            eDate: { [Op.between]: [start, end] },
+          },
+          include: [
+            {
+              model: MoneyType,
+              as: 'SaleMoneyType',
+            },
+            {
+              model: MoneyType,
+              as: 'PurchaseMoneyType',
+            },
+          ],
+          transaction: t,
+        }),
+      ]);
+
+    // Filter receives & transfers by customer involvement
+    const filteredReceives = receives.filter(
+      (r) =>
+        r.customerId === customerId ||
+        r.FromBranch?.customerId === customerId ||
+        r.ToPass?.customerId === customerId
+    );
+
+    const filteredTransfers = transfers.filter(
+      (t) =>
+        t.customerId === customerId || t.ToBranch?.customerId === customerId
+    );
+
+    // Create liquidation record
+    const liquidation = await Liquidation.create(
+      {
+        customerId,
+        organizationId: orgId,
+        startDate: start,
+        endDate: end,
+        description:
+          description || `Liquidation from ${startDate} to ${endDate}`,
+        status: 'completed',
+        closedAccounts: closeAccounts,
+        createdAt: new Date(),
+      },
+      { transaction: t }
+    );
+
+    // If closeAccounts is true, deactivate accounts
+    if (closeAccounts) {
+      await Account.update(
+        { active: false, deleted: true },
+        {
+          where: { customerId, organizationId: orgId },
+          transaction: t,
+        }
+      );
+    }
+
+    await t.commit();
+
+    // Prepare response data
+    const allTransactions = [
+      ...deposits,
+      ...withdraws,
+      ...filteredReceives,
+      ...filteredTransfers,
+      ...exchanges,
+    ];
+
+    // Calculate totals
+    const totals = {};
+    allTransactions.forEach((transaction) => {
+      const currency =
+        transaction.MainMoneyType?.typeName ||
+        transaction.Account?.MoneyType?.typeName ||
+        transaction.SaleMoneyType?.typeName ||
+        'Unknown';
+
+      if (!totals[currency]) {
+        totals[currency] = {
+          deposits: 0,
+          withdraws: 0,
+          transfers: 0,
+          receives: 0,
+          exchanges: 0,
+        };
+      }
+
+      if (transaction.deposit > 0)
+        totals[currency].deposits += parseFloat(transaction.deposit);
+      if (transaction.withdraw > 0)
+        totals[currency].withdraws += parseFloat(transaction.withdraw);
+      if (transaction.transferAmount > 0)
+        totals[currency].transfers += parseFloat(transaction.transferAmount);
+      if (transaction.receiveAmount > 0)
+        totals[currency].receives += parseFloat(transaction.receiveAmount);
+      if (transaction.saleAmount > 0)
+        totals[currency].exchanges += parseFloat(transaction.saleAmount);
+      if (transaction.purchaseAmount > 0)
+        totals[currency].exchanges += parseFloat(transaction.purchaseAmount);
+    });
+
+    res.status(200).json({
+      success: true,
+      message: closeAccounts
+        ? 'Customer accounts liquidated and closed successfully'
+        : 'Liquidation report generated successfully',
+      data: {
+        liquidationId: liquidation.id,
+        period: { startDate, endDate },
+        transactionCount: allTransactions.length,
+        accounts: customerAccounts.map((acc) => ({
+          accountNo: acc.No,
+          currency: acc.MoneyType.typeName,
+          finalBalance: parseFloat(acc.credit),
+          closed: closeAccounts,
+        })),
+        totals,
+        transactions: allTransactions.slice(0, 100), // Return first 100 transactions for preview
+      },
+    });
+  } catch (err) {
+    await t.rollback();
+    console.error('❌ Liquidation error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Liquidation failed: ' + err.message,
+    });
+  }
+};
