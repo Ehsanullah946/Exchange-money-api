@@ -11,6 +11,7 @@ const {
   Branch,
   Receive,
   Exchange,
+  Liquidation,
 } = require('../models');
 
 const { Op } = require('sequelize');
@@ -546,6 +547,15 @@ exports.getCustomerTransactions = async (req, res) => {
       }),
     ]);
 
+    const liquidations = await Liquidation.findAll({
+      where: {
+        organizationId: orgId,
+        customerId: customerId,
+        deleted: false,
+      },
+      attributes: ['startDate', 'endDate'],
+    });
+
     const filteredReceives = receives.filter(
       (r) =>
         r.customerId === customerId ||
@@ -558,13 +568,6 @@ exports.getCustomerTransactions = async (req, res) => {
         t.customerId === customerId || t.ToBranch?.customerId === customerId
     );
 
-    console.log('📊 Query Results:');
-    console.log('Deposits:', deposits.length);
-    console.log('Withdraws:', withdraws.length);
-    console.log('Receives (filtered):', filteredReceives.length);
-    console.log('Transfers (filtered):', filteredTransfers.length);
-    console.log('Exchanges:', exchanges.length);
-
     const accountMap = new Map();
     customerAccounts.forEach((account) => {
       accountMap.set(account.moneyTypeId, {
@@ -573,8 +576,6 @@ exports.getCustomerTransactions = async (req, res) => {
         currentBalance: parseFloat(account.credit) || 0,
       });
     });
-
-    console.log('💰 Account map:', Array.from(accountMap.entries()));
 
     const normalize = (records, type) =>
       records.map((r) => {
@@ -833,14 +834,26 @@ exports.getCustomerTransactions = async (req, res) => {
       (a, b) => new Date(b.date) - new Date(a.date)
     );
 
-    const paged = allTransactionsWithBalance.slice(
-      offset,
-      offset + parsedLimit
-    );
+    let filteredTransactions = allTransactionsWithBalance;
+
+    if (liquidations.length > 0) {
+      filteredTransactions = allTransactionsWithBalance.filter((tx) => {
+        const txDate = new Date(tx.date);
+
+        // If tx.date falls into any liquidation range → exclude it
+        return !liquidations.some((liq) => {
+          const start = new Date(liq.startDate);
+          const end = new Date(liq.endDate);
+          return txDate >= start && txDate <= end;
+        });
+      });
+    }
+
+    const paged = filteredTransactions.slice(offset, offset + parsedLimit);
 
     res.status(200).json({
       status: 'success',
-      total: allTransactionsWithBalance.length,
+      total: filteredTransactions.length,
       page: parsedPage,
       limit: parsedLimit,
       data: paged,
@@ -883,8 +896,6 @@ function getCustomerRole(transaction, customerId, type) {
   }
 }
 
-// controllers/customerController.js
-
 exports.liquidateCustomer = async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -923,7 +934,7 @@ exports.liquidateCustomer = async (req, res) => {
 
     // Get customer accounts
     const customerAccounts = await Account.findAll({
-      where: { customerId, organizationId: orgId, deleted: false },
+      where: { customerId, deleted: false },
       include: [{ model: MoneyType }],
       transaction: t,
     });
@@ -936,7 +947,7 @@ exports.liquidateCustomer = async (req, res) => {
       });
     }
 
-    // Get transactions within date range
+    // Get transactions within date range to calculate totals
     const [deposits, withdraws, receives, transfers, exchanges] =
       await Promise.all([
         // Deposits
@@ -1021,11 +1032,11 @@ exports.liquidateCustomer = async (req, res) => {
           include: [
             {
               model: MoneyType,
-              as: 'SaleMoneyType',
+              as: 'SaleType',
             },
             {
               model: MoneyType,
-              as: 'PurchaseMoneyType',
+              as: 'PurchaseType',
             },
           ],
           transaction: t,
@@ -1045,6 +1056,15 @@ exports.liquidateCustomer = async (req, res) => {
         t.customerId === customerId || t.ToBranch?.customerId === customerId
     );
 
+    // Combine all transactions for the period
+    const allTransactions = [
+      ...deposits,
+      ...withdraws,
+      ...filteredReceives,
+      ...filteredTransfers,
+      ...exchanges,
+    ];
+
     // Create liquidation record
     const liquidation = await Liquidation.create(
       {
@@ -1056,10 +1076,79 @@ exports.liquidateCustomer = async (req, res) => {
           description || `Liquidation from ${startDate} to ${endDate}`,
         status: 'completed',
         closedAccounts: closeAccounts,
+        transactionCount: allTransactions.length,
         createdAt: new Date(),
       },
       { transaction: t }
     );
+
+    // Mark transactions as liquidated (archived) by linking them to liquidation
+    await Promise.all([
+      // Mark deposit/withdraw transactions
+      DepositWithdraw.update(
+        { liquidated: true, liquidationId: liquidation.id },
+        {
+          where: {
+            organizationId: orgId,
+            DWDate: { [Op.between]: [start, end] },
+            '$Account.customerId$': customerId,
+          },
+          include: [{ model: Account, where: { customerId } }],
+          transaction: t,
+        }
+      ),
+
+      // Mark receive transactions
+      Receive.update(
+        { liquidated: true, liquidationId: liquidation.id },
+        {
+          where: {
+            organizationId: orgId,
+            rDate: { [Op.between]: [start, end] },
+            [Op.or]: [
+              { customerId: customerId },
+              { '$FromBranch.customerId$': customerId },
+              { '$ToPass.customerId$': customerId },
+            ],
+          },
+          include: [
+            { model: Branch, as: 'FromBranch' },
+            { model: Branch, as: 'ToPass' },
+          ],
+          transaction: t,
+        }
+      ),
+
+      // Mark transfer transactions
+      Transfer.update(
+        { liquidated: true, liquidationId: liquidation.id },
+        {
+          where: {
+            organizationId: orgId,
+            tDate: { [Op.between]: [start, end] },
+            [Op.or]: [
+              { customerId: customerId },
+              { '$ToBranch.customerId$': customerId },
+            ],
+          },
+          include: [{ model: Branch, as: 'ToBranch' }],
+          transaction: t,
+        }
+      ),
+
+      // Mark exchange transactions
+      Exchange.update(
+        { liquidated: true, liquidationId: liquidation.id },
+        {
+          where: {
+            organizationId: orgId,
+            customerId: customerId,
+            eDate: { [Op.between]: [start, end] },
+          },
+          transaction: t,
+        }
+      ),
+    ]);
 
     // If closeAccounts is true, deactivate accounts
     if (closeAccounts) {
@@ -1074,16 +1163,7 @@ exports.liquidateCustomer = async (req, res) => {
 
     await t.commit();
 
-    // Prepare response data
-    const allTransactions = [
-      ...deposits,
-      ...withdraws,
-      ...filteredReceives,
-      ...filteredTransfers,
-      ...exchanges,
-    ];
-
-    // Calculate totals
+    // Calculate totals for response
     const totals = {};
     allTransactions.forEach((transaction) => {
       const currency =
@@ -1120,7 +1200,7 @@ exports.liquidateCustomer = async (req, res) => {
       success: true,
       message: closeAccounts
         ? 'Customer accounts liquidated and closed successfully'
-        : 'Liquidation report generated successfully',
+        : 'Liquidation completed successfully',
       data: {
         liquidationId: liquidation.id,
         period: { startDate, endDate },
@@ -1132,7 +1212,6 @@ exports.liquidateCustomer = async (req, res) => {
           closed: closeAccounts,
         })),
         totals,
-        transactions: allTransactions.slice(0, 100), // Return first 100 transactions for preview
       },
     });
   } catch (err) {
@@ -1142,5 +1221,104 @@ exports.liquidateCustomer = async (req, res) => {
       success: false,
       message: 'Liquidation failed: ' + err.message,
     });
+  }
+};
+
+exports.deleteLiquidation = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { liquidationId } = req.params;
+    const orgId = req.orgId;
+
+    const liquidation = await Liquidation.findOne({
+      where: { id: liquidationId, organizationId: orgId },
+      transaction: t,
+    });
+
+    if (!liquidation) {
+      await t.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Liquidation record not found',
+      });
+    }
+
+    // Mark the transaction as deleted (soft delete)
+    await Liquidation.update(
+      { deleted: true },
+      {
+        where: { id: liquidationId, organizationId: orgId },
+        transaction: t,
+      }
+    );
+
+    await t.commit();
+
+    res.status(200).json({
+      message:
+        'liquidation  deleted and transaction reverse reversed successfully.',
+    });
+  } catch (err) {
+    try {
+      await t.rollback();
+    } catch (_) {}
+    res.status(500).json({
+      message: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    });
+  }
+};
+
+exports.getLiquidations = async (req, res) => {
+  try {
+    // const { search, limit = 10, page = 1 } = req.query;
+
+    // const wherePerson = {
+    //   [Op.and]: [
+    //     { organizationId: req.orgId },
+    //     search
+    //       ? {
+    //           [Op.or]: [
+    //             { firstName: { [Op.like]: `%${search}%` } },
+    //             { lastName: { [Op.like]: `%${search}%` } },
+    //           ],
+    //         }
+    //       : {},
+    //   ],
+    // };
+
+    // const offset = (page - 1) * limit;
+
+    const liquidations = await Liquidation.findAll({
+      where: { deleted: false, organizationId:req.orgId },
+      include: [
+        {
+          model: Customer,
+          required: true,
+          include: [
+            {
+              model: Stakeholder,
+              required: true,
+              include: [
+                {
+                  model: Person,
+                  required: true,
+                  where: {organizationId:req.orgId},
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      // limit: parseInt(limit),
+      // offset: parseInt(offset),
+    });
+
+    res.status(200).json({
+      status: "successful",
+      data: liquidations
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };

@@ -14,6 +14,30 @@ router.get(
   customerController.getCustomers
 );
 
+router.post(
+  '/:id/liquidate',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Customer),
+  customerController.liquidateCustomer
+);
+
+router.delete(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Customer),
+  customerController.deleteLiquidation
+);
+
+router.get(
+  '/',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Customer),
+  customerController.getLiquidations
+);
+
 router.get(
   '/:customerId/account',
   protect,

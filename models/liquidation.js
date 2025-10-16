@@ -14,6 +14,7 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: 'completed',
       },
       closedAccounts: { type: DataTypes.BOOLEAN, defaultValue: false },
+      deleted: { type: DataTypes.BOOLEAN, defaultValue: false },
       createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     },
     {
