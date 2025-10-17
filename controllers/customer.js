@@ -1265,8 +1265,6 @@ exports.deleteLiquidation = async (req, res) => {
   }
 };
 
-// controllers/customerController.js
-
 exports.getCustomerLiquidations = async (req, res) => {
   try {
     const customerId = parseInt(req.params.id, 10);
@@ -1277,6 +1275,7 @@ exports.getCustomerLiquidations = async (req, res) => {
     // Get all liquidations for this specific customer
     const liquidations = await Liquidation.findAll({
       where: {
+        deleted: false,
         customerId: customerId,
         organizationId: orgId,
       },
@@ -1339,56 +1338,3 @@ exports.getCustomerLiquidations = async (req, res) => {
     });
   }
 };
-
-//   try {
-//     // const { search, limit = 10, page = 1 } = req.query;
-
-//     // const wherePerson = {
-//     //   [Op.and]: [
-//     //     { organizationId: req.orgId },
-//     //     search
-//     //       ? {
-//     //           [Op.or]: [
-//     //             { firstName: { [Op.like]: `%${search}%` } },
-//     //             { lastName: { [Op.like]: `%${search}%` } },
-//     //           ],
-//     //         }
-//     //       : {},
-//     //   ],
-//     // };
-
-//     // const offset = (page - 1) * limit;
-
-//     const liquidations = await Liquidation.findAll({
-//       where: { deleted: false, organizationId:req.orgId },
-//       include: [
-//         {
-//           model: Customer,
-//           required: true,
-//           include: [
-//             {
-//               model: Stakeholder,
-//               required: true,
-//               include: [
-//                 {
-//                   model: Person,
-//                   required: true,
-//                   where: {organizationId:req.orgId},
-//                 },
-//               ],
-//             },
-//           ],
-//         },
-//       ],
-//       // limit: parseInt(limit),
-//       // offset: parseInt(offset),
-//     });
-
-//     res.status(200).json({
-//       status: "successful",
-//       data: liquidations
-//     });
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };

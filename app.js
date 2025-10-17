@@ -23,6 +23,7 @@ const rateRouter = require('./routes/rateRoutes');
 const exchangeRouter = require('./routes/exchangeRoutes');
 const customerAuthRoute = require('./routes/customerAuthRoute');
 const whatsappRouter = require('./routes/whatsapp');
+const dayBookRouter = require('./routes/daybookRoute');
 
 const http = require('http');
 const { initSocket } = require('./services/socketService');
@@ -48,6 +49,7 @@ app.use('/api/v1/expence', expenceRouter);
 app.use('/api/v1/rate', rateRouter);
 app.use('/api/v1/exchange', exchangeRouter);
 app.use('/api/v1/whatsapp', whatsappRouter);
+app.use('/api/v1/dayBook', dayBookRouter);
 
 const server = http.createServer(app);
 
