@@ -23,7 +23,7 @@ router.post(
 );
 
 router.delete(
-  '/:id',
+  '/:id/deleteLiquidation',
   protect,
   allowRoles(2, 3),
   orgScope(Customer),
@@ -31,11 +31,11 @@ router.delete(
 );
 
 router.get(
-  '/',
+  '/:id/liquidations',
   protect,
   allowRoles(2, 3),
   orgScope(Customer),
-  customerController.getLiquidations
+  customerController.getCustomerLiquidations
 );
 
 router.get(
@@ -45,6 +45,7 @@ router.get(
   orgScope(Customer),
   customerController.getCustomerAccounts
 );
+
 router.post(
   '/',
   protect,
@@ -59,6 +60,7 @@ router.patch(
   orgScope(Customer),
   customerController.updateCustomer
 );
+
 router.delete(
   '/:id',
   protect,
@@ -66,6 +68,7 @@ router.delete(
   orgScope(Customer),
   customerController.deleteCustomer
 );
+
 router.get(
   '/:id',
   protect,

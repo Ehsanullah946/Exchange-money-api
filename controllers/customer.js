@@ -1227,7 +1227,7 @@ exports.liquidateCustomer = async (req, res) => {
 exports.deleteLiquidation = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { liquidationId } = req.params;
+    const liquidationId = req.params.id;
     const orgId = req.orgId;
 
     const liquidation = await Liquidation.findOne({
@@ -1243,7 +1243,6 @@ exports.deleteLiquidation = async (req, res) => {
       });
     }
 
-    // Mark the transaction as deleted (soft delete)
     await Liquidation.update(
       { deleted: true },
       {
@@ -1255,13 +1254,10 @@ exports.deleteLiquidation = async (req, res) => {
     await t.commit();
 
     res.status(200).json({
-      message:
-        'liquidation  deleted and transaction reverse reversed successfully.',
+      message: 'Liquidation deleted successfully.',
     });
   } catch (err) {
-    try {
-      await t.rollback();
-    } catch (_) {}
+    await t.rollback();
     res.status(500).json({
       message: err.message,
       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
@@ -1269,56 +1265,130 @@ exports.deleteLiquidation = async (req, res) => {
   }
 };
 
-exports.getLiquidations = async (req, res) => {
+// controllers/customerController.js
+
+exports.getCustomerLiquidations = async (req, res) => {
   try {
-    // const { search, limit = 10, page = 1 } = req.query;
+    const customerId = parseInt(req.params.id, 10);
+    const orgId = req.orgId;
 
-    // const wherePerson = {
-    //   [Op.and]: [
-    //     { organizationId: req.orgId },
-    //     search
-    //       ? {
-    //           [Op.or]: [
-    //             { firstName: { [Op.like]: `%${search}%` } },
-    //             { lastName: { [Op.like]: `%${search}%` } },
-    //           ],
-    //         }
-    //       : {},
-    //   ],
-    // };
+    console.log('📋 Getting liquidations for customer:', customerId);
 
-    // const offset = (page - 1) * limit;
-
+    // Get all liquidations for this specific customer
     const liquidations = await Liquidation.findAll({
-      where: { deleted: false, organizationId:req.orgId },
+      where: {
+        customerId: customerId,
+        organizationId: orgId,
+      },
+      order: [['createdAt', 'DESC']], // Show latest first
       include: [
         {
           model: Customer,
-          required: true,
+          attributes: ['id'],
           include: [
             {
               model: Stakeholder,
-              required: true,
+              attributes: ['id'],
               include: [
                 {
                   model: Person,
-                  required: true,
-                  where: {organizationId:req.orgId},
+                  attributes: ['firstName', 'lastName'],
                 },
               ],
             },
           ],
         },
       ],
-      // limit: parseInt(limit),
-      // offset: parseInt(offset),
     });
 
+    console.log(
+      `📊 Found ${liquidations.length} liquidations for customer ${customerId}`
+    );
+
+    // Format the response
+    const formattedLiquidations = liquidations.map((liquidation) => ({
+      id: liquidation.id,
+      customerId: liquidation.customerId,
+      customerName: liquidation.Customer?.Stakeholder?.Person
+        ? `${liquidation.Customer.Stakeholder.Person.firstName} ${liquidation.Customer.Stakeholder.Person.lastName}`
+        : 'Unknown Customer',
+      startDate: liquidation.startDate,
+      endDate: liquidation.endDate,
+      description: liquidation.description,
+      status: liquidation.status,
+      closedAccounts: liquidation.closedAccounts,
+      transactionCount: liquidation.transactionCount,
+      createdAt: liquidation.createdAt,
+      period: `${new Date(
+        liquidation.startDate
+      ).toLocaleDateString()} - ${new Date(
+        liquidation.endDate
+      ).toLocaleDateString()}`,
+    }));
+
     res.status(200).json({
-      status: "successful",
-      data: liquidations
+      success: true,
+      data: formattedLiquidations,
+      count: liquidations.length,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('❌ Get customer liquidations error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get liquidations: ' + err.message,
+    });
   }
 };
+
+//   try {
+//     // const { search, limit = 10, page = 1 } = req.query;
+
+//     // const wherePerson = {
+//     //   [Op.and]: [
+//     //     { organizationId: req.orgId },
+//     //     search
+//     //       ? {
+//     //           [Op.or]: [
+//     //             { firstName: { [Op.like]: `%${search}%` } },
+//     //             { lastName: { [Op.like]: `%${search}%` } },
+//     //           ],
+//     //         }
+//     //       : {},
+//     //   ],
+//     // };
+
+//     // const offset = (page - 1) * limit;
+
+//     const liquidations = await Liquidation.findAll({
+//       where: { deleted: false, organizationId:req.orgId },
+//       include: [
+//         {
+//           model: Customer,
+//           required: true,
+//           include: [
+//             {
+//               model: Stakeholder,
+//               required: true,
+//               include: [
+//                 {
+//                   model: Person,
+//                   required: true,
+//                   where: {organizationId:req.orgId},
+//                 },
+//               ],
+//             },
+//           ],
+//         },
+//       ],
+//       // limit: parseInt(limit),
+//       // offset: parseInt(offset),
+//     });
+
+//     res.status(200).json({
+//       status: "successful",
+//       data: liquidations
+//     });
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
