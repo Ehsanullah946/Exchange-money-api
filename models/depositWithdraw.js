@@ -48,6 +48,7 @@ module.exports = (sequelize, DataTypes) => {
       ],
     }
   );
+
   DepositWithdraw.associate = (models) => {
     DepositWithdraw.belongsTo(models.Account, { foreignKey: 'accountNo' });
 
@@ -56,5 +57,23 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'organizationId',
     });
   };
+
+  DepositWithdraw.addHook('afterCreate', async (depositWithdraw, options) => {
+    const tillService = require('../services/tillService');
+    await tillService.updateTillTotals(depositWithdraw.organizationId);
+  });
+
+  DepositWithdraw.addHook('afterUpdate', async (depositWithdraw, options) => {
+    if (depositWithdraw.changed('amount') || depositWithdraw.changed('type')) {
+      const tillService = require('../services/tillService');
+      await tillService.updateTillTotals(depositWithdraw.organizationId);
+    }
+  });
+
+  DepositWithdraw.addHook('afterDestroy', async (depositWithdraw, options) => {
+    const tillService = require('../services/tillService');
+    await tillService.updateTillTotals(depositWithdraw.organizationId);
+  });
+
   return DepositWithdraw;
 };
