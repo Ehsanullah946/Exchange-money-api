@@ -8,6 +8,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      hireDate: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
+      },
+      isActive: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+      },
     },
     {
       tableName: 'employees',
@@ -21,6 +29,7 @@ module.exports = (sequelize, DataTypes) => {
     Employee.hasMany(models.Expence, { foreignKey: 'employeeId' });
     Employee.hasMany(models.AccountToAccount, { foreignKey: 'employeeId' });
     Employee.hasMany(models.DepositWithdraw, { foreignKey: 'employeeId' });
+    Employee.hasMany(models.Salary, { foreignKey: 'employeeId' }); // Add this
   };
 
   return Employee;

@@ -1,3 +1,52 @@
+const setupDepositWithdrawHooks = (DepositWithdraw) => {
+  const updateOrganizationTill = async (organizationId) => {
+    if (organizationId) {
+      setTimeout(async () => {
+        try {
+          const tillService = require('../services/tillService');
+          await tillService.updateTillTotals(organizationId);
+          console.log(
+            `✅ Till totals updated for organization: ${organizationId}`
+          );
+        } catch (error) {
+          console.error(
+            `❌ Failed to update till totals for org ${organizationId}:`,
+            error
+          );
+        }
+      }, 100);
+    }
+  };
+
+  DepositWithdraw.addHook('afterCreate', async (record) => {
+    console.log(
+      `🎯 DepositWithdraw afterCreate - Org: ${record.organizationId}, Deposit: ${record.deposit}, Withdraw: ${record.withdraw}`
+    );
+    await updateOrganizationTill(record.organizationId);
+  });
+
+  DepositWithdraw.addHook('afterUpdate', async (record) => {
+    if (
+      record.changed('deposit') ||
+      record.changed('withdraw') ||
+      record.changed('deleted')
+    ) {
+      console.log(
+        `🎯 DepositWithdraw afterUpdate - Org: ${record.organizationId}, Changes:`,
+        record.changed()
+      );
+      await updateOrganizationTill(record.organizationId);
+    }
+  });
+
+  DepositWithdraw.addHook('afterDestroy', async (record) => {
+    console.log(
+      `🎯 DepositWithdraw afterDestroy - Org: ${record.organizationId}`
+    );
+    await updateOrganizationTill(record.organizationId);
+  });
+};
+
 module.exports = (sequelize, DataTypes) => {
   const DepositWithdraw = sequelize.define(
     'DepositWithdraw',
@@ -20,18 +69,9 @@ module.exports = (sequelize, DataTypes) => {
       description: { type: DataTypes.TEXT },
       deleted: { type: DataTypes.BOOLEAN, defaultValue: false },
 
-      employeeId: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
-      organizationId: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
-      accountNo: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
+      employeeId: { type: DataTypes.INTEGER },
+      organizationId: { type: DataTypes.INTEGER },
+      accountNo: { type: DataTypes.INTEGER, allowNull: false },
       fingerprint: { type: DataTypes.BLOB },
       photo: { type: DataTypes.BLOB },
       WithdrawReturnDate: { type: DataTypes.DATE },
@@ -51,29 +91,13 @@ module.exports = (sequelize, DataTypes) => {
 
   DepositWithdraw.associate = (models) => {
     DepositWithdraw.belongsTo(models.Account, { foreignKey: 'accountNo' });
-
     DepositWithdraw.belongsTo(models.Employee, { foreignKey: 'employeeId' });
     DepositWithdraw.belongsTo(models.Organization, {
       foreignKey: 'organizationId',
     });
   };
 
-  DepositWithdraw.addHook('afterCreate', async (depositWithdraw, options) => {
-    const tillService = require('../services/tillService');
-    await tillService.updateTillTotals(depositWithdraw.organizationId);
-  });
-
-  DepositWithdraw.addHook('afterUpdate', async (depositWithdraw, options) => {
-    if (depositWithdraw.changed('amount') || depositWithdraw.changed('type')) {
-      const tillService = require('../services/tillService');
-      await tillService.updateTillTotals(depositWithdraw.organizationId);
-    }
-  });
-
-  DepositWithdraw.addHook('afterDestroy', async (depositWithdraw, options) => {
-    const tillService = require('../services/tillService');
-    await tillService.updateTillTotals(depositWithdraw.organizationId);
-  });
+  setupDepositWithdrawHooks(DepositWithdraw);
 
   return DepositWithdraw;
 };

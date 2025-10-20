@@ -1,3 +1,51 @@
+// In your Transfer model
+const setupTransferHooks = (Transfer) => {
+  const updateOrganizationTill = async (organizationId) => {
+    if (organizationId) {
+      setTimeout(async () => {
+        try {
+          const tillService = require('../services/tillService');
+          await tillService.updateTillTotals(organizationId);
+          console.log(
+            `✅ Till totals updated for organization: ${organizationId}`
+          );
+        } catch (error) {
+          console.error(
+            `❌ Failed to update till totals for org ${organizationId}:`,
+            error
+          );
+        }
+      }, 100);
+    }
+  };
+
+  Transfer.addHook('afterCreate', async (record) => {
+    console.log(
+      `🎯 Transfer afterCreate - Org: ${record.organizationId}, Amount: ${record.transferAmount}`
+    );
+    await updateOrganizationTill(record.organizationId);
+  });
+
+  Transfer.addHook('afterUpdate', async (record) => {
+    if (
+      record.changed('transferAmount') ||
+      record.changed('deleted') ||
+      record.changed('rejected')
+    ) {
+      console.log(
+        `🎯 Transfer afterUpdate - Org: ${record.organizationId}, Changes:`,
+        record.changed()
+      );
+      await updateOrganizationTill(record.organizationId);
+    }
+  });
+
+  Transfer.addHook('afterDestroy', async (record) => {
+    console.log(`🎯 Transfer afterDestroy - Org: ${record.organizationId}`);
+    await updateOrganizationTill(record.organizationId);
+  });
+};
+
 module.exports = (sequelize, DataTypes) => {
   const Transfer = sequelize.define(
     'Transfer',
@@ -5,7 +53,6 @@ module.exports = (sequelize, DataTypes) => {
       id: {
         type: DataTypes.INTEGER,
         autoIncrement: true,
-        unique: true,
         primaryKey: true,
       },
       transferNo: { type: DataTypes.STRING, allowNull: false },
@@ -33,43 +80,16 @@ module.exports = (sequelize, DataTypes) => {
       rejected: { type: DataTypes.BOOLEAN, defaultValue: false },
       branchCharges: { type: DataTypes.DECIMAL(10, 2) },
       branchChargesType: { type: DataTypes.INTEGER },
-      toWhere: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      organizationId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      senderName: {
-        type: DataTypes.STRING,
-        allowNull: true, // Temporary until linked to SenderReceiver
-      },
-      receiverName: {
-        type: DataTypes.STRING,
-        allowNull: true, // Temporary until linked to SenderReceiver
-      },
-      receiverId: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
-      senderId: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
-      customerId: {
-        type: DataTypes.INTEGER,
-      },
-      employeeId: {
-        type: DataTypes.INTEGER,
-      },
-      exchangeId: {
-        type: DataTypes.INTEGER,
-      },
-      moneyTypeId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
+      toWhere: { type: DataTypes.INTEGER, allowNull: false },
+      organizationId: { type: DataTypes.INTEGER, allowNull: false },
+      senderName: { type: DataTypes.STRING },
+      receiverName: { type: DataTypes.STRING },
+      receiverId: { type: DataTypes.INTEGER },
+      senderId: { type: DataTypes.INTEGER },
+      customerId: { type: DataTypes.INTEGER },
+      employeeId: { type: DataTypes.INTEGER },
+      exchangeId: { type: DataTypes.INTEGER },
+      moneyTypeId: { type: DataTypes.INTEGER, allowNull: false },
     },
     {
       tableName: 'transfers',
@@ -83,15 +103,20 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
 
+  // ✅ Associations
   Transfer.associate = (models) => {
     Transfer.hasMany(models.ExtraTransferNo, { foreignKey: 'transferId' });
     Transfer.belongsTo(models.Organization, { foreignKey: 'organizationId' });
-
     Transfer.belongsTo(models.Customer, { foreignKey: 'customerId' });
     Transfer.belongsTo(models.Employee, { foreignKey: 'employeeId' });
-
-    Transfer.belongsTo(models.SenderReceiver, { foreignKey: 'senderId' });
-    Transfer.belongsTo(models.SenderReceiver, { foreignKey: 'receiverId' });
+    Transfer.belongsTo(models.SenderReceiver, {
+      as: 'Sender',
+      foreignKey: 'senderId',
+    });
+    Transfer.belongsTo(models.SenderReceiver, {
+      as: 'Receiver',
+      foreignKey: 'receiverId',
+    });
     Transfer.belongsTo(models.Branch, {
       as: 'ToBranch',
       foreignKey: 'toWhere',
@@ -110,6 +135,8 @@ module.exports = (sequelize, DataTypes) => {
       as: 'ChargesMoneyType',
     });
   };
+
+  setupTransferHooks(Transfer);
 
   return Transfer;
 };

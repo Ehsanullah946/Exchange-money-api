@@ -13,6 +13,10 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'createdBy',
         as: 'creator',
       });
+      Till.belongsTo(models.MoneyType, {
+        foreignKey: 'moneyTypeId',
+        as: 'moneyType',
+      });
       Till.belongsTo(models.UserAccount, {
         foreignKey: 'closedBy',
         as: 'closer',
@@ -33,6 +37,10 @@ module.exports = (sequelize, DataTypes) => {
       },
       date: {
         type: DataTypes.DATEONLY,
+        allowNull: false,
+      },
+      moneyTypeId: {
+        type: DataTypes.INTEGER,
         allowNull: false,
       },
       openingBalance: {

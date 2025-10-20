@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Person, Stakeholder, Employee } = require('../models');
+const { Person, Stakeholder, Employee, Salary } = require('../models');
 
 exports.getEmployees = async (req, res) => {
   try {
@@ -72,6 +72,9 @@ exports.createEmployee = async (req, res) => {
       maritalStatus,
       job,
       position,
+      // Salary fields (optional during employee creation)
+      grossSalary,
+      moneyTypeId,
     } = req.body;
 
     // 1. Create Person
@@ -110,11 +113,47 @@ exports.createEmployee = async (req, res) => {
       { transaction: t }
     );
 
+    if (grossSalary && moneyTypeId) {
+      await Salary.create(
+        {
+          grossSalary: parseFloat(grossSalary),
+          tax: 0,
+          bonus: 0,
+          deductions: 0,
+          netSalary: parseFloat(grossSalary),
+          moneyTypeId,
+          employeeId: employee.id,
+          organizationId: req.orgId,
+          salaryDate: new Date(),
+        },
+        { transaction: t }
+      );
+    }
+
     await t.commit();
-    res.status(201).json(employee);
+    const employeeWithDetails = await Employee.findByPk(employee.id, {
+      include: [
+        {
+          model: Stakeholder,
+          include: [Person],
+        },
+        {
+          model: Salary,
+        },
+      ],
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Employee created successfully',
+      data: employeeWithDetails,
+    });
   } catch (err) {
     await t.rollback();
-    res.status(500).json({ message: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 

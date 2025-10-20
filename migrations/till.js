@@ -7,6 +7,10 @@ module.exports = {
         primaryKey: true,
         autoIncrement: true,
       },
+      moneyTypeId: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+      },
       organizationId: {
         type: Sequelize.INTEGER,
         allowNull: false,
@@ -85,10 +89,14 @@ module.exports = {
       },
     });
 
-    await queryInterface.addIndex('Tills', ['organizationId', 'date'], {
-      unique: true,
-      name: 'unique_org_date',
-    });
+    await queryInterface.addIndex(
+      'Tills',
+      ['organizationId', 'date', 'moneyTypeId'],
+      {
+        unique: true,
+        name: 'unique_org_date_moneyType',
+      }
+    );
   },
 
   async down(queryInterface) {

@@ -13,6 +13,7 @@ const {
 } = require('../models');
 
 const { Op } = require('sequelize');
+
 // exports.getDayBook = async (req, res) => {
 //   try {
 //     const orgId = req.orgId;
@@ -505,7 +506,7 @@ const { Op } = require('sequelize');
 //       netBalance: allTransactions.reduce(
 //         (sum, t) => sum + (t.credit - t.debit),
 //         0
-//         ),
+//       ),
 
 //       transactionTypes: {
 //         deposit: allTransactions.filter((t) => t.type === 'deposit').length,
