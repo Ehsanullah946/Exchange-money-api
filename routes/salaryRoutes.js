@@ -22,6 +22,15 @@ router.get(
   orgScope(Salary),
   salaryController.getSalarySummary
 );
+
+router.get(
+  '/',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Salary),
+  salaryController.getSalaries
+);
+
 router.post(
   '/:employeeId',
   protect,
@@ -29,6 +38,7 @@ router.post(
   orgScope(Salary),
   salaryController.createSalary
 );
+
 router.put(
   '/:slaryId',
   protect,

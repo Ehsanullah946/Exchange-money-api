@@ -337,7 +337,6 @@ exports.updateReceiveSender = async (req, res) => {
   }
 };
 
-// 3. Similar endpoint for updating receiver details
 exports.updateReceiveReceiver = async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -422,17 +421,10 @@ exports.updateReceive = async (req, res) => {
       return res.status(404).json({ message: 'Receive not found' });
     }
 
-    // Handle sender updates (two possible cases)
-    if (payload.senderName) {
-      // Case 1: No sender record exists yet - just update temporary name
-      if (!receive.senderId) {
-        await receive.update(
-          { senderName: payload.senderName },
-          { transaction: t }
-        );
-      }
-      // Case 2: Sender record exists - update full person record
-      else {
+    // Handle sender name updates
+    if (payload.senderName && payload.senderName !== receive.senderName) {
+      // If sender record exists, update the person record
+      if (receive.senderId) {
         const sender = await SenderReceiver.findOne({
           where: { id: receive.senderId },
           include: [
@@ -444,33 +436,26 @@ exports.updateReceive = async (req, res) => {
           transaction: t,
         });
 
-        if (!sender) {
-          await t.rollback();
-          return res.status(400).json({ message: 'Sender record not found' });
+        if (sender) {
+          await sender.Stakeholder.Person.update(
+            {
+              firstName: payload.senderName,
+            },
+            { transaction: t }
+          );
         }
-
-        await sender.Stakeholder.Person.update(
-          {
-            firstName: payload.senderName,
-
-            // Add other fields as needed
-          },
-          { transaction: t }
-        );
       }
+      // Always update the senderName in receive record
+      await receive.update(
+        { senderName: payload.senderName },
+        { transaction: t }
+      );
     }
 
-    // Handle receiver updates (same two cases)
-    if (payload.receiverName) {
-      // Case 1: No receiver record exists yet
-      if (!receive.receiverId) {
-        await receive.update(
-          { receiverName: payload.receiverName },
-          { transaction: t }
-        );
-      }
-      // Case 2: Receiver record exists
-      else {
+    // Handle receiver name updates
+    if (payload.receiverName && payload.receiverName !== receive.receiverName) {
+      // If receiver record exists, update the person record
+      if (receive.receiverId) {
         const receiver = await SenderReceiver.findOne({
           where: { id: receive.receiverId },
           include: [
@@ -482,19 +467,20 @@ exports.updateReceive = async (req, res) => {
           transaction: t,
         });
 
-        if (!receiver) {
-          await t.rollback();
-          return res.status(400).json({ message: 'Receiver record not found' });
+        if (receiver) {
+          await receiver.Stakeholder.Person.update(
+            {
+              firstName: payload.receiverName,
+            },
+            { transaction: t }
+          );
         }
-
-        await receiver.Stakeholder.Person.update(
-          {
-            firstName: payload.receiverName,
-            // Add other fields as needed
-          },
-          { transaction: t }
-        );
       }
+      // Always update the receiverName in receive record
+      await receive.update(
+        { receiverName: payload.receiverName },
+        { transaction: t }
+      );
     }
 
     // 1) Reverse old effects
@@ -578,7 +564,6 @@ exports.updateReceive = async (req, res) => {
       }
     }
 
-    // Finally update receive record
     await receive.update(updatedFields, { transaction: t });
 
     await t.commit();
@@ -641,7 +626,6 @@ exports.rejectReceive = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { id } = req.params;
-    // const { reverseFunds = false } = req.body;
 
     const receive = await Receive.findByPk(id, { transaction: t });
     if (!receive) {
@@ -703,6 +687,70 @@ exports.getReceiveById = async (req, res) => {
           attributes: ['id', 'typeName'],
         },
         { model: Customer },
+        // Include Sender with full details
+        {
+          model: SenderReceiver,
+          as: 'sender',
+          include: [
+            {
+              model: Stakeholder,
+              include: [
+                {
+                  model: Person,
+                  attributes: [
+                    'id',
+                    'firstName',
+                    'lastName',
+                    'fatherName',
+                    'nationalCode',
+                    'phone',
+                    'photo',
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        // Include Receiver with full details
+        {
+          model: SenderReceiver,
+          as: 'receiver',
+          include: [
+            {
+              model: Stakeholder,
+              include: [
+                {
+                  model: Person,
+                  attributes: [
+                    'id',
+                    'firstName',
+                    'lastName',
+                    'fatherName',
+                    'nationalCode',
+                    'phone',
+                    'photo',
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        // Include PassTo branch details
+        {
+          model: Branch,
+          as: 'PassTo',
+          include: [
+            {
+              model: Customer,
+              include: [
+                {
+                  model: Stakeholder,
+                  include: [Person],
+                },
+              ],
+            },
+          ],
+        },
       ],
     });
 
@@ -713,9 +761,42 @@ exports.getReceiveById = async (req, res) => {
       });
     }
 
+    // Transform the response to make it easier to use in frontend
+    const transformedReceive = {
+      ...receive.toJSON(),
+      // Add simplified sender data for easy access
+      senderDetails: receive.Sender
+        ? {
+            id: receive.Sender.id,
+            firstName: receive.Sender.Stakeholder?.Person?.firstName,
+            lastName: receive.Sender.Stakeholder?.Person?.lastName,
+            fatherName: receive.Sender.Stakeholder?.Person?.fatherName,
+            nationalCode: receive.Sender.Stakeholder?.Person?.nationalCode,
+            phone: receive.Sender.Stakeholder?.Person?.phone,
+            photo: receive.Sender.Stakeholder?.Person?.photo,
+            personId: receive.Sender.Stakeholder?.Person?.id,
+            stakeholderId: receive.Sender.Stakeholder?.id,
+          }
+        : null,
+      // Add simplified receiver data for easy access
+      receiverDetails: receive.Receiver
+        ? {
+            id: receive.Receiver.id,
+            firstName: receive.Receiver.Stakeholder?.Person?.firstName,
+            lastName: receive.Receiver.Stakeholder?.Person?.lastName,
+            fatherName: receive.Receiver.Stakeholder?.Person?.fatherName,
+            nationalCode: receive.Receiver.Stakeholder?.Person?.nationalCode,
+            phone: receive.Receiver.Stakeholder?.Person?.phone,
+            photo: receive.Receiver.Stakeholder?.Person?.photo,
+            personId: receive.Receiver.Stakeholder?.Person?.id,
+            stakeholderId: receive.Receiver.Stakeholder?.id,
+          }
+        : null,
+    };
+
     res.status(200).json({
       status: 'success',
-      data: receive,
+      data: transformedReceive,
     });
   } catch (err) {
     console.error('get single Receive error:', err);

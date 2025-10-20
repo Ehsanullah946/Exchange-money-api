@@ -34,7 +34,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       tableName: 'salary',
-      timestamps: true, // Enable timestamps for created/updated dates
+      timestamps: false, // Enable timestamps for created/updated dates
     }
   );
 

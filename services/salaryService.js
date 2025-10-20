@@ -5,6 +5,7 @@ const {
   Stakeholder,
   Person,
 } = require('../models');
+const { Op } = require('sequelize');
 
 class SalaryService {
   async createSalary(employeeId, salaryData, orgId) {
