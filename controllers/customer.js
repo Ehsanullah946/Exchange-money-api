@@ -499,7 +499,7 @@ exports.getCustomerTransactions = async (req, res) => {
             attributes: ['id', 'typeName'],
           },
           { model: Branch, as: 'FromBranch', attributes: ['id', 'customerId'] },
-          { model: Branch, as: 'ToPass', attributes: ['id', 'customerId'] },
+          { model: Branch, as: 'PassTo', attributes: ['id', 'customerId'] },
         ],
       }),
 

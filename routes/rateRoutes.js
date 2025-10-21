@@ -19,21 +19,42 @@ router.post(
   protect,
   allowRoles(2, 3),
   orgScope(Rate),
-  rateController.createOrUpdateRate
-);
-router.put(
-  '/:fromCurrency',
-  protect,
-  allowRoles(2, 3),
-  orgScope(Rate),
-  rateController.createOrUpdateRate
+  rateController.createRate
 );
 router.get(
   '/latest',
   protect,
-  allowRoles(2, 3),
+  allowRoles(2, 3, 4),
   orgScope(Rate),
   rateController.getLatestRates
+);
+router.post(
+  '/convert',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(Rate),
+  rateController.convertCurrency
+);
+router.get(
+  '/currency/:fromCurrency/:toCurrency',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(Rate),
+  rateController.getCurrentRateByCurrency
+);
+router.get(
+  '/:id',
+  protect,
+  allowRoles(2, 3, 4),
+  orgScope(Rate),
+  rateController.getRateById
+);
+router.put(
+  '/:id',
+  protect,
+  allowRoles(2, 3),
+  orgScope(Rate),
+  rateController.updateRate
 );
 router.delete(
   '/:id',
@@ -41,13 +62,6 @@ router.delete(
   allowRoles(2, 3),
   orgScope(Rate),
   rateController.deleteRate
-);
-router.get(
-  '/:fromCurrency',
-  protect,
-  allowRoles(2, 3),
-  orgScope(Rate),
-  rateController.getRateByCurrency
 );
 
 module.exports = router;

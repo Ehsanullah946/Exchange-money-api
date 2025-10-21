@@ -670,7 +670,7 @@ exports.getDayBook = async (req, res) => {
             },
             {
               model: Branch,
-              as: 'ToPass',
+              as: 'PassTo',
               include: [
                 {
                   model: Customer,

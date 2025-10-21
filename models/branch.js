@@ -34,7 +34,7 @@ module.exports = (sequelize, DataTypes) => {
       as: 'FromBranch',
     });
     Branch.hasMany(models.Transfer, { as: 'ToBranch', foreignKey: 'toWhere' });
-    Branch.hasMany(models.Receive, { as: 'ToPass', foreignKey: 'passTo' });
+    Branch.hasMany(models.Receive, { as: 'PassTo', foreignKey: 'passTo' });
     Branch.hasMany(models.Notification, { foreignKey: 'recipientBranchId' });
   };
 
