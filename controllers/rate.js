@@ -332,7 +332,6 @@ exports.getLatestRates = async (req, res) => {
   }
 };
 
-// Utility endpoint for currency conversion
 exports.convertCurrency = async (req, res) => {
   try {
     const { amount, fromCurrency, toCurrency, rateType = 'middle' } = req.body;

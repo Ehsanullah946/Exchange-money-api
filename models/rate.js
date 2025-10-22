@@ -57,7 +57,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       tableName: 'rates',
-      timestamps: true, // Enable createdAt, updatedAt
+      timestamps: false, // Enable createdAt, updatedAt
       indexes: [
         {
           unique: true,

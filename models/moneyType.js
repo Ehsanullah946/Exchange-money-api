@@ -21,11 +21,6 @@ module.exports = (sequelize, DataTypes) => {
   );
 
   MoneyType.associate = (models) => {
-    //   console.log("models.Transfer:", models.Transfer);
-    // console.log("models.Receive:", models.Receive);
-    //  console.log("models.Exchange:", models.Exchange);
-    //   console.log("models.Account:", models.Account);
-
     MoneyType.belongsTo(models.Organization, { foreignKey: 'organizationId' });
 
     MoneyType.hasMany(models.Transfer, { foreignKey: 'moneyTypeId' });
@@ -47,7 +42,14 @@ module.exports = (sequelize, DataTypes) => {
     });
     MoneyType.hasMany(models.Account, { foreignKey: 'moneyTypeId' });
     MoneyType.hasMany(models.Till, { foreignKey: 'moneyTypeId' });
-    MoneyType.hasMany(models.Rate, { foreignKey: 'fromCurrency' });
+    MoneyType.hasMany(models.Rate, {
+      foreignKey: 'fromCurrency',
+      as: 'sourceCurrency',
+    });
+    MoneyType.hasMany(models.Rate, {
+      foreignKey: 'toCurrency',
+      as: 'targetCurrency',
+    });
   };
 
   addOrgSequence(MoneyType, 'number');

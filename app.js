@@ -48,7 +48,7 @@ app.use('/api/v1/receive', receiveRouter);
 app.use('/api/v1/depositWithdraw', depositWithdrawRouter);
 app.use('/api/v1/accountToAccount', accountToAccountRouter);
 app.use('/api/v1/expence', expenceRouter);
-app.use('/api/v1/rate', rateRouter);
+app.use('/api/v1/rates', rateRouter);
 app.use('/api/v1/exchange', exchangeRouter);
 app.use('/api/v1/whatsapp', whatsappRouter);
 app.use('/api/v1/dayBook', dayBookRouter);
