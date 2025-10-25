@@ -297,7 +297,7 @@ exports.getCustomerAccounts = async (req, res) => {
       include: [
         {
           model: MoneyType,
-          attributes: ['id', 'typeName', 'number'],
+          attributes: ['id', 'typeName'],
         },
         {
           model: Customer,
@@ -329,13 +329,13 @@ exports.getCustomerAccounts = async (req, res) => {
       });
     }
 
-    // 3. Extract customer name from the first account
+    // Extract customer name
     const customer = accounts[0].Customer;
     const customerName = customer?.Stakeholder?.Person
       ? `${customer.Stakeholder.Person.firstName} ${customer.Stakeholder.Person.lastName}`
       : 'Unknown Customer';
 
-    // 4. Get unique currency IDs from accounts (excluding main currency)
+    // Get unique currency IDs from accounts (excluding main currency)
     const currencyIds = [
       ...new Set(
         accounts
@@ -344,31 +344,61 @@ exports.getCustomerAccounts = async (req, res) => {
       ),
     ];
 
-    // 5. Get latest rates for each currency
-    const latestRates = await Rate.findAll({
-      where: {
-        fromCurrency: currencyIds,
-        organizationId: orgId,
-      },
-      attributes: [
-        'fromCurrency',
-        'value1',
-        [sequelize.fn('MAX', sequelize.col('rDate')), 'latestDate'],
-      ],
-      group: ['fromCurrency', 'value1'],
-      order: [[sequelize.literal('latestDate'), 'DESC']],
-      transaction: t,
-    });
+    // Get latest ACTIVE rates for each currency - FIXED SEQUELIZE USAGE
+    let latestRates = [];
+    if (currencyIds.length > 0) {
+      // First, get the latest effective date for each currency
+      const latestRateDates = await Rate.findAll({
+        where: {
+          fromCurrency: currencyIds,
+          toCurrency: mainCurrency.id,
+          organizationId: orgId,
+          isActive: true,
+        },
+        attributes: [
+          'fromCurrency',
+          [sequelize.fn('MAX', sequelize.col('effectiveDate')), 'latestDate'],
+        ],
+        group: ['fromCurrency'],
+        raw: true,
+        transaction: t,
+      });
+
+      // Then get the full rate data for those dates
+      if (latestRateDates.length > 0) {
+        const rateQueries = latestRateDates.map((dateInfo) =>
+          Rate.findOne({
+            where: {
+              fromCurrency: dateInfo.fromCurrency,
+              toCurrency: mainCurrency.id,
+              organizationId: orgId,
+              isActive: true,
+              effectiveDate: dateInfo.latestDate,
+            },
+            transaction: t,
+          })
+        );
+
+        latestRates = (await Promise.all(rateQueries)).filter(
+          (rate) => rate !== null
+        );
+      }
+    }
 
     // Create a map of currencyId to latest rate
     const rateMap = latestRates.reduce((map, rate) => {
-      if (!map.has(rate.fromCurrency)) {
-        map.set(rate.fromCurrency, parseFloat(rate.value1));
+      if (rate && !map.has(rate.fromCurrency)) {
+        map.set(rate.fromCurrency, {
+          rate: parseFloat(rate.middleRate),
+          buyRate: parseFloat(rate.buyRate),
+          sellRate: parseFloat(rate.sellRate),
+          effectiveDate: rate.effectiveDate,
+        });
       }
       return map;
     }, new Map());
 
-    // 6. Process accounts with creation dates
+    // Process accounts
     let totalInMainCurrency = 0;
     const accountDetails = [];
 
@@ -376,57 +406,86 @@ exports.getCustomerAccounts = async (req, res) => {
       const originalBalance = parseFloat(account.credit);
       let convertedValue = 0;
       let rateUsed = 1;
+      let rateInfo = null;
 
       if (account.moneyTypeId === mainCurrency.id) {
-        // Already in main currency (USA)
         convertedValue = originalBalance;
+        rateInfo = {
+          rate: 1,
+          buyRate: 1,
+          sellRate: 1,
+          effectiveDate: new Date(),
+        };
       } else {
-        // Get the latest rate for this currency
-        rateUsed = rateMap.get(account.moneyTypeId) || 1;
-        convertedValue = originalBalance / rateUsed;
+        const currencyRate = rateMap.get(account.moneyTypeId);
+        if (currencyRate) {
+          rateUsed = currencyRate.rate;
+          rateInfo = currencyRate;
+          convertedValue = originalBalance * rateUsed;
+        } else {
+          rateUsed = 1;
+          convertedValue = originalBalance;
+          rateInfo = {
+            rate: 1,
+            buyRate: 1,
+            sellRate: 1,
+            effectiveDate: null,
+            missingRate: true,
+          };
+        }
       }
 
       totalInMainCurrency += convertedValue;
 
       accountDetails.push({
+        accountId: account.id,
         currencyId: account.moneyTypeId,
         currencyName: account.MoneyType.typeName,
-        currencyNumber: account.MoneyType.number,
         originalBalance: originalBalance,
         convertedBalance: parseFloat(convertedValue.toFixed(2)),
         conversionRate: rateUsed,
+        rateInfo: {
+          buyRate: rateInfo.buyRate,
+          sellRate: rateInfo.sellRate,
+          effectiveDate: rateInfo.effectiveDate,
+          missingRate: rateInfo.missingRate || false,
+        },
         isMainCurrency: account.moneyTypeId === mainCurrency.id,
-        accountCreationDate: account.dateOfCreation, // Added account creation date
-        rateDate:
-          latestRates.find((r) => r.fromCurrency === account.moneyTypeId)
-            ?.rDate || null,
+        accountCreationDate: account.dateOfCreation,
+        accountNumber: account.accountNumber,
       });
     }
 
     await t.commit();
 
-    // 7. Format response with all required information
     res.status(200).json({
       success: true,
       customer: {
         id: customerId,
-        name: customerName, // Now includes the full customer name
+        name: customerName,
       },
       accounts: accountDetails,
-      total: {
-        value: parseFloat(totalInMainCurrency.toFixed(2)),
+      summary: {
+        totalInMainCurrency: parseFloat(totalInMainCurrency.toFixed(2)),
         currency: mainCurrency.typeName,
         currencyId: mainCurrency.id,
-        currencyNumber: mainCurrency.number,
+
+        totalAccounts: accounts.length,
+        accountsWithMissingRates: accountDetails.filter(
+          (acc) => acc.rateInfo.missingRate
+        ).length,
       },
       mainCurrency: {
         id: mainCurrency.id,
         name: mainCurrency.typeName,
+
         number: mainCurrency.number,
       },
+      conversionDate: new Date().toISOString(),
     });
   } catch (err) {
     await t.rollback();
+    console.error('Error in getCustomerAccounts:', err);
     res.status(500).json({
       success: false,
       message: 'Failed to get customer accounts: ' + err.message,

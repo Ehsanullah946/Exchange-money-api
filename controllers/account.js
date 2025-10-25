@@ -10,9 +10,9 @@ const {
   Receive,
   Rate,
   Branch,
+  sequelize,
 } = require('../models');
 
-const { sequelize } = require('sequelize');
 // CREATE Account
 exports.createAccount = async (req, res) => {
   const t = await Account.sequelize.transaction();
@@ -545,7 +545,6 @@ exports.deleteAccount = async (req, res) => {
 //         case 'transfer':
 //           const transferToAccounts =
 //             transaction.ToBranch?.Customer?.Accounts?.map((a) => a.No) || [];
-
 //           if (transferToAccounts.includes(accountId))
 //             return 'receiving_account';
 //           if (transaction.customerId === customerId) return 'customer_sender';
@@ -652,171 +651,163 @@ exports.getAccountTransactions = async (req, res) => {
     });
 
     // ---------------------------
-    // 1️⃣ Fetch all transaction types FILTERED BY MONEY TYPE
+    // 1️⃣ Fetch all transaction types INCLUDING EXCHANGES
     // ---------------------------
-    const [deposits, withdraws, receives, transfers] = await Promise.all([
-      // Deposit - Filter by account money type
-      DepositWithdraw.findAll({
-        where: {
-          organizationId: orgId,
-          deleted: false,
-          deposit: { [Op.gt]: 0 },
-        },
-        include: [
-          {
-            model: Account,
-            required: true,
-            where: { No: accountId }, // Specific account
-            include: [
-              {
-                model: MoneyType,
-                where: { id: accountMoneyTypeId }, // Same money type
-              },
-            ],
+    const [deposits, withdraws, receives, transfers, exchanges, liquidations] =
+      await Promise.all([
+        // Deposit - Filter by account
+        DepositWithdraw.findAll({
+          where: {
+            organizationId: orgId,
+            deleted: false,
+            deposit: { [Op.gt]: 0 },
           },
-        ],
-      }),
+          include: [
+            {
+              model: Account,
+              required: true,
+              where: { No: accountId },
+              include: [{ model: MoneyType }],
+            },
+          ],
+        }),
 
-      // Withdraw - Filter by account money type
-      DepositWithdraw.findAll({
-        where: {
-          organizationId: orgId,
-          deleted: false,
-          withdraw: { [Op.gt]: 0 },
-        },
-        include: [
-          {
-            model: Account,
-            required: true,
-            where: { No: accountId }, // Specific account
-            include: [
-              {
-                model: MoneyType,
-                where: { id: accountMoneyTypeId }, // Same money type
-              },
-            ],
+        // Withdraw - Filter by account
+        DepositWithdraw.findAll({
+          where: {
+            organizationId: orgId,
+            deleted: false,
+            withdraw: { [Op.gt]: 0 },
           },
-        ],
-      }),
+          include: [
+            {
+              model: Account,
+              required: true,
+              where: { No: accountId },
+              include: [{ model: MoneyType }],
+            },
+          ],
+        }),
 
-      // Receive - Filter by money type
-      Receive.findAll({
-        where: {
-          organizationId: orgId,
-          deleted: false,
-          moneyTypeId: accountMoneyTypeId, // ONLY same money type
-        },
-        include: [
-          {
-            model: MoneyType,
-            as: 'MainMoneyType',
-            attributes: ['id', 'typeName'],
-          },
-          {
-            model: Branch,
-            as: 'FromBranch',
-            include: [
-              {
-                model: Customer,
-                include: [
-                  {
-                    model: Account,
-                    where: { No: accountId }, // Account-based filter
-                    required: false,
-                  },
-                ],
-              },
+        // Receive - Filter by money type OR customer involvement
+        Receive.findAll({
+          where: {
+            organizationId: orgId,
+            deleted: false,
+            [Op.or]: [
+              { moneyTypeId: accountMoneyTypeId },
+              { customerId: customerId },
             ],
           },
-          {
-            model: Branch,
-            as: 'PassTo',
-            include: [
-              {
-                model: Customer,
-                include: [
-                  {
-                    model: Account,
-                    where: { No: accountId }, // Account-based filter
-                    required: false,
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      }),
+          include: [
+            {
+              model: MoneyType,
+              as: 'MainMoneyType',
+              attributes: ['id', 'typeName'],
+            },
+            {
+              model: Branch,
+              as: 'FromBranch',
+              attributes: ['id', 'customerId'],
+            },
+            {
+              model: Branch,
+              as: 'PassTo',
+              attributes: ['id', 'customerId'],
+            },
+          ],
+        }),
 
-      // Transfer - Filter by money type
-      Transfer.findAll({
-        where: {
-          organizationId: orgId,
-          deleted: false,
-          moneyTypeId: accountMoneyTypeId, // ONLY same money type
-        },
-        include: [
-          {
-            model: MoneyType,
-            as: 'MainMoneyType',
-            attributes: ['id', 'typeName'],
-          },
-          {
-            model: Branch,
-            as: 'ToBranch',
-            include: [
-              {
-                model: Customer,
-                include: [
-                  {
-                    model: Account,
-                    where: { No: accountId }, // Account-based filter
-                    required: false,
-                  },
-                ],
-              },
+        // Transfer - Filter by money type OR customer involvement
+        Transfer.findAll({
+          where: {
+            organizationId: orgId,
+            deleted: false,
+            [Op.or]: [
+              { moneyTypeId: accountMoneyTypeId },
+              { customerId: customerId },
             ],
           },
-        ],
-      }),
-    ]);
+          include: [
+            {
+              model: MoneyType,
+              as: 'MainMoneyType',
+              attributes: ['id', 'typeName'],
+            },
+            {
+              model: Branch,
+              as: 'ToBranch',
+              attributes: ['id', 'customerId'],
+            },
+          ],
+        }),
+
+        // Exchanges - Filter by customer AND relevant money types
+        Exchange.findAll({
+          where: {
+            organizationId: orgId,
+            deleted: false,
+            customerId: customerId,
+            [Op.or]: [
+              { saleMoneyType: accountMoneyTypeId },
+              { purchaseMoneyType: accountMoneyTypeId },
+            ],
+          },
+          include: [
+            {
+              model: MoneyType,
+              as: 'SaleType',
+              attributes: ['id', 'typeName'],
+            },
+            {
+              model: MoneyType,
+              as: 'PurchaseType',
+              attributes: ['id', 'typeName'],
+            },
+          ],
+        }),
+
+        // Liquidations for filtering
+        Liquidation.findAll({
+          where: {
+            organizationId: orgId,
+            customerId: customerId,
+            deleted: false,
+          },
+          attributes: ['startDate', 'endDate'],
+        }),
+      ]);
 
     // ---------------------------
-    // 2️⃣ Filter transactions that involve this account OR customer WITH SAME MONEY TYPE
+    // 2️⃣ Filter transactions that involve this account OR customer WITH PROPER MONEY TYPE
     // ---------------------------
     const filteredReceives = receives.filter((r) => {
-      const fromAccounts =
-        r.FromBranch?.Customer?.Accounts?.map((a) => a.No) || [];
-      const toAccounts = r.ToPass?.Customer?.Accounts?.map((a) => a.No) || [];
-
-      // Already filtered by moneyTypeId in the query, just check account/customer involvement
+      // If transaction is in account's currency OR involves the customer
+      const isSameCurrency = r.moneyTypeId === accountMoneyTypeId;
       const isCustomerInvolved =
         r.customerId === customerId ||
         r.FromBranch?.customerId === customerId ||
-        r.ToPass?.customerId === customerId;
+        r.PassTo?.customerId === customerId;
 
-      return (
-        fromAccounts.includes(accountId) ||
-        toAccounts.includes(accountId) ||
-        isCustomerInvolved
-      );
+      return isSameCurrency && isCustomerInvolved;
     });
 
     const filteredTransfers = transfers.filter((t) => {
-      const toAccounts = t.ToBranch?.Customer?.Accounts?.map((a) => a.No) || [];
-
-      // Already filtered by moneyTypeId in the query, just check account/customer involvement
+      // If transaction is in account's currency OR involves the customer
+      const isSameCurrency = t.moneyTypeId === accountMoneyTypeId;
       const isCustomerInvolved =
         t.customerId === customerId || t.ToBranch?.customerId === customerId;
 
-      return toAccounts.includes(accountId) || isCustomerInvolved;
+      return isSameCurrency && isCustomerInvolved;
     });
 
-    console.log('📊 Query Results (Filtered by Money Type):');
+    console.log('📊 Query Results:');
     console.log('Deposits:', deposits.length);
     console.log('Withdraws:', withdraws.length);
     console.log('Receives (filtered):', filteredReceives.length);
     console.log('Transfers (filtered):', filteredTransfers.length);
-    console.log('💰 Money Type Filter:', accountMoneyTypeName);
+    console.log('Exchanges:', exchanges.length);
+    console.log('💰 Money Type:', accountMoneyTypeName);
 
     // ---------------------------
     // 3️⃣ Normalize all data and calculate amounts
@@ -824,47 +815,39 @@ exports.getAccountTransactions = async (req, res) => {
     const normalize = (records, type) =>
       records.map((r) => {
         const baseData = r.toJSON();
-
-        // Calculate transaction amount based on type
         let amount = 0;
         let isCredit = false;
+        let transactionAmount = 0;
 
         switch (type) {
           case 'deposit':
             amount = parseFloat(baseData.deposit) || 0;
+            transactionAmount = amount;
             isCredit = true;
             break;
+
           case 'withdraw':
             amount = parseFloat(baseData.withdraw) || 0;
+            transactionAmount = amount;
             isCredit = false;
             break;
+
           case 'receive':
             amount = parseFloat(baseData.receiveAmount) || 0;
-            const receiveFromAccounts =
-              baseData.FromBranch?.Customer?.Accounts?.map((a) => a.No) || [];
-            const receiveToAccounts =
-              baseData.ToPass?.Customer?.Accounts?.map((a) => a.No) || [];
-
-            if (receiveToAccounts.includes(accountId)) {
-              isCredit = true;
-            } else if (receiveFromAccounts.includes(accountId)) {
-              isCredit = false;
-            } else if (baseData.customerId === customerId) {
+            transactionAmount = amount;
+            if (baseData.customerId === customerId) {
               isCredit = true;
             } else if (baseData.FromBranch?.customerId === customerId) {
               isCredit = false;
-            } else if (baseData.ToPass?.customerId === customerId) {
+            } else if (baseData.PassTo?.customerId === customerId) {
               isCredit = true;
             }
             break;
+
           case 'transfer':
             amount = parseFloat(baseData.transferAmount) || 0;
-            const transferToAccounts =
-              baseData.ToBranch?.Customer?.Accounts?.map((a) => a.No) || [];
-
-            if (transferToAccounts.includes(accountId)) {
-              isCredit = true;
-            } else if (baseData.customerId === customerId) {
+            transactionAmount = amount;
+            if (baseData.customerId === customerId) {
               isCredit = false;
             } else if (baseData.ToBranch?.customerId === customerId) {
               isCredit = true;
@@ -880,58 +863,89 @@ exports.getAccountTransactions = async (req, res) => {
             baseData.rDate ||
             baseData.tDate ||
             baseData.createdAt,
-          transactionAmount: amount,
+          transactionAmount: transactionAmount,
           isCredit: isCredit,
           amount: isCredit ? amount : -amount,
           accountRole: getAccountRole(baseData, accountId, customerId, type),
+          currencyId: accountMoneyTypeId,
+          currencyName: accountMoneyTypeName,
+          accountNo: account.No,
         };
       });
 
-    // Helper function to determine account's role in transaction
-    function getAccountRole(transaction, accountId, customerId, type) {
-      switch (type) {
-        case 'deposit':
-          return 'primary_account';
-        case 'withdraw':
-          return 'primary_account';
-        case 'receive':
-          const receiveFromAccounts =
-            transaction.FromBranch?.Customer?.Accounts?.map((a) => a.No) || [];
-          const receiveToAccounts =
-            transaction.ToPass?.Customer?.Accounts?.map((a) => a.No) || [];
+    // ---------------------------
+    // 4️⃣ Handle exchanges as separate transactions
+    // ---------------------------
+    const exchangeTransactions = [];
 
-          if (receiveToAccounts.includes(accountId)) return 'receiving_account';
-          if (receiveFromAccounts.includes(accountId)) return 'sending_account';
-          if (transaction.customerId === customerId) return 'customer_receiver';
-          if (transaction.FromBranch?.customerId === customerId)
-            return 'customer_sender_branch';
-          if (transaction.ToPass?.customerId === customerId)
-            return 'customer_receiver_branch';
-          return 'unknown';
-        case 'transfer':
-          const transferToAccounts =
-            transaction.ToBranch?.Customer?.Accounts?.map((a) => a.No) || [];
+    exchanges.forEach((exchange) => {
+      const baseData = exchange.toJSON();
+      const saleAmount = parseFloat(baseData.saleAmount) || 0;
+      const purchaseAmount = parseFloat(baseData.purchaseAmount) || 0;
 
-          if (transferToAccounts.includes(accountId))
-            return 'receiving_account';
-          if (transaction.customerId === customerId) return 'customer_sender';
-          if (transaction.ToBranch?.customerId === customerId)
-            return 'customer_receiver_branch';
-          return 'unknown';
-        default:
-          return 'unknown';
+      // Create sale transaction (debit) if in account's currency
+      if (baseData.saleMoneyType === accountMoneyTypeId && saleAmount > 0) {
+        exchangeTransactions.push({
+          ...baseData,
+          type: 'exchange_sale',
+          date: baseData.eDate || baseData.createdAt,
+          transactionAmount: saleAmount,
+          isCredit: false,
+          amount: -saleAmount,
+          accountRole: 'exchanger',
+          currencyId: baseData.saleMoneyType,
+          currencyName: baseData.SaleType?.typeName,
+          accountNo: account.No,
+          exchangeDetails: {
+            exchangeId: baseData.id,
+            rate: baseData.rate,
+            saleCurrency: baseData.SaleType?.typeName,
+            purchaseCurrency: baseData.PurchaseType?.typeName,
+            swap: baseData.swap,
+            isSale: true,
+          },
+        });
       }
-    }
 
+      // Create purchase transaction (credit) if in account's currency
+      if (
+        baseData.purchaseMoneyType === accountMoneyTypeId &&
+        purchaseAmount > 0
+      ) {
+        exchangeTransactions.push({
+          ...baseData,
+          type: 'exchange_purchase',
+          date: baseData.eDate || baseData.createdAt,
+          transactionAmount: purchaseAmount,
+          isCredit: true,
+          amount: purchaseAmount,
+          accountRole: 'exchanger',
+          currencyId: baseData.purchaseMoneyType,
+          currencyName: baseData.PurchaseType?.typeName,
+          accountNo: account.No,
+          exchangeDetails: {
+            exchangeId: baseData.id,
+            rate: baseData.rate,
+            saleCurrency: baseData.SaleType?.typeName,
+            purchaseCurrency: baseData.PurchaseType?.typeName,
+            swap: baseData.swap,
+            isPurchase: true,
+          },
+        });
+      }
+    });
+
+    // Combine all transactions
     const allTransactions = [
       ...normalize(deposits, 'deposit'),
       ...normalize(withdraws, 'withdraw'),
       ...normalize(filteredReceives, 'receive'),
       ...normalize(filteredTransfers, 'transfer'),
+      ...exchangeTransactions,
     ];
 
     // ---------------------------
-    // 4️⃣ Calculate running balance for THIS SPECIFIC ACCOUNT
+    // 5️⃣ Calculate running balance for THIS SPECIFIC ACCOUNT
     // ---------------------------
     allTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -951,29 +965,41 @@ exports.getAccountTransactions = async (req, res) => {
         runningBalance: parseFloat(runningBalance.toFixed(2)),
         credit: transaction.isCredit ? transaction.transactionAmount : 0,
         debit: !transaction.isCredit ? transaction.transactionAmount : 0,
-        // Ensure we show the correct money type
         moneyType: accountMoneyTypeName,
       };
     });
 
-    transactionsWithBalance.sort((a, b) => new Date(b.date) - new Date(a.date));
+    // ---------------------------
+    // 6️⃣ Filter out liquidated transactions
+    // ---------------------------
+    let filteredTransactions = transactionsWithBalance;
 
-    console.log(
-      '📈 Total transactions with running balance:',
-      transactionsWithBalance.length
-    );
+    if (liquidations.length > 0) {
+      filteredTransactions = transactionsWithBalance.filter((tx) => {
+        const txDate = new Date(tx.date);
+        return !liquidations.some((liq) => {
+          const start = new Date(liq.startDate);
+          const end = new Date(liq.endDate);
+          return txDate >= start && txDate <= end;
+        });
+      });
+    }
 
     // ---------------------------
-    // 5️⃣ Paginate
+    // 7️⃣ Final sorting and pagination
     // ---------------------------
-    const paged = transactionsWithBalance.slice(offset, offset + parsedLimit);
+    filteredTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const paged = filteredTransactions.slice(offset, offset + parsedLimit);
+
+    console.log('📈 Final transactions count:', filteredTransactions.length);
 
     // ---------------------------
-    // 6️⃣ Send response
+    // 8️⃣ Send response
     // ---------------------------
     res.status(200).json({
       status: 'success',
-      total: transactionsWithBalance.length,
+      total: filteredTransactions.length,
       page: parsedPage,
       limit: parsedLimit,
       data: paged,
@@ -994,9 +1020,34 @@ exports.getAccountTransactions = async (req, res) => {
   }
 };
 
-// New API endpoint - Get account summary by account ID
+// Helper function to determine account's role in transaction
+function getAccountRole(transaction, accountId, customerId, type) {
+  switch (type) {
+    case 'deposit':
+      return 'primary_account';
+    case 'withdraw':
+      return 'primary_account';
+    case 'receive':
+      if (transaction.customerId === customerId) return 'customer_receiver';
+      if (transaction.FromBranch?.customerId === customerId)
+        return 'customer_sender_branch';
+      if (transaction.PassTo?.customerId === customerId)
+        return 'customer_receiver_branch';
+      return 'unknown';
+    case 'transfer':
+      if (transaction.customerId === customerId) return 'customer_sender';
+      if (transaction.ToBranch?.customerId === customerId)
+        return 'customer_receiver_branch';
+      return 'unknown';
+    case 'exchange_sale':
+    case 'exchange_purchase':
+      return 'exchanger';
+    default:
+      return 'unknown';
+  }
+}
 exports.getAccountSummary = async (req, res) => {
-  const t = await Account.sequelize.transaction();
+  const t = await sequelize.transaction();
   try {
     const { id } = req.params;
     const orgId = req.orgId;
@@ -1010,7 +1061,7 @@ exports.getAccountSummary = async (req, res) => {
       include: [
         {
           model: MoneyType,
-          attributes: ['id', 'typeName', 'number'],
+          attributes: ['id', 'typeName'],
         },
         {
           model: Customer,
@@ -1042,8 +1093,8 @@ exports.getAccountSummary = async (req, res) => {
       });
     }
 
-    // 2. Find main currency (USA)
-    const mainCurrency = await MoneyType.findOne({
+    // 2. Define base currency for reporting (USA)
+    const baseCurrency = await MoneyType.findOne({
       where: {
         typeName: 'USA',
         organizationId: orgId,
@@ -1051,15 +1102,15 @@ exports.getAccountSummary = async (req, res) => {
       transaction: t,
     });
 
-    if (!mainCurrency) {
+    if (!baseCurrency) {
       await t.rollback();
       return res.status(400).json({
         success: false,
-        message: 'Main currency (USA) not found',
+        message: 'Base currency (USA) not found',
       });
     }
 
-    // 3. Get all accounts for this customer to show summary
+    // 3. Get all accounts for this customer
     const customerAccounts = await Account.findAll({
       where: {
         customerId: account.customerId,
@@ -1068,7 +1119,7 @@ exports.getAccountSummary = async (req, res) => {
       include: [
         {
           model: MoneyType,
-          attributes: ['id', 'typeName', 'number'],
+          attributes: ['id', 'typeName'],
         },
       ],
       transaction: t,
@@ -1082,88 +1133,168 @@ exports.getAccountSummary = async (req, res) => {
       });
     }
 
-    // 4. Get unique currency IDs from accounts (excluding main currency)
-    const currencyIds = [
-      ...new Set(
-        customerAccounts
-          .map((acc) => acc.moneyTypeId)
-          .filter((id) => id !== mainCurrency.id)
-      ),
-    ];
+    // 4. Get ALL latest rates (both directions)
+    const allMoneyTypes = await MoneyType.findAll({
+      where: { organizationId: orgId },
+      attributes: ['id'],
+      raw: true,
+    });
 
-    // 5. Get latest rates for each currency
-    const latestRates = await Rate.findAll({
+    const moneyTypeIds = allMoneyTypes.map((mt) => mt.id);
+
+    // Get latest dates for all currency pairs
+    const latestRateDates = await Rate.findAll({
       where: {
-        fromCurrency: currencyIds,
         organizationId: orgId,
+        isActive: true,
       },
       attributes: [
         'fromCurrency',
-        'value1',
-        [
-          Account.sequelize.fn('MAX', Account.sequelize.col('rDate')),
-          'latestDate',
-        ],
+        'toCurrency',
+        [sequelize.fn('MAX', sequelize.col('effectiveDate')), 'latestDate'],
       ],
-      group: ['fromCurrency', 'value1'],
-      order: [[Account.sequelize.literal('latestDate'), 'DESC']],
+      group: ['fromCurrency', 'toCurrency'],
+      raw: true,
       transaction: t,
     });
 
-    // Create a map of currencyId to latest rate
-    const rateMap = latestRates.reduce((map, rate) => {
-      if (!map.has(rate.fromCurrency)) {
-        map.set(rate.fromCurrency, parseFloat(rate.value1));
-      }
-      return map;
-    }, new Map());
+    // Get full rate data for latest dates
+    const rateQueries = latestRateDates.map((dateInfo) =>
+      Rate.findOne({
+        where: {
+          fromCurrency: dateInfo.fromCurrency,
+          toCurrency: dateInfo.toCurrency,
+          organizationId: orgId,
+          isActive: true,
+          effectiveDate: dateInfo.latestDate,
+        },
+        include: [
+          {
+            model: MoneyType,
+            as: 'sourceCurrency',
+            where: { organizationId: orgId },
+          },
+          {
+            model: MoneyType,
+            as: 'targetCurrency',
+            where: { organizationId: orgId },
+          },
+        ],
+        transaction: t,
+      })
+    );
 
-    // 6. Process accounts with creation dates (COPY FROM getCustomerAccounts)
-    let totalInMainCurrency = 0;
+    const allLatestRates = (await Promise.all(rateQueries)).filter(
+      (rate) => rate !== null
+    );
+
+    // 5. Create a comprehensive rate map that handles both directions
+    const rateMap = new Map();
+
+    allLatestRates.forEach((rate) => {
+      const key = `${rate.fromCurrency}-${rate.toCurrency}`;
+      const inverseKey = `${rate.toCurrency}-${rate.fromCurrency}`;
+      // Store direct rate
+      rateMap.set(key, {
+        rate: parseFloat(rate.middleRate),
+        buyRate: parseFloat(rate.buyRate),
+        sellRate: parseFloat(rate.sellRate),
+        effectiveDate: rate.effectiveDate,
+        direction: 'direct',
+      });
+
+      // Calculate and store inverse rate
+      if (parseFloat(rate.middleRate) > 0) {
+        rateMap.set(inverseKey, {
+          rate: 1 / parseFloat(rate.middleRate),
+          buyRate: 1 / parseFloat(rate.buyRate),
+          sellRate: 1 / parseFloat(rate.sellRate),
+          effectiveDate: rate.effectiveDate,
+          direction: 'inverse',
+        });
+      }
+    });
+    // 6. Smart conversion function
+    const convertToBaseCurrency = (
+      amount,
+      fromCurrencyId,
+      toCurrencyId = baseCurrency.id
+    ) => {
+      if (fromCurrencyId === toCurrencyId) {
+        return { converted: amount, rate: 1, direction: 'same' };
+      }
+
+      // Try direct rate first
+      const directKey = `${fromCurrencyId}-${toCurrencyId}`;
+      if (rateMap.has(directKey)) {
+        const rateInfo = rateMap.get(directKey);
+        return {
+          converted: amount * rateInfo.rate,
+          rate: rateInfo.rate,
+          direction: 'direct',
+        };
+      }
+
+      // Try inverse rate
+      const inverseKey = `${toCurrencyId}-${fromCurrencyId}`;
+      if (rateMap.has(inverseKey)) {
+        const rateInfo = rateMap.get(inverseKey);
+        return {
+          converted: amount / rateInfo.rate, // Inverse of inverse = direct
+          rate: 1 / rateInfo.rate,
+          direction: 'inverse',
+        };
+      }
+
+      // No rate found
+      return {
+        converted: amount,
+        rate: 1,
+        direction: 'no_rate',
+      };
+    };
+
+    // 7. Process accounts with smart conversion
+    let totalInBaseCurrency = 0;
     const accountDetails = [];
 
     for (const customerAccount of customerAccounts) {
       const originalBalance = parseFloat(customerAccount.credit);
-      let convertedValue = 0;
-      let rateUsed = 1;
 
-      if (customerAccount.moneyTypeId === mainCurrency.id) {
-        // Already in main currency (USA)
-        convertedValue = originalBalance;
-      } else {
-        // Get the latest rate for this currency
-        rateUsed = rateMap.get(customerAccount.moneyTypeId) || 1;
-        convertedValue = originalBalance / rateUsed;
-      }
+      // Convert to base currency using smart conversion
+      const conversion = convertToBaseCurrency(
+        originalBalance,
+        customerAccount.moneyTypeId,
+        baseCurrency.id
+      );
 
-      totalInMainCurrency += convertedValue;
+      totalInBaseCurrency += conversion.converted;
 
       accountDetails.push({
+        accountId: customerAccount.No || customerAccount.id,
         currencyId: customerAccount.moneyTypeId,
         currencyName: customerAccount.MoneyType.typeName,
-        currencyNumber: customerAccount.MoneyType.number,
         originalBalance: originalBalance,
-        convertedBalance: parseFloat(convertedValue.toFixed(2)),
-        conversionRate: rateUsed,
-        isMainCurrency: customerAccount.moneyTypeId === mainCurrency.id,
+        convertedBalance: parseFloat(conversion.converted.toFixed(2)),
+        conversionRate: conversion.rate,
+        conversionDirection: conversion.direction,
+        isBaseCurrency: customerAccount.moneyTypeId === baseCurrency.id,
         accountCreationDate: customerAccount.dateOfCreation,
-        rateDate:
-          latestRates.find(
-            (r) => r.fromCurrency === customerAccount.moneyTypeId
-          )?.rDate || null,
+        isCurrentAccount: customerAccount.No === id,
       });
     }
 
     await t.commit();
 
-    // 7. Format response with all required information
+    // 8. Format response
     res.status(200).json({
       success: true,
-      account: {
+      requestedAccount: {
         id: account.No,
         number: account.No,
         currency: account.MoneyType.typeName,
-        currentBalance: account.credit,
+        currentBalance: parseFloat(account.credit),
+        isBaseCurrency: account.moneyTypeId === baseCurrency.id,
       },
       customer: {
         id: account.customerId,
@@ -1171,21 +1302,24 @@ exports.getAccountSummary = async (req, res) => {
           ? `${account.Customer.Stakeholder.Person.firstName} ${account.Customer.Stakeholder.Person.lastName}`
           : 'Unknown Customer',
       },
-      accounts: accountDetails, // Now this will have data!
-      total: {
-        value: parseFloat(totalInMainCurrency.toFixed(2)),
-        currency: mainCurrency.typeName,
-        currencyId: mainCurrency.id,
-        currencyNumber: mainCurrency.number,
+      accounts: accountDetails,
+      summary: {
+        totalInBaseCurrency: parseFloat(totalInBaseCurrency.toFixed(2)),
+        baseCurrency: baseCurrency.typeName,
+        baseCurrencyId: baseCurrency.id,
+        totalAccounts: customerAccounts.length,
+        ratesUsed: accountDetails.filter(
+          (acc) => acc.conversionDirection !== 'no_rate'
+        ).length,
+        missingRates: accountDetails.filter(
+          (acc) => acc.conversionDirection === 'no_rate'
+        ).length,
       },
-      mainCurrency: {
-        id: mainCurrency.id,
-        name: mainCurrency.typeName,
-        number: mainCurrency.number,
-      },
+      conversionDate: new Date().toISOString(),
     });
   } catch (err) {
     await t.rollback();
+    console.error('Error in getAccountSummary:', err);
     res.status(500).json({
       success: false,
       message: 'Failed to get account summary: ' + err.message,
