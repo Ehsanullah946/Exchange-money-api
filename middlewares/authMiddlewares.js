@@ -2,48 +2,60 @@ const jwt = require('jsonwebtoken');
 const AppError = require('../utils/appError');
 const catchAsynch = require('./catchAsynch');
 const { UserAccount } = require('../models');
+const { Organization } = require('../models');
 
 exports.protect = catchAsynch(async (req, res, next) => {
   try {
     let token;
 
+    // Check Authorization header first
     if (
       req.headers.authorization &&
       req.headers.authorization.startsWith('Bearer')
     ) {
       token = req.headers.authorization.split(' ')[1];
-    } else if (req.cookies.jwt) {
-      token = req.cookies.jwt;
     }
+    // Then check cookies
+    else if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
+    }
+
     if (!token) {
-      return next(new AppError('you are not access to this page or data', 401));
+      return next(
+        new AppError('You are not authorized to access this page', 401)
+      );
     }
 
-    if (req.path.startsWith('/auth/') || req.path === '/accounts') {
-      return next();
-    }
-
+    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (decoded.customerId && decoded.scope?.includes('read:accounts')) {
-      // This is a customer token, skip admin auth
-      return next();
-    }
-
-    const user = await UserAccount.findByPk(decoded.id);
+    // Find user with organization
+    const user = await UserAccount.findByPk(decoded.id, {
+      include: [
+        {
+          model: Organization,
+          attributes: ['id', 'name'],
+        },
+      ],
+    });
 
     if (!user) {
-      return next(new AppError('user not found', 401));
+      return next(new AppError('User not found', 401));
     }
 
+    // Set user data in request
     req.user = {
       id: user.id,
-      organizationId: decoded.organizationId,
+      username: user.username,
+      email: user.email,
+      organizationId: user.organizationId,
       role: user.usertypeId,
+      user: user, // include full user object if needed
     };
 
     next();
   } catch (error) {
-    res.status(401).json('not authorized token feild' + error);
+    console.error('Auth middleware error:', error);
+    return next(new AppError('Not authorized - token invalid', 401));
   }
 });

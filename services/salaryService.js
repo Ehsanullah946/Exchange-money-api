@@ -6,11 +6,9 @@ const {
   Person,
 } = require('../models');
 const { Op } = require('sequelize');
-
 class SalaryService {
   async createSalary(employeeId, salaryData, orgId) {
     const transaction = await Salary.sequelize.transaction();
-
     try {
       const employee = await Employee.findOne({
         where: { id: employeeId },
@@ -25,8 +23,6 @@ class SalaryService {
       if (!employee) {
         throw new Error('Employee not found');
       }
-
-      // Create salary record
       const salary = await Salary.create(
         {
           ...salaryData,
@@ -40,7 +36,6 @@ class SalaryService {
         },
         { transaction }
       );
-
       await transaction.commit();
 
       return await Salary.findByPk(salary.id, {
@@ -186,11 +181,8 @@ class SalaryService {
         );
       }
 
-      // Format dates for SQL query
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];
-
-      console.log(`📅 Date range: ${startDateStr} to ${endDateStr}`);
 
       const salaries = await Salary.findAll({
         where: {

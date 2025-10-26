@@ -1,16 +1,18 @@
 const { Op } = require('sequelize');
 const {
-  Account,
-  Customer,
-  Stakeholder,
   Person,
-  MoneyType,
-  Transfer,
-  DepositWithdraw,
-  Receive,
+  Stakeholder,
+  Customer,
   Rate,
-  Branch,
+  MoneyType,
+  Account,
   sequelize,
+  DepositWithdraw,
+  Transfer,
+  Branch,
+  Receive,
+  Exchange,
+  Liquidation,
 } = require('../models');
 
 // CREATE Account

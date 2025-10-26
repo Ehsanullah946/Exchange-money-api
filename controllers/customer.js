@@ -710,9 +710,6 @@ exports.getCustomerTransactions = async (req, res) => {
         };
       });
 
-    // ---------------------------
-    // 5️⃣ Handle exchanges as TWO separate transactions WITH ACCOUNT NUMBERS
-    // ---------------------------
     const exchangeTransactions = [];
 
     exchanges.forEach((exchange) => {
@@ -899,7 +896,6 @@ exports.getCustomerTransactions = async (req, res) => {
       filteredTransactions = allTransactionsWithBalance.filter((tx) => {
         const txDate = new Date(tx.date);
 
-        // If tx.date falls into any liquidation range → exclude it
         return !liquidations.some((liq) => {
           const start = new Date(liq.startDate);
           const end = new Date(liq.endDate);
@@ -928,7 +924,6 @@ exports.getCustomerTransactions = async (req, res) => {
   }
 };
 
-// Helper function
 function getCustomerRole(transaction, customerId, type) {
   switch (type) {
     case 'deposit':

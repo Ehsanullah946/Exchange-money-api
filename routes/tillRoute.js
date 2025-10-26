@@ -10,7 +10,7 @@ const { Till } = require('../models');
 router.get(
   '/today',
   protect,
-  allowRoles(2, 3, 4),
+  allowRoles(2),
   orgScope(Till),
   tillController.getTodayTills
 );

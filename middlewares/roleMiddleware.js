@@ -1,24 +1,28 @@
 const AppError = require('../utils/appError');
 
-// middlewares/roleMiddleware.js
-
 exports.allowRoles = (...allowedRoles) => {
   return (req, res, next) => {
-    // Check if this is a customer route (skip role check)
-    if (req.customer) {
-      return next(); // This is a customer request, skip role checking
-    }
-
-    // This is an admin/user request
-
     if (!req.user) {
       return next(new AppError('Authentication required', 401));
     }
 
+    // Check if user role is in allowed roles
     if (!allowedRoles.includes(req.user.role)) {
-      return next(new AppError('Insufficient permissions', 403));
+      return next(
+        new AppError('You do not have permission to perform this action', 403)
+      );
     }
 
+    next();
+  };
+};
+
+// Add this for organization-specific access
+exports.requireOrganizationAccess = () => {
+  return (req, res, next) => {
+    if (!req.user || !req.user.organizationId) {
+      return next(new AppError('Organization access required', 401));
+    }
     next();
   };
 };
