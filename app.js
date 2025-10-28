@@ -26,13 +26,22 @@ const whatsappRouter = require('./routes/whatsapp');
 const dayBookRouter = require('./routes/daybookRoute');
 const tillRouter = require('./routes/tillRoute');
 const salaryRouter = require('./routes/salaryRoutes');
-
+const userRouter = require('./routes/userRoute');
+const backupRouter = require('./routes/backupRoutes');
 const http = require('http');
 const { initSocket } = require('./services/socketService');
 const notificationService = require('./services/notificationService');
+const backupScheduler = require('./services/backupScheduler');
 
 app.use(express.json());
 app.use(cookieParser());
+
+if (
+  process.env.NODE_ENV === 'production' ||
+  process.env.NODE_ENV === ' development'
+) {
+  backupScheduler.start();
+}
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/customer', customerRouter);
@@ -54,6 +63,8 @@ app.use('/api/v1/whatsapp', whatsappRouter);
 app.use('/api/v1/dayBook', dayBookRouter);
 app.use('/api/v1/till', tillRouter);
 app.use('/api/v1/salary', salaryRouter);
+app.use('/api/v1/users', userRouter);
+app.use('/api/v1/backups', backupRouter);
 
 const server = http.createServer(app);
 
