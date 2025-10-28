@@ -7,14 +7,7 @@ const backupController = {
   // Create backup
   createBackup: async (req, res) => {
     try {
-      const { type = 'mysql' } = req.body; // 'mysql' or 'programmatic'
-
-      let backup;
-      if (type === 'mysql') {
-        backup = await backupService.createMySQLDump();
-      } else {
-        backup = await backupService.createProgrammaticBackup();
-      }
+      const backup = await backupService.createMySQLDump();
 
       res.json({
         success: true,

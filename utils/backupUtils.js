@@ -1,7 +1,12 @@
 // utils/backupUtils.js
-const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const zlib = require('zlib');
+const { promisify } = require('util');
+const { exec } = require('child_process');
+
+const gzip = promisify(zlib.gzip);
+const gunzip = promisify(zlib.gunzip);
 
 class BackupService {
   constructor() {
@@ -15,91 +20,111 @@ class BackupService {
     }
   }
 
-  // Method 1: MySQL Dump (Most reliable)
+  // MySQL Dump with Node.js compression
   createMySQLDump() {
     return new Promise((resolve, reject) => {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `backup-${timestamp}.sql`;
-      const filepath = path.join(this.backupDir, filename);
+      const sqlFilename = `backup-${timestamp}.sql`;
+      const sqlFilepath = path.join(this.backupDir, sqlFilename);
+      const gzFilename = `backup-${timestamp}.gz`;
+      const gzFilepath = path.join(this.backupDir, gzFilename);
 
-      const command = `mysqldump -u ${process.env.DB_USERNAME} -p${process.env.DB_PASSWORD} ${process.env.DB_NAME} > ${filepath}`;
+      const mysqldumpPath =
+        '"C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe"';
+      const command = `${mysqldumpPath} -u ${process.env.DB_USER} -p${process.env.DB_PASSWORD} ${process.env.DB_NAME} > "${sqlFilepath}"`;
 
-      exec(command, (error, stdout, stderr) => {
+      exec(command, async (error, stdout, stderr) => {
         if (error) {
-          console.error('Backup error:', error);
+          console.error('MySQL dump error:', error);
           reject(error);
           return;
         }
 
-        // Compress the backup
-        this.compressBackup(filepath)
-          .then((compressedPath) => {
-            // Delete original SQL file
-            fs.unlinkSync(filepath);
-            resolve({
-              filename: path.basename(compressedPath),
-              path: compressedPath,
-              size: fs.statSync(compressedPath).size,
-              timestamp: new Date(),
-            });
-          })
-          .catch(reject);
-      });
-    });
-  }
+        try {
+          // Compress using Node.js zlib
+          await this.compressWithZlib(sqlFilepath, gzFilepath);
 
-  compressBackup(filepath) {
-    return new Promise((resolve, reject) => {
-      const compressedPath = filepath.replace('.sql', '.gz');
-      const command = `gzip -c ${filepath} > ${compressedPath}`;
+          // Delete original SQL file
+          fs.unlinkSync(sqlFilepath);
 
-      exec(command, (error) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(compressedPath);
+          resolve({
+            filename: gzFilename,
+            path: gzFilepath,
+            size: fs.statSync(gzFilepath).size,
+            timestamp: new Date(),
+          });
+        } catch (compressionError) {
+          console.error('Compression error:', compressionError);
+          reject(compressionError);
         }
       });
     });
   }
 
-  // Method 2: Programmatic Backup via Sequelize
-  async createProgrammaticBackup() {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `backup-${timestamp}.json`;
-    const filepath = path.join(this.backupDir, filename);
+  // Node.js zlib compression
+  async compressWithZlib(inputPath, outputPath) {
+    try {
+      const data = fs.readFileSync(inputPath);
+      const compressed = await gzip(data);
+      fs.writeFileSync(outputPath, compressed);
+      console.log('File compressed successfully with zlib');
+    } catch (error) {
+      throw new Error(`Zlib compression failed: ${error.message}`);
+    }
+  }
+
+  // Node.js zlib decompression
+  async decompressWithZlib(inputPath, outputPath) {
+    try {
+      const compressed = fs.readFileSync(inputPath);
+      const decompressed = await gunzip(compressed);
+      fs.writeFileSync(outputPath, decompressed);
+      console.log('File decompressed successfully with zlib');
+    } catch (error) {
+      throw new Error(`Zlib decompression failed: ${error.message}`);
+    }
+  }
+
+  // Restore from backup with Node.js decompression
+  async restoreFromDump(backupFilename) {
+    const backupPath = path.join(this.backupDir, backupFilename);
+    const decompressedPath = backupPath.replace('.gz', '.sql');
 
     try {
-      const backupData = {};
+      // Decompress using Node.js
+      await this.decompressWithZlib(backupPath, decompressedPath);
 
-      const models = require('../models'); // Your models index file
+      // Restore database
+      const mysqlPath =
+        '"C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysql.exe"';
+      const command = `${mysqlPath} -u ${process.env.DB_USER} -p${process.env.DB_PASSWORD} ${process.env.DB_NAME} < "${decompressedPath}"`;
 
-      for (const modelName in models) {
-        if (models[modelName].getTableName) {
-          const data = await models[modelName].findAll();
-          backupData[modelName] = data.map((item) => item.toJSON());
-        }
-      }
+      await new Promise((resolve, reject) => {
+        exec(command, (error, stdout, stderr) => {
+          // Clean up decompressed file
+          if (fs.existsSync(decompressedPath)) {
+            fs.unlinkSync(decompressedPath);
+          }
 
-      // Write to file
-      fs.writeFileSync(filepath, JSON.stringify(backupData, null, 2));
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
 
-      // Compress
-      const compressedPath = await this.compressJSONBackup(filepath);
-      fs.unlinkSync(filepath);
-
-      return {
-        filename: path.basename(compressedPath),
-        path: compressedPath,
-        size: fs.statSync(compressedPath).size,
-        timestamp: new Date(),
-      };
+      return { message: 'Database restored successfully' };
     } catch (error) {
+      // Clean up decompressed file on error
+      if (fs.existsSync(decompressedPath)) {
+        fs.unlinkSync(decompressedPath);
+      }
       throw error;
     }
   }
 
-  // List available backups
+  // List backups (same as before)
   listBackups() {
     return new Promise((resolve, reject) => {
       fs.readdir(this.backupDir, (err, files) => {
@@ -127,39 +152,18 @@ class BackupService {
     });
   }
 
-  // Restore from backup
-  restoreFromDump(backupFilename) {
-    return new Promise((resolve, reject) => {
-      const backupPath = path.join(this.backupDir, backupFilename);
-
-      // Decompress first
-      const decompressedPath = backupPath.replace('.gz', '');
-      const decompressCommand = `gzip -dc ${backupPath} > ${decompressedPath}`;
-
-      exec(decompressCommand, (error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        // Restore database
-        const restoreCommand = `mysql -u ${process.env.DB_USERNAME} -p${process.env.DB_PASSWORD} ${process.env.DB_NAME} < ${decompressedPath}`;
-
-        exec(restoreCommand, (error, stdout, stderr) => {
-          // Clean up decompressed file
-          fs.unlinkSync(decompressedPath);
-
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve({ message: 'Database restored successfully' });
-        });
-      });
-    });
+  // Delete backup (same as before)
+  deleteBackup(filename) {
+    const filepath = path.join(this.backupDir, filename);
+    if (fs.existsSync(filepath)) {
+      fs.unlinkSync(filepath);
+      return { message: 'Backup deleted successfully' };
+    } else {
+      throw new Error('Backup file not found');
+    }
   }
 
-  // Delete old backups (keep last 30 days)
+  // Cleanup old backups (same as before)
   cleanupOldBackups() {
     return new Promise((resolve, reject) => {
       this.listBackups()
