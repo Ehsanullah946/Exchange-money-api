@@ -241,12 +241,13 @@ exports.createDepositWithdraw = async (req, res) => {
     }
 
     // ✅ get next No (your existing code)
-    const lastTransaction = await DepositWithdraw.findOne({
-      where: { organizationId: orgId },
-      order: [['No', 'DESC']],
-      transaction: t,
-    });
-    const nextNo = lastTransaction ? lastTransaction.No + 1 : 1;
+    // const lastTransaction = await DepositWithdraw.findOne({
+    //   where: { organizationId: orgId },
+    //   order: [['No', 'DESC']],
+    //   transaction: t,
+    // });
+
+    // const nextNo = lastTransaction ? lastTransaction.No + 1 : 1;
 
     // ✅ verify account (your existing code)
     const account = await Account.findOne({
@@ -309,7 +310,6 @@ exports.createDepositWithdraw = async (req, res) => {
     // ✅ create transaction - USE PROCESSED DATE
     const transaction = await DepositWithdraw.create(
       {
-        No: nextNo,
         deposit: deposit || 0,
         withdraw: withdraw || 0,
         DWDate: processedDWDate, // Use the processed date
@@ -385,30 +385,43 @@ exports.createDepositWithdraw = async (req, res) => {
 
 (exports.getDeposits = async (req, res) => {
   try {
-    const { search, limit = 10, page = 1 } = req.query;
+    const {
+      search,
+      moneyType,
+      fromDate,
+      toDate,
+      limit = 10,
+      page = 1,
+    } = req.query;
 
-    const wherePerson = {
-      [Op.and]: [
-        { organizationId: req.orgId },
-        search
-          ? {
-              [Op.or]: [
-                { firstName: { [Op.like]: `%${search}%` } },
-                { lastName: { [Op.like]: `%${search}%` } },
-              ],
-            }
-          : {},
-      ],
+    const wherePerson = { organizationId: req.orgId };
+    if (search) {
+      wherePerson[Op.or] = [
+        { firstName: { [Op.like]: `%${search}%` } },
+        { lastName: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
+    const where = {
+      deleted: false,
+      organizationId: req.orgId,
+      deposit: { [Op.gt]: 0 },
     };
+
+    // Optional: filter by date
+    if (fromDate && toDate) {
+      where.DWDate = { [Op.between]: [fromDate, toDate] };
+    }
+
+    // Optional: filter by money type
+    if (moneyType) {
+      where['$Account.MoneyType.typeName$'] = moneyType;
+    }
 
     const offset = (page - 1) * limit;
 
     const { rows, count } = await DepositWithdraw.findAndCountAll({
-      where: {
-        deleted: false,
-        organizationId: req.orgId,
-        deposit: { [Op.gt]: 0 },
-      },
+      where,
       include: [
         {
           model: Account,
@@ -460,30 +473,44 @@ exports.createDepositWithdraw = async (req, res) => {
 }),
   (exports.getWithdraws = async (req, res) => {
     try {
-      const { search, limit = 10, page = 1 } = req.query;
-
-      const wherePerson = {
-        [Op.and]: [
-          { organizationId: req.orgId },
-          search
-            ? {
-                [Op.or]: [
-                  { firstName: { [Op.like]: `%${search}%` } },
-                  { lastName: { [Op.like]: `%${search}%` } },
-                ],
-              }
-            : {},
-        ],
-      };
+      const {
+        search,
+        moneyType,
+        fromDate,
+        toDate,
+        limit = 10,
+        page = 1,
+      } = req.query;
 
       const offset = (page - 1) * limit;
 
+      // Person filter
+      const wherePerson = { organizationId: req.orgId };
+      if (search) {
+        wherePerson[Op.or] = [
+          { firstName: { [Op.like]: `%${search}%` } },
+          { lastName: { [Op.like]: `%${search}%` } },
+        ];
+      }
+
+      // Withdraw filter
+      const where = {
+        deleted: false,
+        organizationId: req.orgId,
+        withdraw: { [Op.gt]: 0 },
+      };
+
+      if (fromDate && toDate) {
+        where.DWDate = { [Op.between]: [fromDate, toDate] };
+      }
+
+      // Optional: filter by money type
+      if (moneyType) {
+        where['$Account.MoneyType.typeName$'] = moneyType;
+      }
+
       const { rows, count } = await DepositWithdraw.findAndCountAll({
-        where: {
-          deleted: false,
-          organizationId: req.orgId,
-          withdraw: { [Op.gt]: 0 },
-        },
+        where,
         include: [
           {
             model: Account,
@@ -516,10 +543,6 @@ exports.createDepositWithdraw = async (req, res) => {
         offset: parseInt(offset),
       });
 
-      if (!rows) {
-        return res.status(404).json('not found ');
-      }
-
       res.json({
         data: rows,
         total: count,
@@ -532,149 +555,150 @@ exports.createDepositWithdraw = async (req, res) => {
         stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
       });
     }
-  }),
-  (exports.updateDepositWithdraw = async (req, res) => {
-    const t = await sequelize.transaction();
-    try {
-      const { id } = req.params;
-      const orgId = req.orgId;
+  });
 
-      const {
-        deposit,
-        withdraw,
-        description,
-        employeeId,
-        accountNo,
-        fingerprint,
-        photo,
-        deleted = false,
-        WithdrawReturnDate,
-      } = req.body;
+exports.updateDepositWithdraw = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const orgId = req.orgId;
 
-      // ---- helpers ----
-      const toNum = (v) => (v === undefined || v === null ? 0 : Number(v));
-      const round3 = (v) =>
-        Math.round((Number(v) + Number.EPSILON) * 1000) / 1000;
+    const {
+      deposit,
+      withdraw,
+      description,
+      employeeId,
+      accountNo,
+      fingerprint,
+      photo,
+      deleted = false,
+      WithdrawReturnDate,
+    } = req.body;
 
-      const hasDeposit = deposit !== undefined && deposit !== null;
-      const hasWithdraw = withdraw !== undefined && withdraw !== null;
+    // ---- helpers ----
+    const toNum = (v) => (v === undefined || v === null ? 0 : Number(v));
+    const round3 = (v) =>
+      Math.round((Number(v) + Number.EPSILON) * 1000) / 1000;
 
-      // ValNoate amount intent (allow metadata-only updates: neither deposit nor withdraw provNoed)
-      if (hasDeposit && hasWithdraw) {
-        await t.rollback();
-        return res
-          .status(400)
-          .json({ message: 'ProvNoe either deposit OR withdraw, not both.' });
-      }
-      if (hasDeposit && Number(deposit) <= 0) {
-        await t.rollback();
-        return res
-          .status(400)
-          .json({ message: 'Deposit must be greater than zero.' });
-      }
-      if (hasWithdraw && Number(withdraw) <= 0) {
-        await t.rollback();
-        return res
-          .status(400)
-          .json({ message: 'Withdraw must be greater than zero.' });
-      }
+    const hasDeposit = deposit !== undefined && deposit !== null;
+    const hasWithdraw = withdraw !== undefined && withdraw !== null;
 
-      // Lock the existing row to prevent race conditions
-      const existing = await DepositWithdraw.findOne({
+    // ValNoate amount intent (allow metadata-only updates: neither deposit nor withdraw provNoed)
+    if (hasDeposit && hasWithdraw) {
+      await t.rollback();
+      return res
+        .status(400)
+        .json({ message: 'ProvNoe either deposit OR withdraw, not both.' });
+    }
+    if (hasDeposit && Number(deposit) <= 0) {
+      await t.rollback();
+      return res
+        .status(400)
+        .json({ message: 'Deposit must be greater than zero.' });
+    }
+    if (hasWithdraw && Number(withdraw) <= 0) {
+      await t.rollback();
+      return res
+        .status(400)
+        .json({ message: 'Withdraw must be greater than zero.' });
+    }
+
+    // Lock the existing row to prevent race conditions
+    const existing = await DepositWithdraw.findOne({
+      where: { No: id, organizationId: orgId },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    if (!existing) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Transaction not found.' });
+    }
+
+    // Old values/effect
+    const oldDeposit = toNum(existing.deposit);
+    const oldWithdraw = toNum(existing.withdraw);
+    const oldEffect = round3(oldDeposit - oldWithdraw); // + increases credit, - decreases credit
+    const oldAccountNo = existing.accountNo;
+
+    // New values/effect (if amount not provNoed, keep old)
+    const newDeposit = hasDeposit ? toNum(deposit) : oldDeposit;
+    const newWithdraw = hasWithdraw ? toNum(withdraw) : oldWithdraw;
+    const newEffect = round3(newDeposit - newWithdraw);
+    const newAccountNo = accountNo ?? oldAccountNo;
+
+    // Persist the transaction changes first
+    const [updateCount] = await DepositWithdraw.update(
+      {
+        // Keep only one of deposit/withdraw; if one is > 0, null the other.
+        deposit: newDeposit > 0 ? newDeposit : 0,
+        withdraw: newWithdraw > 0 ? newWithdraw : 0,
+
+        description: description ?? existing.description,
+        employeeId: employeeId ?? existing.employeeId,
+        accountNo: newAccountNo,
+        fingerprint: fingerprint ?? existing.fingerprint,
+        photo: photo ?? existing.photo,
+        deleted: deleted ?? existing.deleted,
+        WithdrawReturnDate: WithdrawReturnDate ?? existing.WithdrawReturnDate,
+      },
+      {
         where: { No: id, organizationId: orgId },
         transaction: t,
-        lock: t.LOCK.UPDATE,
-      });
-
-      if (!existing) {
-        await t.rollback();
-        return res.status(404).json({ message: 'Transaction not found.' });
       }
+    );
 
-      // Old values/effect
-      const oldDeposit = toNum(existing.deposit);
-      const oldWithdraw = toNum(existing.withdraw);
-      const oldEffect = round3(oldDeposit - oldWithdraw); // + increases credit, - decreases credit
-      const oldAccountNo = existing.accountNo;
+    if (updateCount === 0) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Transaction not updated.' });
+    }
 
-      // New values/effect (if amount not provNoed, keep old)
-      const newDeposit = hasDeposit ? toNum(deposit) : oldDeposit;
-      const newWithdraw = hasWithdraw ? toNum(withdraw) : oldWithdraw;
-      const newEffect = round3(newDeposit - newWithdraw);
-      const newAccountNo = accountNo ?? oldAccountNo;
-
-      // Persist the transaction changes first
-      const [updateCount] = await DepositWithdraw.update(
+    // Helper to apply a delta to an account's credit, formatting SQL cleanly (no "+ -33")
+    const applyDelta = async (accNo, delta) => {
+      const d = round3(delta);
+      if (!d) return;
+      const op = d >= 0 ? '+' : '-';
+      const abs = Math.abs(d);
+      await Account.update(
+        { credit: sequelize.literal(`credit ${op} ${abs}`) },
         {
-          // Keep only one of deposit/withdraw; if one is > 0, null the other.
-          deposit: newDeposit > 0 ? newDeposit : 0,
-          withdraw: newWithdraw > 0 ? newWithdraw : 0,
-
-          description: description ?? existing.description,
-          employeeId: employeeId ?? existing.employeeId,
-          accountNo: newAccountNo,
-          fingerprint: fingerprint ?? existing.fingerprint,
-          photo: photo ?? existing.photo,
-          deleted: deleted ?? existing.deleted,
-          WithdrawReturnDate: WithdrawReturnDate ?? existing.WithdrawReturnDate,
-        },
-        {
-          where: { No: id, organizationId: orgId },
+          where: {
+            No: accNo,
+          },
           transaction: t,
         }
       );
+    };
 
-      if (updateCount === 0) {
-        await t.rollback();
-        return res.status(404).json({ message: 'Transaction not updated.' });
-      }
-
-      // Helper to apply a delta to an account's credit, formatting SQL cleanly (no "+ -33")
-      const applyDelta = async (accNo, delta) => {
-        const d = round3(delta);
-        if (!d) return;
-        const op = d >= 0 ? '+' : '-';
-        const abs = Math.abs(d);
-        await Account.update(
-          { credit: sequelize.literal(`credit ${op} ${abs}`) },
-          {
-            where: {
-              No: accNo,
-            },
-            transaction: t,
-          }
-        );
-      };
-
-      // Update account balances
-      if (newAccountNo === oldAccountNo) {
-        const delta = round3(newEffect - oldEffect);
-        await applyDelta(newAccountNo, delta);
-      } else {
-        await applyDelta(oldAccountNo, -oldEffect);
-        await applyDelta(newAccountNo, +newEffect);
-      }
-
-      await t.commit();
-
-      const updatedTransaction = await DepositWithdraw.findOne({
-        where: { No: id, organizationId: orgId },
-      });
-
-      return res.status(200).json({
-        message: 'Transaction updated successfully.',
-        transaction: updatedTransaction,
-      });
-    } catch (err) {
-      try {
-        await t.rollback();
-      } catch (_) {}
-      return res.status(500).json({
-        message: err.message,
-        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-      });
+    // Update account balances
+    if (newAccountNo === oldAccountNo) {
+      const delta = round3(newEffect - oldEffect);
+      await applyDelta(newAccountNo, delta);
+    } else {
+      await applyDelta(oldAccountNo, -oldEffect);
+      await applyDelta(newAccountNo, +newEffect);
     }
-  });
+
+    await t.commit();
+
+    const updatedTransaction = await DepositWithdraw.findOne({
+      where: { No: id, organizationId: orgId },
+    });
+
+    return res.status(200).json({
+      message: 'Transaction updated successfully.',
+      transaction: updatedTransaction,
+    });
+  } catch (err) {
+    try {
+      await t.rollback();
+    } catch (_) {}
+    return res.status(500).json({
+      message: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    });
+  }
+};
 
 exports.deleteDepositWithdraw = async (req, res) => {
   const t = await sequelize.transaction();
