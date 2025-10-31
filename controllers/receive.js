@@ -214,7 +214,16 @@ exports.createReceive = async (req, res) => {
 
 exports.getAllReceive = async (req, res) => {
   try {
-    const { search = '', limit = 10, page = 1 } = req.query;
+    const {
+      search = '',
+      number,
+      moneyType,
+      branch,
+      fromDate,
+      toDate,
+      limit = 10,
+      page = 1,
+    } = req.query;
 
     const parsedLimit = parseInt(limit) || 10;
     const parsedPage = parseInt(page) || 1;
@@ -223,14 +232,43 @@ exports.getAllReceive = async (req, res) => {
     const whereReceive = {
       organizationId: req.orgId,
       deleted: false,
-      ...(search && {
-        [Op.or]: [
-          { receiveNo: { [Op.like]: `%${search}%` } },
-          { senderName: { [Op.like]: `%${search}%` } },
-          { receiverName: { [Op.like]: `%${search}%` } },
-        ],
-      }),
     };
+    if (search) {
+      whereReceive[Op.or] = [
+        { senderName: { [Op.like]: `%${search}%` } },
+        { receiverName: { [Op.like]: `%${search}%` } },
+      ];
+    }
+    if (number) {
+      whereReceive[Op.or] = [{ receiveNo: { [Op.like]: `%${search}%` } }];
+    }
+    if (moneyType) {
+      whereReceive['$MainMoneyType.typeName$'] = moneyType;
+    }
+    if (branch) {
+      whereReceive['$fromWhere.Customer.Stakeholder.Person.firstName$'] =
+        branch;
+    }
+
+    if (fromDate && toDate) {
+      if (fromDate === toDate) {
+        const startDate = new Date(fromDate);
+        const endDate = new Date(toDate);
+        endDate.setDate(endDate.getDate() + 1);
+        endDate.setMilliseconds(-1);
+        whereReceive.rDate = {
+          [Op.between]: [startDate, endDate],
+        };
+      } else {
+        const startDate = new Date(fromDate);
+        const endDate = new Date(toDate);
+        endDate.setDate(endDate.getDate() + 1);
+        endDate.setMilliseconds(-1);
+        whereReceive.rDate = {
+          [Op.between]: [startDate, endDate],
+        };
+      }
+    }
 
     const { rows, count } = await Receive.findAndCountAll({
       where: whereReceive,

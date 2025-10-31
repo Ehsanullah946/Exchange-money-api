@@ -408,12 +408,26 @@ exports.createDepositWithdraw = async (req, res) => {
       deposit: { [Op.gt]: 0 },
     };
 
-    // Optional: filter by date
     if (fromDate && toDate) {
-      where.DWDate = { [Op.between]: [fromDate, toDate] };
+      if (fromDate === toDate) {
+        const startDate = new Date(fromDate);
+        const endDate = new Date(toDate);
+        endDate.setDate(endDate.getDate() + 1);
+        endDate.setMilliseconds(-1);
+        where.DWDate = {
+          [Op.between]: [startDate, endDate],
+        };
+      } else {
+        const startDate = new Date(fromDate);
+        const endDate = new Date(toDate);
+        endDate.setDate(endDate.getDate() + 1);
+        endDate.setMilliseconds(-1);
+        where.DWDate = {
+          [Op.between]: [startDate, endDate],
+        };
+      }
     }
 
-    // Optional: filter by money type
     if (moneyType) {
       where['$Account.MoneyType.typeName$'] = moneyType;
     }
@@ -501,7 +515,25 @@ exports.createDepositWithdraw = async (req, res) => {
       };
 
       if (fromDate && toDate) {
-        where.DWDate = { [Op.between]: [fromDate, toDate] };
+        if (fromDate === toDate) {
+          const startDate = new Date(fromDate);
+          const endDate = new Date(toDate);
+          endDate.setDate(endDate.getDate() + 1);
+          endDate.setMilliseconds(-1);
+
+          where.DWDate = {
+            [Op.between]: [startDate, endDate],
+          };
+        } else {
+          const startDate = new Date(fromDate);
+          const endDate = new Date(toDate);
+          endDate.setDate(endDate.getDate() + 1);
+          endDate.setMilliseconds(-1);
+
+          where.DWDate = {
+            [Op.between]: [startDate, endDate],
+          };
+        }
       }
 
       // Optional: filter by money type
@@ -550,13 +582,13 @@ exports.createDepositWithdraw = async (req, res) => {
         limit: parseInt(limit),
       });
     } catch (err) {
+      console.error('Error in getWithdraws:', err);
       res.status(500).json({
         message: err.message,
         stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
       });
     }
   });
-
 exports.updateDepositWithdraw = async (req, res) => {
   const t = await sequelize.transaction();
   try {
