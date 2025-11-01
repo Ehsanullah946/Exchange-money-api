@@ -225,28 +225,32 @@ exports.getAllReceive = async (req, res) => {
       page = 1,
     } = req.query;
 
-    const parsedLimit = parseInt(limit) || 10;
-    const parsedPage = parseInt(page) || 1;
-    const offset = (parsedPage - 1) * parsedLimit;
-
     const whereReceive = {
       organizationId: req.orgId,
       deleted: false,
     };
-    if (search) {
-      whereReceive[Op.or] = [
-        { senderName: { [Op.like]: `%${search}%` } },
-        { receiverName: { [Op.like]: `%${search}%` } },
-      ];
+
+    if (search || number) {
+      whereReceive[Op.or] = [];
+
+      if (search) {
+        whereReceive[Op.or].push(
+          { senderName: { [Op.like]: `%${search}%` } },
+          { receiverName: { [Op.like]: `%${search}%` } }
+        );
+      }
+
+      if (number) {
+        whereReceive[Op.or].push({ receiveNo: { [Op.like]: `%${number}%` } });
+      }
     }
-    if (number) {
-      whereReceive[Op.or] = [{ receiveNo: { [Op.like]: `%${search}%` } }];
-    }
+
     if (moneyType) {
       whereReceive['$MainMoneyType.typeName$'] = moneyType;
     }
+
     if (branch) {
-      whereReceive['$fromWhere.Customer.Stakeholder.Person.firstName$'] =
+      whereReceive['$FromBranch.Customer.Stakeholder.Person.firstName$'] =
         branch;
     }
 
@@ -269,11 +273,31 @@ exports.getAllReceive = async (req, res) => {
         };
       }
     }
+    const offset = (page - 1) * limit;
 
     const { rows, count } = await Receive.findAndCountAll({
       where: whereReceive,
       include: [
-        { model: Branch, as: 'FromBranch' },
+        {
+          model: Branch,
+          as: 'FromBranch',
+          include: [
+            {
+              model: Customer,
+              include: [
+                {
+                  model: Stakeholder,
+                  include: [
+                    {
+                      model: Person,
+                      attributes: ['firstName', 'lastName'],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
         {
           model: MoneyType,
           as: 'MainMoneyType',
@@ -291,16 +315,17 @@ exports.getAllReceive = async (req, res) => {
         },
         { model: Customer },
       ],
-      limit: parsedLimit,
-      offset,
+
       order: [['rDate', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
     });
 
     res.status(200).json({
       data: rows,
       total: count,
-      page: parsedPage,
-      limit: parsedLimit,
+      page: parseInt(page),
+      limit: parseInt(limit),
     });
   } catch (err) {
     console.error('get All Receive error:', err);

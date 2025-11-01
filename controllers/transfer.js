@@ -69,7 +69,16 @@ async function reverseTransferAccounts(transfer, t) {
 
 exports.getAllTransfer = async (req, res) => {
   try {
-    const { search = '', limit = 10, page = 1 } = req.query;
+    const {
+      search = '',
+      number,
+      moneyType,
+      branch,
+      fromDate,
+      toDate,
+      limit = 10,
+      page = 1,
+    } = req.query;
 
     const parsedLimit = parseInt(limit) || 10;
     const parsedPage = parseInt(page) || 1;
@@ -78,19 +87,76 @@ exports.getAllTransfer = async (req, res) => {
     const whereTransfer = {
       organizationId: req.orgId,
       deleted: false,
-      ...(search && {
-        [Op.or]: [
-          { transferNo: { [Op.like]: `%${search}%` } },
-          { senderName: { [Op.like]: `%${search}%` } },
-          { receiverName: { [Op.like]: `%${search}%` } },
-        ],
-      }),
     };
+
+    if (search || number) {
+      whereTransfer[Op.or] = [];
+
+      if (search) {
+        whereTransfer[Op.or].push(
+          { senderName: { [Op.like]: `%${search}%` } },
+          { receiverName: { [Op.like]: `%${search}%` } }
+        );
+      }
+
+      if (number) {
+        whereTransfer[Op.or].push({ transferNo: { [Op.like]: `%${number}%` } });
+      }
+    }
+
+    if (moneyType) {
+      whereTransfer['$MainMoneyType.typeName$'] = moneyType;
+    }
+
+    if (branch) {
+      whereTransfer['$ToBranch.Customer.Stakeholder.Person.firstName$'] =
+        branch;
+    }
+
+    if (fromDate && toDate) {
+      if (fromDate === toDate) {
+        const startDate = new Date(fromDate);
+        const endDate = new Date(toDate);
+        endDate.setDate(endDate.getDate() + 1);
+        endDate.setMilliseconds(-1);
+        whereTransfer.tDate = {
+          [Op.between]: [startDate, endDate],
+        };
+      } else {
+        const startDate = new Date(fromDate);
+        const endDate = new Date(toDate);
+        endDate.setDate(endDate.getDate() + 1);
+        endDate.setMilliseconds(-1);
+        whereTransfer.tDate = {
+          [Op.between]: [startDate, endDate],
+        };
+      }
+    }
 
     const { rows, count } = await Transfer.findAndCountAll({
       where: whereTransfer,
       include: [
-        { model: Branch, as: 'ToBranch' },
+        {
+          model: Branch,
+          as: 'ToBranch',
+          include: [
+            {
+              model: Customer,
+              include: [
+                {
+                  model: Stakeholder,
+                  include: [
+                    {
+                      model: Person,
+                      attributes: ['firstName', 'lastName'],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+
         {
           model: MoneyType,
           as: 'MainMoneyType',
