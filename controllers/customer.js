@@ -551,16 +551,21 @@ exports.getCustomerTransactions = async (req, res) => {
       };
     };
 
-    // Build date range conditions
+    // Build date range conditions - FIXED: Return conditions object directly
     const buildDateConditions = (fromDate, toDate) => {
+      if (!fromDate && !toDate) return null;
+
       const conditions = {};
       if (fromDate) {
         conditions[Op.gte] = new Date(fromDate);
       }
       if (toDate) {
-        conditions[Op.lte] = new Date(toDate + 'T23:59:59.999Z');
+        // Set to end of day for the toDate
+        const endDate = new Date(toDate);
+        endDate.setHours(23, 59, 59, 999);
+        conditions[Op.lte] = endDate;
       }
-      return Object.keys(conditions).length > 0 ? conditions : null;
+      return conditions;
     };
 
     // Build money type conditions for receives and transfers
@@ -585,6 +590,9 @@ exports.getCustomerTransactions = async (req, res) => {
       return typeMap[transactionType] === type;
     };
 
+    // Get date conditions
+    const dateConditions = buildDateConditions(fromDate, toDate);
+
     const [
       deposits,
       withdraws,
@@ -593,15 +601,13 @@ exports.getCustomerTransactions = async (req, res) => {
       exchanges,
       customerAccounts,
     ] = await Promise.all([
-      // Deposits
+      // Deposits - FIXED: Apply date conditions directly
       DepositWithdraw.findAll({
         where: {
           ...baseWhere,
           deposit: { [Op.gt]: 0 },
           ...buildSearchConditions(search),
-          ...(buildDateConditions(fromDate, toDate)
-            ? { DWDate: buildDateConditions(fromDate, toDate) }
-            : {}),
+          ...(dateConditions ? { DWDate: dateConditions } : {}),
         },
         include: [
           {
@@ -618,15 +624,13 @@ exports.getCustomerTransactions = async (req, res) => {
         ],
       }),
 
-      // Withdraws
+      // Withdraws - FIXED: Apply date conditions directly
       DepositWithdraw.findAll({
         where: {
           ...baseWhere,
           withdraw: { [Op.gt]: 0 },
           ...buildSearchConditions(search),
-          ...(buildDateConditions(fromDate, toDate)
-            ? { DWDate: buildDateConditions(fromDate, toDate) }
-            : {}),
+          ...(dateConditions ? { DWDate: dateConditions } : {}),
         },
         include: [
           {
@@ -643,14 +647,12 @@ exports.getCustomerTransactions = async (req, res) => {
         ],
       }),
 
-      // Receives
+      // Receives - FIXED: Apply date conditions directly
       Receive.findAll({
         where: {
           ...baseWhere,
           ...buildSearchConditions(search),
-          ...(buildDateConditions(fromDate, toDate)
-            ? { rDate: buildDateConditions(fromDate, toDate) }
-            : {}),
+          ...(dateConditions ? { rDate: dateConditions } : {}),
           ...buildMainMoneyTypeConditions(moneyType),
         },
         include: [
@@ -664,14 +666,12 @@ exports.getCustomerTransactions = async (req, res) => {
         ],
       }),
 
-      // Transfers
+      // Transfers - FIXED: Apply date conditions directly
       Transfer.findAll({
         where: {
           ...baseWhere,
           ...buildSearchConditions(search),
-          ...(buildDateConditions(fromDate, toDate)
-            ? { tDate: buildDateConditions(fromDate, toDate) }
-            : {}),
+          ...(dateConditions ? { tDate: dateConditions } : {}),
           ...buildMainMoneyTypeConditions(moneyType),
         },
         include: [
@@ -684,15 +684,13 @@ exports.getCustomerTransactions = async (req, res) => {
         ],
       }),
 
-      // Exchanges - FIXED: Use typeName for exchange filtering
+      // Exchanges - FIXED: Apply date conditions directly
       Exchange.findAll({
         where: {
           ...baseWhere,
           customerId,
           ...buildSearchConditions(search),
-          ...(buildDateConditions(fromDate, toDate)
-            ? { eDate: buildDateConditions(fromDate, toDate) }
-            : {}),
+          ...(dateConditions ? { eDate: dateConditions } : {}),
         },
         include: [
           {
