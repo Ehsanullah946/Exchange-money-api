@@ -87,25 +87,56 @@ exports.customerAccount = async (req, res) => {
     ];
 
     // 5. Get latest rates for each currency
-    const latestRates = await Rate.findAll({
-      where: {
-        fromCurrency: currencyIds,
-        // organizationId: orgId,
-      },
-      attributes: [
-        'fromCurrency',
-        'value1',
-        [sequelize.fn('MAX', sequelize.col('rDate')), 'latestDate'],
-      ],
-      group: ['fromCurrency', 'value1'],
-      order: [[sequelize.literal('latestDate'), 'DESC']],
-      transaction: t,
-    });
+    // Get latest ACTIVE rates for each currency - FIXED SEQUELIZE USAGE
+    let latestRates = [];
+    if (currencyIds.length > 0) {
+      // First, get the latest effective date for each currency
+      const latestRateDates = await Rate.findAll({
+        where: {
+          fromCurrency: currencyIds,
+          toCurrency: mainCurrency.id,
+          organizationId: orgId,
+          isActive: true,
+        },
+        attributes: [
+          'fromCurrency',
+          [sequelize.fn('MAX', sequelize.col('effectiveDate')), 'latestDate'],
+        ],
+        group: ['fromCurrency'],
+        raw: true,
+        transaction: t,
+      });
+
+      // Then get the full rate data for those dates
+      if (latestRateDates.length > 0) {
+        const rateQueries = latestRateDates.map((dateInfo) =>
+          Rate.findOne({
+            where: {
+              fromCurrency: dateInfo.fromCurrency,
+              toCurrency: mainCurrency.id,
+              organizationId: orgId,
+              isActive: true,
+              effectiveDate: dateInfo.latestDate,
+            },
+            transaction: t,
+          })
+        );
+
+        latestRates = (await Promise.all(rateQueries)).filter(
+          (rate) => rate !== null
+        );
+      }
+    }
 
     // Create a map of currencyId to latest rate
     const rateMap = latestRates.reduce((map, rate) => {
-      if (!map.has(rate.fromCurrency)) {
-        map.set(rate.fromCurrency, parseFloat(rate.value1));
+      if (rate && !map.has(rate.fromCurrency)) {
+        map.set(rate.fromCurrency, {
+          rate: parseFloat(rate.middleRate),
+          buyRate: parseFloat(rate.buyRate),
+          sellRate: parseFloat(rate.sellRate),
+          effectiveDate: rate.effectiveDate,
+        });
       }
       return map;
     }, new Map());
@@ -175,6 +206,3 @@ exports.customerAccount = async (req, res) => {
     });
   }
 };
-
-
-
