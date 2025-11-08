@@ -1,11 +1,10 @@
-// middleware/customerAuth.js
+// middlewares/customerAuth.js - Updated to include organizationId
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const { Customer, Stakeholder, Person } = require('../models');
 
 module.exports = async (req, res, next) => {
   try {
-    // Get token from header
     let token;
 
     if (
@@ -27,7 +26,9 @@ module.exports = async (req, res, next) => {
       return res.status(403).json({ message: 'Insufficient permissions' });
     }
 
-    // Verify customer exists and is active
+    console.log('🔍 Customer Auth - Decoded token:', decoded);
+
+    // Verify customer exists and is active - WITH ORGANIZATION
     const customer = await Customer.findOne({
       where: {
         id: decoded.customerId,
@@ -39,10 +40,7 @@ module.exports = async (req, res, next) => {
           include: [
             {
               model: Person,
-              where: {
-                id: decoded.personId,
-                isVerified: true,
-              },
+              // Remove the where clause to get full data
             },
           ],
         },
@@ -53,10 +51,20 @@ module.exports = async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid customer' });
     }
 
-    // Attach customer to request
+    // Attach customer AND organizationId to request
     req.customer = customer;
+    req.orgId = decoded.organizationId; // This is the key missing piece!
+
+    console.log('✅ Customer auth successful:', {
+      customerId: req.customer.id,
+      organizationId: req.orgId,
+      hasStakeholder: !!customer.Stakeholder,
+      hasPerson: !!customer.Stakeholder?.Person,
+    });
+
     next();
   } catch (err) {
+    console.error('❌ Customer auth error:', err.message);
     res.status(401).json({ message: 'Unauthorized: ' + err.message });
   }
 };

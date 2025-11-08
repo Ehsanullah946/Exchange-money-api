@@ -1,13 +1,10 @@
-// services/authService.js
+// services/authService.js - Updated token expiration
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Person, Customer, Stakeholder, Op } = require('../models');
 require('dotenv').config({ path: '.env' });
 
-// services/authService.js
-
 const { sendVerificationEmail } = require('./emailService');
-const { where } = require('sequelize');
 
 class AuthService {
   static async initiateVerification(email, organizationId) {
@@ -20,7 +17,7 @@ class AuthService {
         throw new Error('Invalid email address format');
       }
 
-      // NEW QUERY: Find customer directly by email and include the full chain
+      // Find customer directly by email and include the full chain
       const customer = await Customer.findOne({
         where: { active: true, email },
         include: [
@@ -41,7 +38,7 @@ class AuthService {
       if (!customer) {
         // Check if customer exists but inactive
         const inactiveCustomer = await Customer.findOne({
-          where: { active: false },
+          where: { active: false, email },
           include: [Stakeholder],
         });
 
@@ -55,11 +52,10 @@ class AuthService {
           );
         }
       }
-      console.log(JSON.stringify(customer, null, 2));
 
       // Get the person from the stakeholder
       const stakeholder = customer.Stakeholder;
-      const person = stakeholder?.Person || stakeholder?.People?.[0]; // If hasMany
+      const person = stakeholder?.Person || stakeholder?.People?.[0];
 
       if (!person) {
         throw new Error(
@@ -67,8 +63,47 @@ class AuthService {
         );
       }
 
+      // Check if user was recently verified (within 30 days)
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      if (
+        person.lastLogin &&
+        person.lastLogin > thirtyDaysAgo &&
+        person.isVerified
+      ) {
+        console.log(
+          '🔄 Customer recently verified, generating long-term token'
+        );
+
+        const token = jwt.sign(
+          {
+            customerId: customer.id,
+            personId: person.id,
+            email: person.email,
+            organizationId: person.organizationId,
+            scope: ['read:accounts'],
+          },
+          process.env.JWT_SECRET,
+          { expiresIn: '30d' } // 30 days for returning customers
+        );
+
+        // Update last login time
+        await person.update({
+          lastLogin: new Date(),
+        });
+
+        return {
+          success: true,
+          token,
+          customerId: customer.id,
+          personId: person.id,
+          expiresIn: 30 * 24 * 60 * 60, // 30 days in seconds
+          message: 'Welcome back! Automatic login successful.',
+        };
+      }
+
+      // New verification required
       const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60000);
+      const expiresAt = new Date(Date.now() + 10 * 60000); // 10 minutes
       const hashedCode = await bcrypt.hash(code, 10);
 
       await person.update({
@@ -84,6 +119,7 @@ class AuthService {
         message: 'Verification code sent to your email',
         expiresAt: expiresAt.toISOString(),
         email: this.maskEmail(email),
+        requiresVerification: true,
       };
     } catch (error) {
       console.error('❌ AuthService error:', error.message);
@@ -116,7 +152,7 @@ class AuthService {
       }
 
       const stakeholder = customer.Stakeholder;
-      const person = stakeholder?.Person || stakeholder?.People?.[0]; // If hasMany
+      const person = stakeholder?.Person || stakeholder?.People?.[0];
 
       if (!person) {
         throw new Error(
@@ -124,18 +160,12 @@ class AuthService {
         );
       }
 
-      // Check if code exists and isn't expired
-      if (!person.verificationCode || !person.codeExpiresAt) {
+      // Check if code exists
+      if (!person.verificationCode) {
         throw new Error(
           'No verification code found. Please request a new one.'
         );
       }
-
-      // if (new Date(person.codeExpiresAt) < new Date()) {
-      //   throw new Error(
-      //     'Verification code has expired. Please request a new one.'
-      //   );
-      // }
 
       // Verify code
       const isValid = await bcrypt.compare(code, person.verificationCode);
@@ -151,6 +181,7 @@ class AuthService {
         lastLogin: new Date(),
       });
 
+      // Generate token with 30-day expiration
       const token = jwt.sign(
         {
           customerId: customer.id,
@@ -160,7 +191,7 @@ class AuthService {
           scope: ['read:accounts'],
         },
         process.env.JWT_SECRET,
-        { expiresIn: '24h' }
+        { expiresIn: '30d' } // Changed from 24h to 30d
       );
 
       console.log('✅ Verification successful for customer:', customer.id);
@@ -170,10 +201,71 @@ class AuthService {
         token,
         customerId: customer.id,
         personId: person.id,
-        expiresIn: 24 * 60 * 60,
+        expiresIn: 30 * 24 * 60 * 60, // 30 days in seconds
+        message: 'Login successful! You will stay logged in for 30 days.',
       };
     } catch (error) {
       console.error('❌ Verify code error:', error.message);
+      throw error;
+    }
+  }
+
+  // Optional: Add a method to refresh token without verification
+  static async refreshToken(customerId, personId) {
+    try {
+      const customer = await Customer.findOne({
+        where: { id: customerId, active: true },
+        include: [
+          {
+            model: Stakeholder,
+            include: [
+              {
+                model: Person,
+                where: { id: personId, isVerified: true },
+              },
+            ],
+          },
+        ],
+      });
+
+      if (!customer) {
+        throw new Error('Customer not found or inactive');
+      }
+
+      const stakeholder = customer.Stakeholder;
+      const person = stakeholder?.Person || stakeholder?.People?.[0];
+
+      if (!person) {
+        throw new Error('Person not found');
+      }
+
+      // Update last login
+      await person.update({
+        lastLogin: new Date(),
+      });
+
+      // Generate new token
+      const token = jwt.sign(
+        {
+          customerId: customer.id,
+          personId: person.id,
+          email: person.email,
+          organizationId: person.organizationId,
+          scope: ['read:accounts'],
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '30d' }
+      );
+
+      return {
+        success: true,
+        token,
+        customerId: customer.id,
+        personId: person.id,
+        expiresIn: 30 * 24 * 60 * 60,
+      };
+    } catch (error) {
+      console.error('❌ Refresh token error:', error.message);
       throw error;
     }
   }
