@@ -333,54 +333,6 @@ exports.getLatestRates = async (req, res) => {
       order: [['fromCurrency', 'ASC']],
     });
 
-    // Method 2: Alternative approach using separate queries (if above doesn't work)
-    /*
-    // First get the latest dates for each currency pair
-    const latestDates = await Rate.findAll({
-      where: { 
-        organizationId: req.orgId,
-        isActive: true 
-      },
-      attributes: [
-        'fromCurrency',
-        'toCurrency',
-        [sequelize.fn('MAX', sequelize.col('effectiveDate')), 'latestDate']
-      ],
-      group: ['fromCurrency', 'toCurrency'],
-      raw: true
-    });
-
-    // Then get the full rate data for those dates
-    const latestRates = await Promise.all(
-      latestDates.map(async (dateInfo) => {
-        return await Rate.findOne({
-          where: {
-            fromCurrency: dateInfo.fromCurrency,
-            toCurrency: dateInfo.toCurrency,
-            organizationId: req.orgId,
-            effectiveDate: dateInfo.latestDate,
-            isActive: true
-          },
-          include: [
-            { 
-              model: MoneyType, 
-              as: 'sourceCurrency',
-              where: { organizationId: req.orgId } 
-            },
-            { 
-              model: MoneyType, 
-              as: 'targetCurrency',
-              where: { organizationId: req.orgId } 
-            }
-          ]
-        });
-      })
-    );
-
-    // Filter out any null results
-    const filteredRates = latestRates.filter(rate => rate !== null);
-    */
-
     res.status(200).json(latestRates);
   } catch (err) {
     console.error('Error in getLatestRates:', err);

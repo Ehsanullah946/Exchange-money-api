@@ -10,4 +10,10 @@ router.post('/verify', authController.verifyCode);
 // Protected customer routes
 router.get('/accounts', customerAuth, customerController.getCustomerAccounts);
 
+router.get(
+  '/transactions',
+  customerAuth,
+  customerController.getCustomerTransactions
+);
+
 module.exports = router;
