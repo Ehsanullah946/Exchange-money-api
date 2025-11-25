@@ -590,11 +590,8 @@ exports.getDayBook = async (req, res) => {
     const parsedPage = parseInt(page) || 1;
     const offset = (parsedPage - 1) * parsedLimit;
 
-    // Fetch all transaction types for the date range
-    // FIXED: Query DepositWithdraw once and handle both deposits and withdraws
     const [depositWithdraws, receives, transfers, exchanges] =
       await Promise.all([
-        // DepositWithdraw - Get all records and separate deposits/withdraws in code
         DepositWithdraw.findAll({
           where: {
             organizationId: orgId,
@@ -634,7 +631,6 @@ exports.getDayBook = async (req, res) => {
           order: [['DWDate', 'DESC']],
         }),
 
-        // Receives - Include ALL receives without filtering by customer
         Receive.findAll({
           where: {
             organizationId: orgId,

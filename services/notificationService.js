@@ -39,7 +39,6 @@ class NotificationService {
       save = true,
       overridePreference = false,
     } = options;
-
     let recipient;
     let customerData;
 

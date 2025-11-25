@@ -195,42 +195,6 @@ exports.getBranchById = async (req, res) => {
   }
 };
 
-// exports.updateBranch = async (req, res) => {
-//   const t = await Branch.sequelize.transaction();
-//   try {
-//     const branch = await Branch.findOne({
-//       where: { id: req.params.id, organizationId: req.orgId }
-//     });
-
-//     if (!branch) return res.status(404).json({ message: 'Branch not found' });
-
-//     const customer = await Customer.findOne({ where: { id: branch.customerId } });
-//     const stakeholder = await Stakeholder.findOne({ where: { id: customer.stakeholderId } });
-//     const person = await Person.findOne({ where: { id: stakeholder.personId } });
-
-//     // Update Person
-//     await person.update(req.body, { transaction: t });
-
-//     // Update Stakeholder
-//     await stakeholder.update(req.body, { transaction: t });
-
-//     // Update Customer
-//     await customer.update(req.body, { transaction: t });
-
-//     // Update Branch
-//     await branch.update(req.body, { transaction: t });
-
-//     await t.commit();
-//     res.json({ message: "Branch updated successfully" });
-
-//   } catch (err) {
-//     await t.rollback();
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
-// DELETE Branch (removes Branch + Customer + Stakeholder + Person)
-
 exports.updateBranch = async (req, res) => {
   const t = await Branch.sequelize.transaction();
   try {

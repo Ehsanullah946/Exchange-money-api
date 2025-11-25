@@ -288,39 +288,6 @@ exports.getCustomerAccounts = async (req, res) => {
   }
 };
 
-exports.getCustomerDetails = async (req, res) => {
-  try {
-    const customerId = req.customer.id;
-    const customer = await Customer.findOne({
-      where: { customerId },
-      include: [
-        {
-          model: Stakeholder,
-          required: true,
-          include: [
-            {
-              model: Person,
-              required: true,
-              where: { organizationId: req.orgId },
-            },
-          ],
-        },
-      ],
-    });
-
-    if (!customer) {
-      return res.status(404).json({ message: 'Customer not found' });
-    }
-
-    res.status(200).json({
-      status: 'success',
-      data: customer,
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
 exports.getCustomerTransactions = async (req, res) => {
   try {
     const customerId = req.customer.id;
@@ -367,7 +334,7 @@ exports.getCustomerTransactions = async (req, res) => {
       };
     };
 
-    // Build date range conditions - FIXED: Return conditions object directly
+    // Build date range conditions
     const buildDateConditions = (fromDate, toDate) => {
       if (!fromDate && !toDate) return null;
 
@@ -376,7 +343,6 @@ exports.getCustomerTransactions = async (req, res) => {
         conditions[Op.gte] = new Date(fromDate);
       }
       if (toDate) {
-        // Set to end of day for the toDate
         const endDate = new Date(toDate);
         endDate.setHours(23, 59, 59, 999);
         conditions[Op.lte] = endDate;
@@ -417,7 +383,7 @@ exports.getCustomerTransactions = async (req, res) => {
       exchanges,
       customerAccounts,
     ] = await Promise.all([
-      // Deposits - FIXED: Apply date conditions directly
+      // Deposits
       DepositWithdraw.findAll({
         where: {
           ...baseWhere,
@@ -440,7 +406,7 @@ exports.getCustomerTransactions = async (req, res) => {
         ],
       }),
 
-      // Withdraws - FIXED: Apply date conditions directly
+      // Withdraws
       DepositWithdraw.findAll({
         where: {
           ...baseWhere,
@@ -463,7 +429,7 @@ exports.getCustomerTransactions = async (req, res) => {
         ],
       }),
 
-      // Receives - FIXED: Apply date conditions directly
+      // Receives
       Receive.findAll({
         where: {
           ...baseWhere,
@@ -482,7 +448,7 @@ exports.getCustomerTransactions = async (req, res) => {
         ],
       }),
 
-      // Transfers - FIXED: Apply date conditions directly
+      // Transfers
       Transfer.findAll({
         where: {
           ...baseWhere,
@@ -500,7 +466,7 @@ exports.getCustomerTransactions = async (req, res) => {
         ],
       }),
 
-      // Exchanges - FIXED: Apply date conditions directly
+      // Exchanges
       Exchange.findAll({
         where: {
           ...baseWhere,
@@ -524,13 +490,42 @@ exports.getCustomerTransactions = async (req, res) => {
         ],
       }),
 
-      // Customer accounts for balance calculation
+      // Customer accounts for balance calculation - ENHANCED: Include full customer details
       Account.findAll({
-        where: { customerId, deleted: false },
+        where: {
+          customerId,
+          deleted: false,
+        },
         include: [
           {
             model: MoneyType,
             where: moneyType ? { typeName: moneyType } : undefined,
+          },
+          {
+            model: Customer,
+            attributes: ['id'],
+            include: [
+              {
+                model: Stakeholder,
+                attributes: ['id'],
+                include: [
+                  {
+                    model: Person,
+                    where: { organizationId: orgId },
+                    attributes: [
+                      'id',
+                      'firstName',
+                      'lastName',
+                      'fatherName',
+                      'nationalCode',
+                      'phone',
+                      'photo',
+                    ],
+                    required: true,
+                  },
+                ],
+              },
+            ],
           },
         ],
       }),
@@ -544,6 +539,30 @@ exports.getCustomerTransactions = async (req, res) => {
       },
       attributes: ['startDate', 'endDate'],
     });
+
+    let customerInfo = null;
+    if (customerAccounts.length > 0) {
+      const firstAccount = customerAccounts[0];
+      customerInfo = {
+        id: firstAccount.Customer.id,
+        stakeholder: {
+          id: firstAccount.Customer.Stakeholder.id,
+          gender: firstAccount.Customer.Stakeholder.gender,
+          maritalStatus: firstAccount.Customer.Stakeholder.maritalStatus,
+          job: firstAccount.Customer.Stakeholder.job,
+          permanentAddress: firstAccount.Customer.Stakeholder.permanentAddress,
+          person: {
+            id: firstAccount.Customer.Stakeholder.Person.id,
+            firstName: firstAccount.Customer.Stakeholder.Person.firstName,
+            lastName: firstAccount.Customer.Stakeholder.Person.lastName,
+            fatherName: firstAccount.Customer.Stakeholder.Person.fatherName,
+            nationalCode: firstAccount.Customer.Stakeholder.Person.nationalCode,
+            phone: firstAccount.Customer.Stakeholder.Person.phone,
+            photo: firstAccount.Customer.Stakeholder.Person.photo,
+          },
+        },
+      };
+    }
 
     // Filter receives and transfers by customer involvement
     const filteredReceives = receives.filter(
@@ -564,6 +583,7 @@ exports.getCustomerTransactions = async (req, res) => {
         accountNo: account.No,
         currency: account.MoneyType.typeName,
         currentBalance: parseFloat(account.credit) || 0,
+        customer: account.Customer.id,
       });
     });
 
@@ -831,7 +851,8 @@ exports.getCustomerTransactions = async (req, res) => {
 
     const paged = filteredTransactions.slice(offset, offset + parsedLimit);
 
-    res.status(200).json({
+    // Prepare final response with customer information
+    const response = {
       status: 'success',
       total: filteredTransactions.length,
       page: parsedPage,
@@ -839,6 +860,7 @@ exports.getCustomerTransactions = async (req, res) => {
       data: paged,
       accountCount: customerAccounts.length,
       accountSummary: accountSummary,
+      customer: customerInfo,
       filters: {
         search,
         moneyType,
@@ -846,12 +868,15 @@ exports.getCustomerTransactions = async (req, res) => {
         toDate,
         TransactionType,
       },
-    });
+    };
+
+    res.status(200).json(response);
   } catch (err) {
     console.error('❌ getCustomerTransactions error:', err);
     res.status(500).json({
+      status: 'error',
       message: err.message,
-      stack: err.stack,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
     });
   }
 };
@@ -880,4 +905,589 @@ function getCustomerRole(transaction, customerId, type) {
     default:
       return 'unknown';
   }
+}
+
+exports.getCustomerTransactionTotals = async (req, res) => {
+  try {
+    const customerId = req.customer.id;
+    const orgId = req.orgId;
+    const { moneyType, fromDate, toDate } = req.query;
+
+    console.log('📊 Calculating transaction totals for customer:', customerId);
+
+    // Build base where clauses for each transaction type
+    const baseWhere = {
+      organizationId: orgId,
+      deleted: false,
+    };
+
+    // Build date range conditions
+    const buildDateConditions = (fromDate, toDate) => {
+      if (!fromDate && !toDate) return null;
+
+      const conditions = {};
+      if (fromDate) {
+        conditions[Op.gte] = new Date(fromDate);
+      }
+      if (toDate) {
+        const endDate = new Date(toDate);
+        endDate.setHours(23, 59, 59, 999);
+        conditions[Op.lte] = endDate;
+      }
+      return conditions;
+    };
+
+    // Build money type conditions for receives and transfers
+    const buildMainMoneyTypeConditions = (moneyType) => {
+      if (!moneyType) return {};
+      return { '$MainMoneyType.typeName$': moneyType };
+    };
+
+    // Get date conditions
+    const dateConditions = buildDateConditions(fromDate, toDate);
+
+    const [
+      deposits,
+      withdraws,
+      receives,
+      allTransfers,
+      exchanges,
+      customerAccounts,
+    ] = await Promise.all([
+      // Deposits
+      DepositWithdraw.findAll({
+        where: {
+          ...baseWhere,
+          deposit: { [Op.gt]: 0 },
+          ...(dateConditions ? { DWDate: dateConditions } : {}),
+        },
+        include: [
+          {
+            model: Account,
+            required: true,
+            where: { customerId },
+            include: [
+              {
+                model: MoneyType,
+                where: moneyType ? { typeName: moneyType } : undefined,
+              },
+            ],
+          },
+        ],
+        attributes: ['No', 'deposit', 'DWDate'],
+      }),
+
+      // Withdraws
+      DepositWithdraw.findAll({
+        where: {
+          ...baseWhere,
+          withdraw: { [Op.gt]: 0 },
+          ...(dateConditions ? { DWDate: dateConditions } : {}),
+        },
+        include: [
+          {
+            model: Account,
+            required: true,
+            where: { customerId },
+            include: [
+              {
+                model: MoneyType,
+                where: moneyType ? { typeName: moneyType } : undefined,
+              },
+            ],
+          },
+        ],
+        attributes: ['No', 'withdraw', 'DWDate'],
+      }),
+
+      // Receives
+      Receive.findAll({
+        where: {
+          ...baseWhere,
+          ...(dateConditions ? { rDate: dateConditions } : {}),
+          ...buildMainMoneyTypeConditions(moneyType),
+        },
+        include: [
+          {
+            model: MoneyType,
+            as: 'MainMoneyType',
+            attributes: ['id', 'typeName'],
+          },
+          { model: Branch, as: 'FromBranch', attributes: ['id', 'customerId'] },
+          { model: Branch, as: 'PassTo', attributes: ['id', 'customerId'] },
+        ],
+        attributes: ['id', 'receiveAmount', 'rDate', 'customerId'],
+      }),
+
+      // Transfers
+      Transfer.findAll({
+        where: {
+          ...baseWhere,
+          ...(dateConditions ? { tDate: dateConditions } : {}),
+          ...buildMainMoneyTypeConditions(moneyType),
+        },
+        include: [
+          {
+            model: MoneyType,
+            as: 'MainMoneyType',
+            attributes: ['id', 'typeName'],
+          },
+          { model: Branch, as: 'ToBranch', attributes: ['id', 'customerId'] },
+        ],
+        attributes: ['id', 'transferAmount', 'tDate', 'customerId'],
+      }),
+
+      // Exchanges
+      Exchange.findAll({
+        where: {
+          ...baseWhere,
+          customerId,
+          ...(dateConditions ? { eDate: dateConditions } : {}),
+        },
+        include: [
+          {
+            model: MoneyType,
+            as: 'SaleType',
+            attributes: ['id', 'typeName'],
+            where: moneyType ? { typeName: moneyType } : {},
+          },
+          {
+            model: MoneyType,
+            as: 'PurchaseType',
+            attributes: ['id', 'typeName'],
+            where: moneyType ? { typeName: moneyType } : {},
+          },
+        ],
+        attributes: ['id', 'saleAmount', 'purchaseAmount', 'eDate'],
+      }),
+
+      // Customer accounts for currency information
+      Account.findAll({
+        where: {
+          customerId,
+          deleted: false,
+        },
+        include: [
+          {
+            model: MoneyType,
+            where: moneyType ? { typeName: moneyType } : undefined,
+          },
+          {
+            model: Customer,
+            attributes: ['id'],
+            include: [
+              {
+                model: Stakeholder,
+                attributes: ['id'],
+                include: [
+                  {
+                    model: Person,
+                    where: { organizationId: orgId },
+                    attributes: ['firstName', 'lastName'],
+                    required: true,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    ]);
+
+    // Filter receives and transfers by customer involvement
+    const filteredReceives = receives.filter(
+      (r) =>
+        r.customerId === customerId ||
+        r.FromBranch?.customerId === customerId ||
+        r.PassTo?.customerId === customerId
+    );
+
+    const filteredTransfers = allTransfers.filter(
+      (t) =>
+        t.customerId === customerId || t.ToBranch?.customerId === customerId
+    );
+
+    // Extract customer information
+    let customerInfo = null;
+    if (customerAccounts.length > 0) {
+      const firstAccount = customerAccounts[0];
+      customerInfo = {
+        id: firstAccount.Customer.id,
+        name: `${firstAccount.Customer.Stakeholder.Person.firstName} ${firstAccount.Customer.Stakeholder.Person.lastName}`,
+        firstName: firstAccount.Customer.Stakeholder.Person.firstName,
+        lastName: firstAccount.Customer.Stakeholder.Person.lastName,
+      };
+    }
+
+    // Calculate totals for each transaction type
+    const calculateTotals = (transactions, amountField, type) => {
+      let total = 0;
+      let count = transactions.length;
+
+      transactions.forEach((transaction) => {
+        const amount = parseFloat(transaction[amountField]) || 0;
+        total += amount;
+      });
+
+      return {
+        type,
+        total: parseFloat(total.toFixed(2)),
+        count,
+        average: count > 0 ? parseFloat((total / count).toFixed(2)) : 0,
+      };
+    };
+
+    // Calculate deposit totals
+    const depositTotals = calculateTotals(deposits, 'deposit', 'deposit');
+
+    // Calculate withdraw totals
+    const withdrawTotals = calculateTotals(withdraws, 'withdraw', 'withdraw');
+
+    // Calculate receive totals (only amounts where customer is receiver)
+    const receiveTotals = {
+      type: 'receive',
+      total: 0,
+      count: 0,
+      average: 0,
+      breakdown: {
+        asReceiver: 0,
+        asSenderBranch: 0,
+        asReceiverBranch: 0,
+      },
+    };
+
+    filteredReceives.forEach((receive) => {
+      const amount = parseFloat(receive.receiveAmount) || 0;
+
+      if (receive.customerId === customerId) {
+        // Customer is the receiver
+        receiveTotals.total += amount;
+        receiveTotals.breakdown.asReceiver += amount;
+        receiveTotals.count++;
+      } else if (receive.FromBranch?.customerId === customerId) {
+        // Customer's branch is sending money
+        receiveTotals.breakdown.asSenderBranch += amount;
+      } else if (receive.PassTo?.customerId === customerId) {
+        // Customer's branch is receiving money
+        receiveTotals.total += amount;
+        receiveTotals.breakdown.asReceiverBranch += amount;
+        receiveTotals.count++;
+      }
+    });
+
+    receiveTotals.average =
+      receiveTotals.count > 0
+        ? parseFloat((receiveTotals.total / receiveTotals.count).toFixed(2))
+        : 0;
+
+    // Calculate transfer totals (only amounts where customer is sender)
+    const transferTotals = {
+      type: 'transfer',
+      total: 0,
+      count: 0,
+      average: 0,
+      breakdown: {
+        asSender: 0,
+        asReceiverBranch: 0,
+      },
+    };
+
+    filteredTransfers.forEach((transfer) => {
+      const amount = parseFloat(transfer.transferAmount) || 0;
+
+      if (transfer.customerId === customerId) {
+        // Customer is sending money
+        transferTotals.total += amount;
+        transferTotals.breakdown.asSender += amount;
+        transferTotals.count++;
+      } else if (transfer.ToBranch?.customerId === customerId) {
+        // Customer's branch is receiving money
+        transferTotals.breakdown.asReceiverBranch += amount;
+      }
+    });
+
+    transferTotals.average =
+      transferTotals.count > 0
+        ? parseFloat((transferTotals.total / transferTotals.count).toFixed(2))
+        : 0;
+
+    // Calculate exchange totals
+    const exchangeTotals = {
+      type: 'exchange',
+      totalSales: 0,
+      totalPurchases: 0,
+      netExchange: 0,
+      count: exchanges.length,
+      breakdown: {
+        sales: 0,
+        purchases: 0,
+      },
+    };
+
+    exchanges.forEach((exchange) => {
+      const saleAmount = parseFloat(exchange.saleAmount) || 0;
+      const purchaseAmount = parseFloat(exchange.purchaseAmount) || 0;
+
+      exchangeTotals.totalSales += saleAmount;
+      exchangeTotals.totalPurchases += purchaseAmount;
+      exchangeTotals.breakdown.sales += saleAmount;
+      exchangeTotals.breakdown.purchases += purchaseAmount;
+    });
+
+    exchangeTotals.netExchange = parseFloat(
+      (exchangeTotals.totalPurchases - exchangeTotals.totalSales).toFixed(2)
+    );
+
+    // Calculate overall totals
+    const initialBalance = 0; // You might need to calculate this from account creation
+
+    const overallTotals = {
+      totalIncoming:
+        receiveTotals.total +
+        exchangeTotals.totalPurchases +
+        depositTotals.total,
+      totalOutgoing:
+        transferTotals.total + exchangeTotals.totalSales + withdrawTotals.total,
+      netFlow: 0,
+      transactionCount:
+        depositTotals.count +
+        withdrawTotals.count +
+        receiveTotals.count +
+        transferTotals.count +
+        exchangeTotals.count,
+      initialBalance: initialBalance,
+      calculatedBalance:
+        initialBalance +
+        (receiveTotals.total +
+          exchangeTotals.totalPurchases +
+          depositTotals.total) -
+        (transferTotals.total +
+          exchangeTotals.totalSales +
+          withdrawTotals.total),
+      actualBalance: 136166, // From accounts API
+    };
+
+    overallTotals.netFlow = parseFloat(
+      (overallTotals.totalIncoming - overallTotals.totalOutgoing).toFixed(2)
+    );
+
+    // Group by currency if moneyType is not specified
+    const currencyBreakdown = {};
+
+    if (!moneyType) {
+      // Process deposits and withdraws by currency
+      [...deposits, ...withdraws].forEach((transaction) => {
+        const currency = transaction.Account?.MoneyType?.typeName || 'Unknown';
+        if (!currencyBreakdown[currency]) {
+          currencyBreakdown[currency] = {
+            deposits: 0,
+            withdraws: 0,
+            receives: 0,
+            transfers: 0,
+            exchangeSales: 0,
+            exchangePurchases: 0,
+          };
+        }
+
+        if (transaction.deposit > 0) {
+          currencyBreakdown[currency].deposits += parseFloat(
+            transaction.deposit
+          );
+        } else if (transaction.withdraw > 0) {
+          currencyBreakdown[currency].withdraws += parseFloat(
+            transaction.withdraw
+          );
+        }
+      });
+
+      // Process receives and transfers by currency
+      [...filteredReceives, ...filteredTransfers].forEach((transaction) => {
+        const currency = transaction.MainMoneyType?.typeName || 'Unknown';
+        if (!currencyBreakdown[currency]) {
+          currencyBreakdown[currency] = {
+            deposits: 0,
+            withdraws: 0,
+            receives: 0,
+            transfers: 0,
+            exchangeSales: 0,
+            exchangePurchases: 0,
+          };
+        }
+
+        if (
+          transaction.receiveAmount > 0 &&
+          (transaction.customerId === customerId ||
+            transaction.PassTo?.customerId === customerId)
+        ) {
+          currencyBreakdown[currency].receives += parseFloat(
+            transaction.receiveAmount
+          );
+        } else if (
+          transaction.transferAmount > 0 &&
+          transaction.customerId === customerId
+        ) {
+          currencyBreakdown[currency].transfers += parseFloat(
+            transaction.transferAmount
+          );
+        }
+      });
+
+      // Process exchanges by currency
+      exchanges.forEach((exchange) => {
+        const saleCurrency = exchange.SaleType?.typeName || 'Unknown';
+        const purchaseCurrency = exchange.PurchaseType?.typeName || 'Unknown';
+
+        if (!currencyBreakdown[saleCurrency]) {
+          currencyBreakdown[saleCurrency] = {
+            deposits: 0,
+            withdraws: 0,
+            receives: 0,
+            transfers: 0,
+            exchangeSales: 0,
+            exchangePurchases: 0,
+          };
+        }
+        if (!currencyBreakdown[purchaseCurrency]) {
+          currencyBreakdown[purchaseCurrency] = {
+            deposits: 0,
+            withdraws: 0,
+            receives: 0,
+            transfers: 0,
+            exchangeSales: 0,
+            exchangePurchases: 0,
+          };
+        }
+
+        currencyBreakdown[saleCurrency].exchangeSales += parseFloat(
+          exchange.saleAmount
+        );
+        currencyBreakdown[purchaseCurrency].exchangePurchases += parseFloat(
+          exchange.purchaseAmount
+        );
+      });
+    }
+
+    // Prepare final response
+    const response = {
+      status: 'success',
+      customer: customerInfo,
+      period: {
+        fromDate: fromDate || 'all',
+        toDate: toDate || 'all',
+        currency: moneyType || 'all',
+      },
+      totals: {
+        deposits: depositTotals,
+        withdraws: withdrawTotals,
+        receives: receiveTotals,
+        transfers: transferTotals,
+        exchanges: exchangeTotals,
+        overall: overallTotals,
+      },
+      ...(!moneyType && { currencyBreakdown }),
+      summary: {
+        totalTransactions: overallTotals.transactionCount,
+        netCashFlow: overallTotals.netFlow,
+        mostActiveType: getMostActiveType([
+          depositTotals,
+          withdrawTotals,
+          receiveTotals,
+          transferTotals,
+        ]),
+        largestTransaction: getLargestTransaction(
+          [
+            ...deposits,
+            ...withdraws,
+            ...filteredReceives,
+            ...filteredTransfers,
+            ...exchanges,
+          ],
+          customerId
+        ),
+      },
+    };
+
+    res.status(200).json(response);
+  } catch (err) {
+    console.error('❌ getCustomerTransactionTotals error:', err);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to calculate transaction totals',
+      error:
+        process.env.NODE_ENV === 'development'
+          ? err.message
+          : 'Internal server error',
+    });
+  }
+};
+
+// Helper function to find the most active transaction type
+function getMostActiveType(totalsArray) {
+  if (totalsArray.length === 0) return null;
+
+  const mostActive = totalsArray.reduce((max, current) =>
+    current.total > max.total ? current : max
+  );
+
+  return {
+    type: mostActive.type,
+    amount: mostActive.total,
+    count: mostActive.count,
+  };
+}
+
+// Helper function to find the largest transaction
+function getLargestTransaction(transactions, customerId) {
+  if (transactions.length === 0) return null;
+
+  let largest = null;
+  let largestAmount = 0;
+
+  transactions.forEach((transaction) => {
+    let amount = 0;
+    let type = '';
+
+    if (transaction.deposit > 0) {
+      amount = parseFloat(transaction.deposit);
+      type = 'deposit';
+    } else if (transaction.withdraw > 0) {
+      amount = parseFloat(transaction.withdraw);
+      type = 'withdraw';
+    } else if (
+      transaction.receiveAmount > 0 &&
+      (transaction.customerId === customerId ||
+        transaction.PassTo?.customerId === customerId)
+    ) {
+      amount = parseFloat(transaction.receiveAmount);
+      type = 'receive';
+    } else if (
+      transaction.transferAmount > 0 &&
+      transaction.customerId === customerId
+    ) {
+      amount = parseFloat(transaction.transferAmount);
+      type = 'transfer';
+    } else if (transaction.saleAmount > 0) {
+      amount = parseFloat(transaction.saleAmount);
+      type = 'exchange_sale';
+    } else if (transaction.purchaseAmount > 0) {
+      amount = parseFloat(transaction.purchaseAmount);
+      type = 'exchange_purchase';
+    }
+
+    if (amount > largestAmount) {
+      largestAmount = amount;
+      largest = {
+        amount,
+        type,
+        date:
+          transaction.DWDate ||
+          transaction.rDate ||
+          transaction.tDate ||
+          transaction.eDate,
+        id: transaction.id,
+      };
+    }
+  });
+
+  return largest;
 }

@@ -15,5 +15,10 @@ router.get(
   customerAuth,
   customerController.getCustomerTransactions
 );
+router.get(
+  '/transactionsTotal',
+  customerAuth,
+  customerController.getCustomerTransactionTotals
+);
 
 module.exports = router;
