@@ -1120,14 +1120,23 @@ exports.getDayBook = async (req, res) => {
               accountNo: null,
               amount: saleAmount,
               isCredit: false,
-              currency: baseData.SaleMoneyType?.typeName,
+              currency: baseData.SaleType?.typeName,
+              moneyType: baseData.SaleType?.typeName, // ADD THIS LINE - FIX
               description: `Currency sale - Rate: ${baseData.rate}`,
               debit: saleAmount,
               credit: 0,
               entityType: 'customer',
-              saleCurrency: baseData.SaleMoneyType?.typeName,
-              purchaseCurrency: baseData.PurchaseMoneyType?.typeName,
+              saleCurrency: baseData.SaleType?.typeName,
+              purchaseCurrency: baseData.PurchaseType?.typeName,
               rate: baseData.rate,
+              exchangeDetails: {
+                // ADD THIS OBJECT
+                exchangeId: baseData.id,
+                rate: baseData.rate,
+                saleCurrency: baseData.SaleType?.typeName,
+                purchaseCurrency: baseData.PurchaseType?.typeName,
+                isSale: true,
+              },
             });
           }
 
@@ -1145,14 +1154,23 @@ exports.getDayBook = async (req, res) => {
               accountNo: null,
               amount: purchaseAmount,
               isCredit: true,
-              currency: baseData.PurchaseMoneyType?.typeName,
+              currency: baseData.PurchaseType?.typeName,
+              moneyType: baseData.PurchaseType?.typeName, // ADD THIS LINE - FIX
               description: `Currency purchase - Rate: ${baseData.rate}`,
               debit: 0,
               credit: purchaseAmount,
               entityType: 'customer',
-              saleCurrency: baseData.SaleMoneyType?.typeName,
-              purchaseCurrency: baseData.PurchaseMoneyType?.typeName,
+              saleCurrency: baseData.SaleType?.typeName,
+              purchaseCurrency: baseData.PurchaseType?.typeName,
               rate: baseData.rate,
+              exchangeDetails: {
+                // ADD THIS OBJECT
+                exchangeId: baseData.id,
+                rate: baseData.rate,
+                saleCurrency: baseData.SaleType?.typeName,
+                purchaseCurrency: baseData.PurchaseType?.typeName,
+                isPurchase: true,
+              },
             });
           }
           break;
